@@ -7,7 +7,7 @@ import threading
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = "/data/traffic.db"
+from core.paths import QB_DB_PATH as DB_PATH  # noqa: E402
 _lock = threading.Lock()
 _schema_ensured = False
 
@@ -231,7 +231,7 @@ def init_db():
         ''')
 
         conn.commit()
-        c.execute('PRAGMA journal_mode=WAL')
+        c.execute('PRAGMA journal_mode=WAL').fetchall()  # 读完结果，否则新版 Python 下连接关闭后仍占着锁
         conn.commit()
         conn.close()
         _schema_ensured = True

@@ -3,11 +3,12 @@
 import os
 import logging
 from datetime import timedelta
-from flask import session, request, jsonify, redirect, url_for
+from urllib.parse import urlencode
+from flask import session, request, jsonify, redirect
 
 logger = logging.getLogger(__name__)
 
-SECRET_PATH = '/data/.web_secret'
+from core.paths import WEB_SECRET_PATH as SECRET_PATH  # noqa: E402
 LOGIN_EXEMPT_PREFIXES = ('/static/',)
 LOGIN_EXEMPT_EXACT = ('/login', '/api/auth/login', '/api/auth/check')
 
@@ -49,7 +50,7 @@ def init_auth(app):
         next_url = request.full_path if request.query_string else path
         if next_url.endswith('?') and not request.query_string:
             next_url = path
-        return redirect(url_for('login_page', next=next_url))
+        return redirect('/login?' + urlencode({'next': next_url}))
 
 
 def login_user(username: str, remember: bool = False):

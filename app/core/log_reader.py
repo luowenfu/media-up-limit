@@ -5,7 +5,8 @@ from typing import Iterator, List, Optional
 
 from core.syslog_localize import localize_system_log_entry
 
-LOG_PATH = os.environ.get('APP_LOG_PATH', '/data/app.log')
+from core.paths import APP_LOG_PATH
+
 _LOG_LINE_RE = re.compile(
     r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) '
     r'\[(DEBUG|INFO|WARNING|ERROR|CRITICAL)\] '
@@ -13,80 +14,14 @@ _LOG_LINE_RE = re.compile(
 )
 
 
-def _log_path_candidates() -> List[Path]:
-    candidates: List[Path] = []
-    env = (os.environ.get('APP_LOG_PATH') or '').strip()
-    if env:
-        candidates.append(Path(env))
-    candidates.append(Path('/data/app.log'))
-    candidates.append(Path(__file__).resolve().parent.parent / 'data' / 'app.log')
-    seen = set()
-    ordered: List[Path] = []
-    for path in candidates:
-        key = str(path)
-        if key in seen:
-            continue
-        seen.add(key)
-        ordered.append(path)
-    return ordered
-
-
-def _data_log_dir(*, for_write: bool = False) -> Path:
-    """与 app.log 同级的 data 目录（容器 /data，本地 app/data）。"""
-    env = (os.environ.get('APP_LOG_PATH') or '').strip()
-    if env:
-        return Path(env).parent
-    if Path('/data').exists():
-        return Path('/data')
-    base = Path(__file__).resolve().parent.parent / 'data'
-    if for_write:
-        try:
-            base.mkdir(parents=True, exist_ok=True)
-        except OSError:
-            pass
-    return base
-
-
 def resolve_app_log_path(*, for_write: bool = False) -> Path:
-    """解析 app.log 路径：读时优先非空文件，写时优先 APP_LOG_PATH 或 /data。"""
+    """app.log 路径，固定在数据卷里（可用 APP_LOG_PATH 覆盖）。"""
+    path = Path(APP_LOG_PATH)
     if for_write:
-        env = (os.environ.get('APP_LOG_PATH') or '').strip()
-        if env:
-            base = Path(env)
-        elif Path('/data').exists():
-            base = Path('/data/app.log')
-        else:
-            base = _data_log_dir(for_write=True) / 'app.log'
         try:
-            base.parent.mkdir(parents=True, exist_ok=True)
+            path.parent.mkdir(parents=True, exist_ok=True)
         except OSError:
             pass
-        return base
-
-    for path in _log_path_candidates():
-        try:
-            if path.exists() and path.stat().st_size > 0:
-                return path
-        except OSError:
-            continue
-    for path in _log_path_candidates():
-        if path.exists():
-            return path
-    return _log_path_candidates()[0]
-
-
-def resolve_debug_log_path(*, session_id: Optional[str] = None) -> Path:
-    """开发/验算用 NDJSON 调试日志，统一落在 data 卷（可通过 APP_DEBUG_LOG_PATH 覆盖）。"""
-    env = (os.environ.get('APP_DEBUG_LOG_PATH') or '').strip()
-    if env:
-        path = Path(env)
-    else:
-        name = f'debug-{session_id}.log' if session_id else 'debug.log'
-        path = _data_log_dir(for_write=True) / name
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-    except OSError:
-        pass
     return path
 
 

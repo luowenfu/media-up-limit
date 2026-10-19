@@ -12,11 +12,9 @@ logger = logging.getLogger(__name__)
 
 _lock = threading.RLock()
 
-DATA_KEY_PATH = '/data/.data_key'
-WEB_AUTH_PATH = '/data/.web_auth'
-QB_SECRETS_PATH = '/data/.qb_secrets'
-EMBY_SECRETS_PATH = '/data/.emby_secrets'
-LUCKY_SECRETS_PATH = '/data/.lucky_secrets'
+from core.paths import (  # noqa: E402
+    DATA_KEY_PATH, WEB_AUTH_PATH, QB_SECRETS_PATH, EMBY_SECRETS_PATH, LUCKY_SECRETS_PATH,
+)
 
 DEFAULT_WEB_USER = 'admin'
 DEFAULT_WEB_PASS = 'adminadmin'

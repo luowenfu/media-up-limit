@@ -11,7 +11,7 @@ import qb.traffic_db as traffic_db
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = '/data/emby_traffic.db'
+from core.paths import EMBY_DB_PATH as DB_PATH  # noqa: E402
 _LEGACY_DB_PATH = traffic_db.DB_PATH
 _SPLIT_DB_MIGRATION = 'split_emby_traffic_db_v1'
 
@@ -384,7 +384,7 @@ def init_db():
                 ON emby_browse_upload_facts(instance_name, stopped_at DESC)
             ''')
             conn.commit()
-            c.execute('PRAGMA journal_mode=WAL')
+            c.execute('PRAGMA journal_mode=WAL').fetchall()  # 读完结果，否则新版 Python 下连接关闭后仍占着锁
             conn.commit()
             _migrate_from_legacy_traffic_db_unlocked()
             _emby_schema_ensured = True

@@ -4,7 +4,7 @@ import hashlib
 import os
 import re
 
-EMBY_EVENTS_DIR = '/data/emby_events'
+from core.paths import EMBY_EVENTS_DIR  # noqa: E402
 
 
 def safe_filename(instance_name: str) -> str:

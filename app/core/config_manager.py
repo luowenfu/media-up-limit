@@ -19,7 +19,7 @@ from emby.lucky.api import (
 logger = logging.getLogger(__name__)
 
 # 运行时配置（可写，存放在 data 卷）
-CONFIG_PATH = '/data/config.yaml'
+from core.paths import CONFIG_PATH  # noqa: E402
 # 界面展示用的相对路径提示（对应容器内 /data 卷挂载目录）
 CONFIG_RELATIVE_PATH = 'data/config.yaml'
 # 可选种子配置（只读挂载，首次启动时导入）

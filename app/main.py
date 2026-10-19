@@ -38,7 +38,7 @@ import emby.traffic.db as emby_traffic_db
 import emby.records.store as playback_record_store
 from qb.scheduler import TrafficMonitor
 from emby.scheduler import EmbyMonitor
-from web.server import init_web_server, run_web_server
+from web.app import init_web_server, run_web_server
 import core.config_manager as config_manager
 
 _runtime = {}

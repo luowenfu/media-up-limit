@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 _lock = threading.RLock()
 
-USER_PREFS_PATH = '/data/.user_prefs'
+from core.paths import USER_PREFS_PATH  # noqa: E402
 
 DEVICE_VIEW_MODES = frozenset({'qb', 'emby', 'merge'})
 DEVICE_PREF_KEYS = (

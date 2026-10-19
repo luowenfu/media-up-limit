@@ -1,0 +1,40 @@
+/* ============ 接真实数据后新增的少量样式（不改动原型已有外观） ============ */
+
+/* 工具栏里的下拉与输入：保持 .field 的外观，去掉原生边框 */
+.field select, .field input {
+    appearance: none; -webkit-appearance: none; border: 0; outline: 0; background: transparent;
+    font: inherit; color: inherit; padding: 0; min-width: 0; cursor: pointer;
+}
+.field select { padding-right: 2px; max-width: 220px; text-overflow: ellipsis; }
+.field.search input { flex: 1; cursor: text; color: var(--text-1); }
+.field.search input::placeholder { color: var(--text-3); }
+.field.datef { position: relative; cursor: pointer; }
+.field.datef input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; }
+
+/* 离线设备 */
+.dev-url .online.off { background: #f87171; box-shadow: 0 0 0 3px rgba(248, 113, 113, .25); }
+.dev.is-off .dev-body { opacity: .62; }
+
+/* 限速模式可点击切换 */
+.toggle > span { cursor: pointer; }
+.toggle > span.on { cursor: default; }
+
+/* 错误提示 */
+.toast.err .ti { background: #ef4444; }
+
+/* 数字输入去掉浏览器自带的上下箭头，用 +/- 按钮代替 */
+.stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.stepper input[type="number"] { -moz-appearance: textfield; }
+
+/* ============ 登录页 ============ */
+.login-page { min-height: 100vh; display: grid; place-items: center; padding: 20px; background: radial-gradient(1200px 600px at 10% -10%, #dbe7ff 0, transparent 60%), radial-gradient(900px 500px at 110% 110%, #d9f5ea 0, transparent 55%), var(--bg, #f4f6fb); }
+.login-card { width: min(400px, 100%); padding: 28px 26px 22px; border-radius: 20px; background: #fff; border: 1px solid var(--line); box-shadow: 0 24px 60px -24px rgba(15, 23, 42, .28); }
+.login-brand { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+.login-brand .brand-logo { flex-shrink: 0; }
+.login-brand h1 { margin: 0; font-size: 18px; font-weight: 800; color: var(--text); }
+.login-brand p { margin: 3px 0 0; font-size: 12.5px; color: var(--text-2); }
+.login-form { display: grid; gap: 14px; }
+.login-form .btn.primary { width: 100%; justify-content: center; height: 42px; }
+.login-remember { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; }
+.login-error { margin: 0; padding: 9px 12px; border-radius: 10px; font-size: 12.5px; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+.login-version { margin: 18px 0 0; text-align: center; font-size: 12px; color: var(--text-3); }
