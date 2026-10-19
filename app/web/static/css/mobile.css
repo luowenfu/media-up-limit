@@ -50,6 +50,7 @@
     .toolbar { padding: 12px; }
     .field.search { flex: 1 1 100%; }
     .tool-r { margin-left: 0; }
+    .tool-r .field { max-width: 100%; }
     .chart-svg { height: 240px; }
     .ev { grid-template-columns: 30px 1fr; }
     .ev-time { display: none; }

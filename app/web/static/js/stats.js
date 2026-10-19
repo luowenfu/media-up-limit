@@ -137,6 +137,11 @@ function toolbar(m, kind, dev) {
     const dateField = range === 'hour'
         ? `<input type="date" id="stDate" value="${anchor}" max="${defaultAnchor('hour')}">`
         : range === 'day' ? `<input type="month" id="stDate" value="${anchor}" max="${defaultAnchor('day')}">` : '';
+    const span = state.statsSpan || '6';
+    const spans = [['6', '近6个月'], ['12', '近12个月'], ['24', '近24个月'], ['all', '全部']];
+    const periodField = range === 'month'
+        ? `<span class="field"><span class="k">时段</span><select id="stSpan">${spans.map(([v, lab]) => `<option value="${v}" ${span === v ? 'selected' : ''}>${lab}</option>`).join('')}</select>${I.chev}</span>`
+        : `<span class="field datef" data-datef>${I.cal.replace(/16/g, '14')}${m.sp.caption}${dateField}</span>`;
     return `<div class="panel">
         <div class="toolbar">
             <span class="field"><span class="k">设备</span><select id="stDev">${list.map(d => `<option ${d.name === dev.name ? 'selected' : ''} value="${esc(d.name)}">${esc(d.name)}</option>`).join('')}</select>${I.chev}</span>
@@ -147,7 +152,7 @@ function toolbar(m, kind, dev) {
                 <button data-r="month" class="${range === 'month' ? 'on' : ''}">按月</button>
             </div>
             <div class="tool-r">
-                <span class="field datef" data-datef>${I.cal.replace(/16/g, '14')}${m.sp.caption}${dateField}</span>
+                ${periodField}
             </div>
         </div>
     </div>`;

@@ -28,6 +28,8 @@ file_handler.setFormatter(logging.Formatter(
 logging.getLogger().addHandler(file_handler)
 
 logging.getLogger('urllib3').setLevel(logging.WARNING)
+# 工作线程暂时排队不是故障，不写入系统日志
+logging.getLogger('waitress.queue').setLevel(logging.ERROR)
 
 logger = logging.getLogger(__name__)
 

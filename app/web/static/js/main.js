@@ -1,12 +1,11 @@
 /* 入口：启动、导航、事件绑定、定时刷新 */
 
 import * as api from './api.js';
-import { logState, exportLogs, logListHtml } from './syslogs.js';
+import { exportLogs, loadMoreLogs, logListHtml } from './syslogs.js';
 import {
     state, embyOn, loadGlobal, loadPrefs, loadStatus, pickPlatform, refreshLive, savePrefs, syncMerge,
 } from './store.js';
-import { refreshEventBadge } from './events.js';
-import { effKind, render, refreshLogsInPlace } from './shell.js';
+import { render, refreshLogsInPlace } from './shell.js';
 import { uiClick, uiInput, relockTiles } from './interact.js';
 import { openSettings } from './settings.js';
 import { openMergeEditor } from './merge.js';
@@ -36,9 +35,11 @@ function resetFilters() {
 function setPlatform(p) {
     if (p !== 'qb' && !embyOn()) { toast('Emby 监控未开启，可在全局设置中开启', 'info'); return; }
     if (p === 'merge' && state.platform === 'merge' && state.page === 'devices') { openMergeEditor(); return; }
+    const toDevices = p === 'merge' && state.page !== 'devices';
     if (p !== state.platform) resetFilters();
-    state.platform = p;
     savePrefs({ device_view_mode: p });
+    if (toDevices) { go({ platform: p, page: 'devices' }); return; }
+    state.platform = p;
     render();
 }
 
@@ -68,7 +69,7 @@ document.addEventListener('click', e => {
     if (t.hasAttribute('data-hidelan')) { state.eventsHideLan = !state.eventsHideLan; render(); return; }
     if (t.hasAttribute('data-datef')) { t.querySelector('input')?.showPicker?.(); return; }
     if (t.hasAttribute('data-log-export')) { exportLogs(state.logLv, state.logQuery); return; }
-    if (t.hasAttribute('data-log-more')) { logState.limit += 500; render(); return; }
+    if (t.hasAttribute('data-log-more')) { loadMoreLogs(); return; }
     if (t.hasAttribute('data-close') || t.id === 'modal') closeModal();
     if (t.classList.contains('logout')) logout();
 });
@@ -84,6 +85,7 @@ document.addEventListener('change', e => {
     if (t.id === 'stDev') { state.statsDevice = t.value; state.statsUser = ''; render(); }
     else if (t.id === 'stUser') { state.statsUser = t.value === '__all_users__' ? '' : t.value; render(); }
     else if (t.id === 'stDate') { state.statsDate = t.value || defaultAnchor(state.statsRange); render(); }
+    else if (t.id === 'stSpan') { state.statsSpan = t.value; render(); }
     else if (t.id === 'evDev') { state.eventsDevice = t.value; state.eventsUser = ''; render(); }
     else if (t.id === 'evUser') { state.eventsUser = t.value; render(); }
     else if (t.id === 'evDays') { state.eventsDays = +t.value; render(); }
@@ -148,11 +150,34 @@ let slow = 0;
 const period = () => Math.max(1, state.global.refresh_interval || 1);
 document.addEventListener('app:interval', () => { left = period(); });
 
+function syncRing() {
+    const ring = document.querySelector('.ring');
+    const label = document.querySelector('.status-meta b');
+    if (!ring || !label) return;
+    const live = period() <= 1;
+    ring.classList.toggle('breath', live);
+    const text = live ? '实时刷新' : '自动刷新';
+    let node = [...label.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
+    if (!node) label.appendChild(node = document.createTextNode(text));
+    else node.textContent = text;
+    let dot = ring.querySelector('i') || label.querySelector('i');
+    if (!dot) {
+        dot = document.createElement('i');
+        dot.id = 'liveDot';
+    }
+    if (live) {
+        if (dot.parentElement !== ring) ring.appendChild(dot);
+    } else if (dot.parentElement !== label) label.prepend(dot);
+}
+
 function tick() {
     const now = new Date();
     $('#clock').textContent = `${pad(now.getMonth() + 1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    $('#ringSec').textContent = left;
-    $('#ringBar').style.strokeDashoffset = 97.4 * (1 - left / period());
+    syncRing();
+    if (period() > 1) {
+        $('#ringSec').textContent = left;
+        $('#ringBar').style.strokeDashoffset = 97.4 * (1 - left / period());
+    } else $('#ringBar').style.strokeDashoffset = '';
     if (left <= 1) {
         left = period();
         if (state.page === 'stats' || state.page === 'events') {
@@ -178,7 +203,6 @@ async function boot() {
     state.ready = true;
     left = period();
     await render();
-    refreshEventBadge(effKind());
     tick();
     setInterval(tick, 1000);
 }

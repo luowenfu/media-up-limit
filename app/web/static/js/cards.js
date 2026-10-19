@@ -50,7 +50,7 @@ const dot = d => `<span class="online ${d.online ? '' : 'off'}"></span>`;
 export function qbCard(d, i) {
     return `<article class="dev ${d.online ? '' : 'is-off'}">
         <header class="dev-head">
-            <div class="dev-icon">qB</div>
+            <div class="dev-icon" title="qBittorrent"><img src="/static/img/qbittorrent-logo.svg" alt=""></div>
             <div class="dev-title">
                 <div class="dev-name">${esc(d.name)}</div>
                 <div class="dev-url">${dot(d)}${urlLine(d)}</div>
@@ -78,9 +78,9 @@ export function qbCard(d, i) {
                 <h4 class="sec-title">${I.rules}达量限速规则<span style="color:var(--text-3);font-weight:600">${d.rules.length}</span>
                     <span class="more"><button class="mini-btn" data-goto="stats" data-dev="${esc(d.name)}">${I.chart}图表</button><button class="mini-btn" data-goto="events" data-dev="${esc(d.name)}">${I.list}记录</button></span>
                 </h4>
-                <div class="rules">${d.rules.map((r, n) => `
+                <div class="rules">${d.rules.map(r => `
                     <div class="rule ${r.st || ''}">
-                        <div class="rule-top"><span class="n">${n + 1}</span><b>阈值 ${r.th}</b><span class="pct num">${r.pct}%</span></div>
+                        <div class="rule-top"><b>阈值 ${r.th}</b><span class="pct num">${r.pct}%</span></div>
                         <div class="prog"><i style="width:${r.pctNum}%"></i></div>
                         <div class="rule-bot"><span>限速至 <b style="color:var(--text-1)">${r.speed}</b></span><span class="r ${r.st ? 'st' : ''}">${r.note}</span></div>
                     </div>`).join('')}
@@ -131,7 +131,7 @@ export function embyCard(d, i) {
     const key = 'e' + i;
     return `<article class="dev ${d.online ? '' : 'is-off'}">
         <header class="dev-head emby">
-            <div class="dev-icon"><svg width="18" height="18" viewBox="0 0 20 20"><path d="M6.5 4.5v11l9-5.5-9-5.5z" fill="currentColor"/></svg></div>
+            <div class="dev-icon" title="Emby"><img src="/static/img/emby-icon.svg" alt=""></div>
             <div class="dev-title">
                 <div class="dev-name">${esc(d.name)}</div>
                 <div class="dev-url">${dot(d)}${urlLine(d)}</div>
@@ -177,12 +177,9 @@ export function renderDevices(p) {
     const qbOn = state.merge.qb.filter(o => o.on), embyOnList = state.merge.emby.filter(o => o.on);
     const qi = n => qb.findIndex(d => d.name === n), ei = n => em.findIndex(d => d.name === n);
     return `<div class="merge-bar">
-        <span class="mb-ico">${ico('rules', 16)}</span>
-        <div class="mb-t"><b>合并显示</b><small>
-            <span><i style="background:var(--qb)"></i>qB ${qbOn.length}/${qb.length}</span>
-            <span><i style="background:var(--emby)"></i>Emby ${embyOnList.length}/${em.length}</span>
-        </small></div>
-        <button type="button" class="btn sm" data-merge-edit>${ico('gear', 15)}选择与排序</button>
+        <span class="mb-ico">${ico('merge', 16)}</span>
+        <div class="mb-t"><b>合并显示</b></div>
+        <button type="button" class="btn sm" data-merge-edit>${ico('rules', 15)}选择与排序</button>
     </div>
     <div class="merge">
         <div class="merge-col"><div class="col-head"><span class="dot" style="background:var(--qb)"></span>qBittorrent<small>${qbOn.length} 台</small></div>${qbOn.map(o => qbCard(qb[qi(o.name)], qi(o.name))).join('')}</div>

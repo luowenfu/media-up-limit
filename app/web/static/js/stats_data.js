@@ -24,7 +24,62 @@ export function defaultAnchor(range) {
     return range === 'hour' ? ymd(now) : ym(now);
 }
 
-/** 范围描述：标签、接口参数、上一周期锚点 */
+const monthKey = r => {
+    if (r.period) return String(r.period);
+    const m = r.month;
+    if (m != null && String(m).includes('-')) return String(m);
+    if (r.year != null && m != null) return `${r.year}-${p2(m)}`;
+    return '';
+};
+
+/** 按月窗口。span 为 6 / 12 / 24 / all，anchor 是窗口结束月 */
+function monthSpec(span, anchor) {
+    const end = anchor || ym(new Date());
+    const n = span === 'all' ? 0 : ([6, 12, 24].includes(+span) ? +span : 6);
+    if (!n) {
+        return {
+            period: 'monthly', all: true,
+            params: { start: '2000-01', end }, end, prev: null, caption: '全部',
+            labels: [`${end.slice(5)}月`], keys: [end], keyOf: monthKey,
+        };
+    }
+    const months = Array.from({ length: n }, (_, i) => addMonths(end, i - (n - 1)));
+    const label = k => (n > 6 ? `${k.slice(2, 4)}/${k.slice(5)}` : `${k.slice(5)}月`);
+    return {
+        period: 'monthly',
+        params: { start: months[0], end: months[n - 1] },
+        labels: months.map(label),
+        keyOf: monthKey,
+        keys: months,
+        prev: addMonths(end, -n),
+        caption: `近${n}个月`,
+    };
+}
+
+/** 全部：从最早有数据的月份画到当前月，中间没有流量的月份补 0 */
+function fitMonths(sp, groups) {
+    const found = [];
+    groups.flat().forEach(r => {
+        const k = sp.keyOf(r);
+        if (/^\d{4}-\d{2}$/.test(k)) found.push(k);
+    });
+    found.sort();
+    const end = sp.end;
+    const start = found.length ? found[0] : end;
+    const months = [];
+    let cur = start;
+    while (cur <= end && months.length < 240) {
+        months.push(cur);
+        cur = addMonths(cur, 1);
+    }
+    if (!months.length) months.push(end);
+    return {
+        ...sp,
+        keys: months,
+        labels: months.map(k => `${k.slice(2, 4)}/${k.slice(5)}`),
+        params: { start: months[0], end: months[months.length - 1] },
+    };
+}
 export function spec(range, anchor) {
     const now = new Date();
     if (range === 'hour') {
@@ -53,16 +108,7 @@ export function spec(range, anchor) {
             caption: `${anchor}-01 ~ ${p2(m)}-${days[days.length - 1]}`,
         };
     }
-    const months = Array.from({ length: 6 }, (_, i) => addMonths(anchor, i - 5));
-    return {
-        period: 'monthly',
-        params: { start: months[0], end: months[5] },
-        labels: months.map(k => `${k.slice(5)}月`),
-        keyOf: r => String(r.period || `${r.year}-${p2(r.month)}`),
-        keys: months,
-        prev: addMonths(anchor, -6),
-        caption: '近 6 个月',
-    };
+    return monthSpec(state.statsSpan || '6', anchor);
 }
 
 function fill(sp, rows, field) {
@@ -81,37 +127,41 @@ async function fetchRows(url, sp, extra) {
 
 /** qB：上传 + 下载，外加上一周期上传用于对比 */
 export async function loadQbStats(name, range, anchor) {
-    const sp = spec(range, anchor), pv = spec(range, sp.prev);
+    let sp = spec(range, anchor);
+    const pv = sp.prev ? spec(range, sp.prev) : null;
     const base = `/api/stats/${enc(name)}`;
     const [up, down, prev, prevDown, events] = await Promise.all([
         fetchRows(base, sp, { direction: 'upload' }),
         fetchRows(base, sp, { direction: 'download' }),
-        fetchRows(base, pv, { direction: 'upload' }).catch(() => []),
-        fetchRows(base, pv, { direction: 'download' }).catch(() => []),
+        pv ? fetchRows(base, pv, { direction: 'upload' }).catch(() => []) : [],
+        pv ? fetchRows(base, pv, { direction: 'download' }).catch(() => []) : [],
         api.get(`/api/events${q({ instance: name, limit: 500 })}`).then(r => r.data || []).catch(() => []),
     ]);
+    if (sp.all) sp = fitMonths(sp, [up, down]);
     const a = fill(sp, up, 'total_bytes'), b = fill(sp, down, 'total_bytes');
     const dev = qbList().find(d => d.name === name);
     const cycleStart = dev && dev.raw.cycle ? String(dev.raw.cycle.start || '').slice(0, 10) : '';
     const hits = events.filter(e => e.event_type === 'limit_applied' && String(e.event_time).slice(0, 10) >= cycleStart).length;
     return {
         kind: 'qb', sp, a, b, name, hits,
-        change: delta(sum(a), sum(fill(pv, prev, 'total_bytes'))),
-        changeDown: delta(sum(b), sum(fill(pv, prevDown, 'total_bytes'))),
+        change: pv ? delta(sum(a), sum(fill(pv, prev, 'total_bytes'))) : null,
+        changeDown: pv ? delta(sum(b), sum(fill(pv, prevDown, 'total_bytes'))) : null,
     };
 }
 
 /** Emby：播放 + 选片（按用户或全部用户） */
 export async function loadEmbyStats(name, range, anchor, user) {
-    const sp = spec(range, anchor), pv = spec(range, sp.prev);
+    let sp = spec(range, anchor);
+    const pv = sp.prev ? spec(range, sp.prev) : null;
     const u = user || ALL_USERS;
     const base = `/api/emby/playback-stats/${enc(name)}`;
     const [cur, prev, monthRank, records] = await Promise.all([
         fetchRows(base, sp, { user: u }),
-        fetchRows(base, pv, { user: u }).catch(() => []),
+        pv ? fetchRows(base, pv, { user: u }).catch(() => []) : [],
         loadUserRank(name),
         api.get(`/api/emby/playback-records${q({ instance: name, limit: 500 })}`).then(r => r.data || []).catch(() => []),
     ]);
+    if (sp.all) sp = fitMonths(sp, [cur]);
     const a = fill(sp, cur, 'playback_bytes'), b = fill(sp, cur, 'browse_bytes');
     const len = sp.period === 'monthly' ? 7 : 10;
     const from = sp.params.start.slice(0, len), to = sp.params.end.slice(0, len);
@@ -121,7 +171,7 @@ export async function loadEmbyStats(name, range, anchor, user) {
     }).length;
     return {
         kind: 'emby', sp, a, b, name, user: u,
-        change: delta(sum(a), sum(fill(pv, prev, 'playback_bytes'))),
+        change: pv ? delta(sum(a), sum(fill(pv, prev, 'playback_bytes'))) : null,
         users: monthRank.users, rank: monthRank.rank, plays,
     };
 }

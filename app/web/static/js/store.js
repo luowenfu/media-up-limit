@@ -7,6 +7,7 @@ export const state = {
     platform: 'qb',
     page: 'devices',
     statsRange: 'day',
+    statsSpan: '6',
     statsDevice: '',
     statsUser: '',
     statsDate: '',

@@ -17,19 +17,7 @@ const FILE_NOTE = {
 };
 const VIEW_LABEL = { qb: 'qB', emby: 'Emby', merge: '合并' };
 const VIEW_VALUE = { qB: 'qb', Emby: 'emby', 合并: 'merge' };
-
 const collectOf = refresh => 5 * Math.max(1, Math.min(10, refresh));
-
-function collectPane(g) {
-    return fs('loop', '采集与刷新', '', `<div class="f-grid">
-        ${fld('页面刷新间隔', stepper(g.refresh_interval, 1, 10, '秒', 'sRefresh'), { hint: '设备卡片与统计的刷新频率，1 – 10 秒' })}
-        ${fld('数据采集间隔', inp({ id: 'sCollect', val: `自动 · 当前 ${g.collect_interval} 秒`, ro: true, pre: 'clock' }), { hint: '根据刷新间隔自动调整' })}
-    </div>`)
-        + fs('db', '数据保存', '', `<div class="f-grid">
-        ${fld('数据保存年限', stepper(g.data_retention_years, 1, 20, '年', 'keepYears'), { hint: '1 – 20 年，超出年限的历史数据会被自动清理' })}
-    </div>
-    <div id="yearsWarn" style="display:none;margin-top:14px">${notice('warn', '缩短保存年限后，超出范围的历史数据将在保存时<b>立即清理</b>，且无法恢复。', 'warn')}</div>`);
-}
 
 function loginPane(g) {
     return fs('lock', 'Web 登录', '访问本管理页面所需的账号', `<div class="f-grid">
@@ -53,10 +41,18 @@ function systemPane(g) {
     <div style="margin-top:12px">${fld('选片流量记录下限', inp({ id: 'sBrowse', val: g.emby_browse_upload_min_mb, type: 'number', suf: 'MB', attr: 'step="any"' }), { hint: '单次选片上传不足该值时不记入统计与日志' })}</div>`);
 }
 
-function dataPane(info) {
+function dataPane(g, info) {
     const files = (info.files || []).map(f => `<div class="file-row"><code>${f.name}</code><span>${FILE_NOTE[f.name] || ''}</span><span class="sz">${fmtFileSize(f.size)}</span></div>`).join('');
-    return fs('doc', '文件作用', '均位于容器的 data 目录', `<div class="file-list">${files}</div>`)
-        + fs('db', '历史数据', '查看、导出或清理已删除设备保留下来的数据', `<button type="button" class="btn" data-orphans>${ico('db', 15)}管理历史数据</button>`);
+    return fs('loop', '采集与刷新', '', `<div class="f-grid">
+        ${fld('页面刷新间隔', stepper(g.refresh_interval, 1, 10, '秒', 'sRefresh'), { hint: '设备卡片与统计的刷新频率，1 – 10 秒' })}
+        ${fld('数据采集间隔', inp({ id: 'sCollect', val: `自动 · 当前 ${g.collect_interval} 秒`, ro: true, pre: 'clock' }), { hint: '根据刷新间隔自动调整' })}
+    </div>`)
+        + fs('db', '数据保存', '', `<div class="f-grid">
+        ${fld('数据保存年限', stepper(g.data_retention_years, 1, 20, '年', 'keepYears'), { hint: '1 – 20 年，超出年限的历史数据会被自动清理' })}
+    </div>
+    <div id="yearsWarn" style="display:none;margin-top:14px">${notice('warn', '缩短保存年限后，超出范围的历史数据将在保存时<b>立即清理</b>，且无法恢复。', 'warn')}</div>`)
+        + fs('doc', '文件作用', '均位于容器的 data 目录', `<div class="file-list">${files}</div>`)
+        + fs('db', '历史数据', '查看、导出或清理已删除设备保留下来的数据', `<button type="button" class="btn" data-orphans>${ico('db', 15)}管理历史数据</button><div id="orphanPanel" hidden></div>`);
 }
 
 async function save(root, g) {
@@ -92,10 +88,9 @@ export async function openSettings() {
         title: '全局设置', sub: `${APP_VERSION} · 已运行 ${fmtUptime(info.uptime_seconds)}`,
         hint: '修改 Web 端口需重启后生效', saveLabel: '保存',
         tabs: [
-            { label: '采集与存储', icon: 'loop', html: collectPane(g) },
             { label: '登录安全', icon: 'lock', html: loginPane(g) },
             { label: '系统', icon: 'server', html: systemPane(g) },
-            { label: '数据', icon: 'db', html: dataPane(info) },
+            { label: '数据', icon: 'db', html: dataPane(g, info) },
         ],
         onSave: root => save(root, g),
     });

@@ -95,7 +95,6 @@ const RANGES = [[7, '最近 7 天'], [30, '最近 30 天'], [0, '全部']];
 /** 取数据并生成 html */
 export async function renderEvents(kind) {
     const all = (kind === 'emby' ? await loadEmby() : await loadQb()).sort((a, b) => b.t - a.t);
-    updateBadge(kind, all);
     const since = state.eventsDays ? Date.now() - state.eventsDays * DAY : 0;
     let list = all.filter(e => e.t.getTime() >= since);
     if (kind === 'emby') {
@@ -142,19 +141,3 @@ export async function renderEvents(kind) {
     </div></div>`;
 }
 
-/* ---------- 侧栏角标：今天的事件数 ---------- */
-function updateBadge(kind, all) {
-    const start = new Date(); start.setHours(0, 0, 0, 0);
-    const n = all.filter(e => e.t >= start).length;
-    const el = document.getElementById('navEvCount');
-    if (el) { el.textContent = n; el.style.display = n ? '' : 'none'; }
-}
-
-export async function refreshEventBadge(kind) {
-    try {
-        const all = kind === 'emby'
-            ? (await api.get('/api/emby/playback-records?limit=100')).data.map(playbackEvent)
-            : (await api.get('/api/events?limit=100')).data.map(qbEvent);
-        updateBadge(kind, all.filter(e => e.t));
-    } catch (e) { /* 角标取不到就保持原样 */ }
-}

@@ -165,6 +165,8 @@ def _entry_passes_filters(
     service: Optional[str],
     instance: Optional[str],
 ) -> bool:
+    if (entry.get('logger') or '') == 'waitress.queue':
+        return False
     if level and entry['level'] != level:
         return False
     if service and not _entry_matches_service(entry, service):
@@ -179,8 +181,13 @@ def _entry_passes_filters(
 def get_system_logs(limit: int = 300, level: str = None, instance: str = None,
                     service: str = None,
                     before_time: str = None, before_logger: str = None,
-                    before_message: str = None) -> tuple:
+                    before_message: str = None, offset: int = 0) -> tuple:
+    """按新到旧返回。offset 跳过最新的若干条，供「加载更多」继续往下接。"""
     limit = max(1, min(int(limit), 500))
+    try:
+        offset = max(0, min(int(offset or 0), 50000))
+    except (TypeError, ValueError):
+        offset = 0
     level = (level or '').strip().upper() or None
     instance = (instance or '').strip() or None
     service = (service or '').strip().lower() or None
@@ -193,6 +200,7 @@ def get_system_logs(limit: int = 300, level: str = None, instance: str = None,
         )
     matched: List[dict] = []
     want = limit + 1
+    skipped = 0
 
     for path in _log_files():
         for line in _iter_valid_log_lines_reverse(path):
@@ -213,6 +221,9 @@ def get_system_logs(limit: int = 300, level: str = None, instance: str = None,
                 key = (entry['time'], entry['logger'], entry['message'])
                 if key >= cursor:
                     continue
+            if skipped < offset:
+                skipped += 1
+                continue
             matched.append(entry)
             if len(matched) >= want:
                 break
@@ -221,5 +232,4 @@ def get_system_logs(limit: int = 300, level: str = None, instance: str = None,
 
     has_more = len(matched) > limit
     matched = matched[:limit]
-    matched.reverse()
     return [localize_system_log_entry(entry) for entry in matched], has_more

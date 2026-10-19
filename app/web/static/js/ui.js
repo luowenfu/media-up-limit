@@ -83,8 +83,8 @@ export function openSheet(o) {
     <div class="sheet-body">${o.tabs.map((t, k) => `<div class="sheet-pane ${k ? '' : 'on'}" data-pane="${k}">${t.html}</div>`).join('')}</div>
     <div class="sheet-foot">
         ${o.hint ? `<span class="l">${ico('info', 15)}${o.hint}</span>` : '<span class="l"></span>'}
-        <button type="button" class="btn" data-sheet-close>取消</button>
         <button type="button" class="btn primary" data-save="1">${ico('check', 15)}${o.saveLabel || '保存'}</button>
+        <button type="button" class="btn" data-sheet-close>取消</button>
     </div>`;
     s._onSave = o.onSave;
     s._tests = o.tests || {};

@@ -7,7 +7,7 @@ import { renderDevices } from './cards.js';
 import { bindChart, renderStats } from './stats.js';
 import { renderEvents } from './events.js';
 import {
-    loadLogs, logListHtml, logStatsHtml, renderSyslogs,
+    loadLogs, renderSyslogs, syncLogs,
 } from './syslogs.js';
 import { relockTiles } from './interact.js';
 import {
@@ -88,9 +88,5 @@ export async function render({ soft = false } = {}) {
 
 /** 日志页的后台刷新：只更新统计和列表，保留搜索框焦点 */
 export async function refreshLogsInPlace() {
-    await loadLogs(state.logSrc);
-    const list = $('#logList'), stats = $('#logStats');
-    if (!list || !stats) return;
-    stats.innerHTML = logStatsHtml();
-    list.innerHTML = logListHtml(state.logLv, state.logQuery);
+    await syncLogs();
 }

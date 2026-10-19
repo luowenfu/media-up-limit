@@ -30,7 +30,7 @@ export function scaleHtml(ths, used) {
     if (!vals.length) return '<div class="hint-t" style="padding-top:12px">填写阈值后，这里会预览各规则在周期用量上的位置</div>';
     const max = Math.max(...vals, used || 0) * 1.12;
     return `<div class="scale-track"></div>
-        ${vals.map((v, k) => `<div class="scale-mk" style="left:${v / max * 100}%"><i></i><span>${k + 1} · ${v}G</span></div>`).join('')}
+        ${vals.map(v => `<div class="scale-mk" style="left:${v / max * 100}%"><i></i><span>${v}G</span></div>`).join('')}
         ${used ? `<div class="scale-now" style="left:${used / max * 100}%"><span>已用 ${used} GB</span><i></i></div>` : ''}`;
 }
 

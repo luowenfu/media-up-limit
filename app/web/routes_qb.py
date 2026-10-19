@@ -137,12 +137,14 @@ def api_system_logs():
         level = request.args.get('level')
         instance = (request.args.get('instance') or '').strip() or None
         service = (request.args.get('service') or '').strip().lower() or None
-        limit = int(request.args.get('limit', 300))
+        limit = int(request.args.get('limit', 200))
+        offset = int(request.args.get('offset', 0) or 0)
         before_time = request.args.get('before_time')
         before_logger = request.args.get('before_logger')
         before_message = request.args.get('before_message')
         logs, has_more = get_system_logs(
             limit=limit,
+            offset=offset,
             level=level,
             instance=instance,
             service=service,

@@ -50,9 +50,6 @@
 .mb-ico { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; background: #eef2f7; color: var(--text-1); flex-shrink: 0; }
 .mb-t { flex: 1; min-width: 0; }
 .mb-t b { display: block; font-size: 13.5px; color: var(--text); }
-.mb-t small { display: flex; flex-wrap: wrap; gap: 2px 18px; font-size: 12px; color: var(--text-2); }
-.mb-t small span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
-.mb-t small i { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
 .modal.sm.wide { width: min(640px, 100%); }
 .me-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .me-col { padding: 12px; border-radius: 14px; background: #f7f9fc; border: 1px solid var(--line); }

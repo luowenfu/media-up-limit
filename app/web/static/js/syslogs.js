@@ -4,6 +4,8 @@ import * as api from './api.js';
 import { q } from './api.js';
 import { I } from './icons.js';
 import { esc, ymd } from './format.js';
+import { state } from './store.js';
+import { toast } from './ui.js';
 
 const LV = { DEBUG: 'DEBUG', INFO: 'INFO', WARNING: 'WARN', WARN: 'WARN', ERROR: 'ERROR', CRITICAL: 'ERROR' };
 const SRC_NAME = { sys: '系统', qb: 'qB', emby: 'Emby' };
@@ -38,18 +40,139 @@ function sourceOf(entry) {
     return 'sys';
 }
 
+const PAGE = 200;
+const rawKey = e => `${e.time}\n${e.logger}\n${e.message}`;
+const rowKey = r => `${r.time}\n${r.logger}\n${r.raw}`;
+
 const normalize = e => ({
     time: e.time, lv: LV[String(e.level || '').toUpperCase()] || 'INFO',
     src: sourceOf(e), label: loggerLabel(e.logger), msg: msgText(e.message_display || e.message),
+    logger: e.logger, raw: e.message,
 });
 
-export const logState = { rows: [], hasMore: false, limit: 500 };
+export const logState = { rows: [], hasMore: false, offset: 0, anchor: '', cursor: null, loading: false };
+
+const serviceOf = src => (src === 'sys' ? 'system' : src === 'all' ? '' : src);
+
+function newestFirst(raw) {
+    if (raw.length >= 2 && raw[0].time < raw[raw.length - 1].time) return raw.slice().reverse();
+    return raw;
+}
+
+async function fetchPage(offset, src, before) {
+    const params = { limit: PAGE, service: serviceOf(src) };
+    if (before) {
+        params.before_time = before.time;
+        params.before_logger = before.logger;
+        params.before_message = before.raw;
+    } else if (offset) params.offset = offset;
+    const res = await api.get(`/api/system-logs${q(params)}`);
+    const raw = newestFirst(res.data || []);
+    return { raw, rows: raw.filter(e => e.logger !== 'waitress.queue').map(normalize), hasMore: !!res.has_more };
+}
+
+function shownOf(rows) {
+    const lv = state.logLv;
+    const needle = (state.logQuery || '').trim().toLowerCase();
+    return rows.filter(l => (lv === 'all' || l.lv === lv)
+        && (!needle || `${l.label} ${l.msg}`.toLowerCase().includes(needle)));
+}
+
+function updateLogMeta() {
+    const stats = document.querySelector('#logStats');
+    const count = document.querySelector('#logCount');
+    if (stats) stats.innerHTML = logStatsHtml();
+    if (count) count.textContent = `共 ${filterLogs(state.logLv, state.logQuery).length} 条`;
+    const btn = document.querySelector('[data-log-more]');
+    if (btn && !logState.hasMore) btn.parentElement.remove();
+}
+
+async function take(src, minRows) {
+    let rounds = 0;
+    while (logState.rows.length < minRows && logState.hasMore && rounds < 20) {
+        rounds += 1;
+        let page = await fetchPage(logState.offset, src);
+        const sameHead = page.raw.length && logState.anchor && rawKey(page.raw[0]) === logState.anchor;
+        if (sameHead && logState.cursor) page = await fetchPage(0, src, logState.cursor);
+        if (!page.raw.length) { logState.hasMore = false; break; }
+        if (!logState.anchor) logState.anchor = rawKey(page.raw[0]);
+        const have = new Set(logState.rows.map(rowKey));
+        const room = minRows - logState.rows.length;
+        const add = page.rows.filter(r => !have.has(rowKey(r))).slice(0, room);
+        const marker = add[add.length - 1];
+        const tail = marker
+            ? { time: marker.time, logger: marker.logger, raw: marker.raw }
+            : { time: page.raw[page.raw.length - 1].time, logger: page.raw[page.raw.length - 1].logger, raw: page.raw[page.raw.length - 1].message };
+        const cursorKey = c => `${c.time}\n${c.logger}\n${c.raw}`;
+        if (logState.cursor && cursorKey(logState.cursor) === cursorKey(tail)) { logState.hasMore = false; break; }
+        logState.cursor = tail;
+        logState.rows.push(...add);
+        logState.offset += add.length ? add.length : page.raw.length;
+        logState.hasMore = page.hasMore || page.rows.length > add.length;
+    }
+}
 
 export async function loadLogs(src) {
-    const service = src === 'sys' ? 'system' : src === 'all' ? '' : src;
-    const res = await api.get(`/api/system-logs${q({ limit: logState.limit, service })}`);
-    logState.rows = (res.data || []).map(normalize);
-    logState.hasMore = !!res.has_more;
+    logState.rows = [];
+    logState.offset = 0;
+    logState.anchor = '';
+    logState.cursor = null;
+    logState.hasMore = true;
+    await take(src, PAGE);
+}
+
+/** 再取更早的一页，接在列表下面，滚动位置保持不变 */
+export async function loadMoreLogs() {
+    if (!logState.hasMore || logState.loading) return;
+    logState.loading = true;
+    const y = window.scrollY;
+    const btn = document.querySelector('[data-log-more]');
+    if (btn) { btn.disabled = true; btn.textContent = '加载中…'; }
+    try {
+        const start = logState.rows.length;
+        await take(state.logSrc, start + PAGE);
+        const logs = document.querySelector('.logs');
+        const chunk = shownOf(logState.rows.slice(start));
+        if (logs && chunk.length) logs.insertAdjacentHTML('beforeend', logRows(chunk));
+        updateLogMeta();
+        const more = document.querySelector('[data-log-more]');
+        if (more) { more.disabled = false; more.textContent = '加载更多'; }
+        window.scrollTo(0, y);
+    } catch (e) {
+        toast(e.message || '加载失败', 'err');
+        if (btn && btn.isConnected) { btn.disabled = false; btn.textContent = '加载更多'; }
+    } finally {
+        logState.loading = false;
+    }
+}
+
+/** 后台刷新只把新日志接到最前面；人已经往下滚动时，眼前的内容不挪动 */
+export async function syncLogs() {
+    if (logState.loading || !document.querySelector('#logList')) return;
+    const page = await fetchPage(0, state.logSrc);
+    if (!page.raw.length) { logState.hasMore = false; updateLogMeta(); return; }
+    const anchor = logState.anchor;
+    let cut = page.raw.findIndex(e => rawKey(e) === anchor);
+    if (!anchor) cut = page.raw.length;
+    const fresh = cut === -1 ? page.raw : page.raw.slice(0, cut);
+    if (!fresh.length) return;
+    const y = window.scrollY;
+    const logs = document.querySelector('.logs');
+    const h0 = logs ? logs.offsetHeight : 0;
+    const have = new Set(logState.rows.map(rowKey));
+    const add = fresh.filter(e => e.logger !== 'waitress.queue').map(normalize).filter(r => !have.has(rowKey(r)));
+    logState.rows = add.concat(logState.rows);
+    logState.offset += fresh.length;
+    logState.anchor = rawKey(page.raw[0]);
+    logState.hasMore = logState.hasMore || page.hasMore;
+    const chunk = shownOf(add);
+    if (logs && chunk.length) {
+        logs.querySelector(':scope > div:not(.log)')?.remove();
+        logs.insertAdjacentHTML('afterbegin', logRows(chunk));
+    }
+    updateLogMeta();
+    const h1 = logs ? logs.offsetHeight : h0;
+    window.scrollTo(0, y > 0 ? y + Math.max(0, h1 - h0) : 0);
 }
 
 export function filterLogs(lv, query) {
@@ -68,7 +191,7 @@ const logRows = list => list.map(l => `
 
 export const logListHtml = (lv, query) => {
     const list = filterLogs(lv, query);
-    return `<div class="panel-pad" style="padding-bottom:10px"><h3 class="panel-title" style="margin:0">运行日志<small>共 ${list.length} 条 · ${ymd(new Date())}</small><span class="r mini-btn" data-log-export>导出</span></h3></div>
+    return `<div class="panel-pad" style="padding-bottom:10px"><h3 class="panel-title" style="margin:0">运行日志<small><span id="logCount">共 ${list.length} 条</span> · ${ymd(new Date())}</small><span class="r mini-btn" data-log-export>导出</span></h3></div>
         <div class="logs">${logRows(list)}</div>
         ${logState.hasMore ? '<div style="padding:12px;text-align:center"><button type="button" class="btn sm" data-log-more>加载更多</button></div>' : ''}`;
 };

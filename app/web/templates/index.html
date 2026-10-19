@@ -24,7 +24,7 @@
             </div>
             <div>
                 <div class="brand-title">qB 达量限速管理</div>
-                <div class="brand-sub">流量监控 · 自动限速 <span class="ver" id="ver">v1.80</span></div>
+                <div class="brand-sub">流量监控 · 自动限速 <span class="ver" id="ver">v1.81</span></div>
             </div>
         </div>
 
@@ -47,16 +47,13 @@
                 <span class="grow">设备管理</span>
                 <span class="nav-badge" id="navDevCount">2</span>
             </button>
-            <button type="button" class="nav-item" data-page="stats" data-follow>
+            <button type="button" class="nav-item" data-page="stats">
                 <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M3 16V10M7.5 16V5M12 16V8.5M16.5 16V3.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
                 <span class="grow">流量图表</span>
-                <span class="nav-tag">qB</span>
             </button>
-            <button type="button" class="nav-item" data-page="events" data-follow>
+            <button type="button" class="nav-item" data-page="events">
                 <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.6"/><path d="M10 6.5V10l2.5 1.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 <span class="grow">事件记录</span>
-                <span class="nav-tag">qB</span>
-                <span class="nav-badge alert" id="navEvCount">3</span>
             </button>
         </nav>
 
@@ -78,9 +75,10 @@
             <div class="ring">
                 <svg viewBox="0 0 36 36"><circle class="track" cx="18" cy="18" r="15.5" fill="none" stroke-width="3"/><circle class="bar" id="ringBar" cx="18" cy="18" r="15.5" fill="none" stroke-width="3" stroke-dasharray="97.4" stroke-dashoffset="0"/></svg>
                 <span id="ringSec">5</span>
+                <i id="liveDot"></i>
             </div>
             <div class="status-meta">
-                <b><i></i>自动刷新</b>
+                <b>自动刷新</b>
                 <small class="num" id="clock">--</small>
             </div>
             <button type="button" class="logout" title="退出登录" aria-label="退出登录">
