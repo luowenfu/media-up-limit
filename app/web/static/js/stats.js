@@ -293,8 +293,6 @@ function cumulativeKpis(m) {
     ];
 }
 
-const SHARE_PALETTE = ['#3b82f6', '#a5b4fc', '#60a5fa', '#c7d2fe', '#818cf8', '#93c5fd'];
-
 function donut(parts, totalText) {
     const total = parts.reduce((s, p) => s + p[1], 0) || 1;
     const r = 54, c = 2 * Math.PI * r;
@@ -315,7 +313,7 @@ function donut(parts, totalText) {
 function cumulativePie(uploaded, downloaded) {
     const up = Math.max(0, Number(uploaded) || 0);
     const down = Math.max(0, Number(downloaded) || 0);
-    const parts = [['上传合计', up, SHARE_PALETTE[0]], ['下载合计', down, SHARE_PALETTE[1]]];
+    const parts = [['上传合计', up, '#3b82f6'], ['下载合计', down, '#10b981']];
     const total = up + down;
     const rows = parts.map((row, i) => `
         <div class="rank-row"><span class="rank-no">${i + 1}</span><div><div class="rank-name">${esc(row[0])}</div><div class="rank-bar"><i style="width:${total ? row[1] / total * 100 : 0}%;background:${row[2]}"></i></div></div><span class="rank-v num">${fmtBytes(row[1])}</span></div>`).join('');
