@@ -353,8 +353,8 @@ function ranksOf(m) {
         ].join('');
     }
     const caption = m.cumulative ? '按设备累计' : m.sp.caption;
-    const emptyTorrent = m.cumulative ? '当前没有可排行的种子' : '该时段没有可排行的种子';
-    const emptySite = m.cumulative ? '当前没有可排行的站点' : '该时段没有可排行的站点';
+    const emptyTorrent = m.cumulative ? '当前没有可排行的种子' : '该时段还没有可排行的种子';
+    const emptySite = m.cumulative ? '当前没有可排行的站点' : '该时段还没有可排行的站点';
     return [
         rankCard('分享率 Top 10', caption, rankBars(m.ratios, ratioText, emptyTorrent, null, ratioNotes, ratioWidth)),
         rankCard('种子上传 Top 10', caption, rankBars(m.torrents, v => fmtBytes(v), emptyTorrent, null, torrentNotes)),
