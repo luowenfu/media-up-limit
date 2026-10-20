@@ -203,6 +203,8 @@ function ensureMetricsBtn() {
 function syncMetricsToggle() {
     const open = metricsOpen && isMobile() && !!state.dev;
     document.body.classList.toggle('metrics-open', open);
+    const bar = document.querySelector('.tb-bar');
+    if (bar && isMobile()) document.documentElement.style.setProperty('--tb-bar-h', bar.getBoundingClientRect().height + 'px');
     const btn = document.getElementById('metricsBtn');
     if (!btn) return;
     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -273,6 +275,7 @@ export function renderChrome() {
 function syncMetricsEdge() {
     const bar = document.querySelector('.tb-bar');
     const metrics = document.querySelector('.tb-metrics');
+    if (bar && isMobile()) document.documentElement.style.setProperty('--tb-bar-h', bar.getBoundingClientRect().height + 'px');
     const hidden = metrics && getComputedStyle(metrics).display === 'none';
     if (!bar || !metrics || !isMobile() || hidden) {
         document.body.classList.remove('metrics-gone');
