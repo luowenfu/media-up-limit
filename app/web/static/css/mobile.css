@@ -116,7 +116,7 @@
     .tabs { flex-wrap: wrap; max-width: 100%; min-width: 0; }
     .chart-bar .tabs { flex-wrap: nowrap; }
     .range-quick { flex-wrap: nowrap; }
-    .range-quick button { padding: 0 8px; }
+    .range-quick button { padding: 0 6px; }
     .sec-events, .sec-events .panel, .timeline { min-width: 0; max-width: 100%; }
     .field.search { flex: 1 1 100%; }
     .tool-r { margin-left: 0; }

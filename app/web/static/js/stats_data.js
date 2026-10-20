@@ -78,11 +78,11 @@ function clampMonths(start, end) {
     return months;
 }
 
-/** 按天的起止日期。没选时从本月 1 日到今天，最长 366 天 */
+/** 按天的起止日期。没选时就是今天，最长 366 天 */
 export function normalizeDayRange(start, end) {
     const today = ymd(new Date());
     let stop = parseDay(end, today) || today;
-    let from = parseDay(start, today) || `${stop.slice(0, 7)}-01`;
+    let from = parseDay(start, today) || stop;
     if (from > stop) [from, stop] = [stop, from];
     const cap = addDays(stop, -365);
     if (from < cap) from = cap;
@@ -103,12 +103,17 @@ export function normalizeMonthRange(start, end) {
 export const visibleDayRange = () => normalizeDayRange(state.statsFrom, state.statsDate);
 export const visibleMonthRange = () => normalizeMonthRange(state.statsFrom, state.statsDate);
 
-/** 快捷范围。按天是上一个整月、本月 1 日到今天；按月是今年 1 月到本月、去年全年 */
+/** 快捷范围。按天还有昨天、今天；按月是今年 1 月到本月、去年全年 */
 export function quickPreset(mode, which) {
     const now = new Date();
     const today = ymd(now);
     const thisMonth = ym(now);
     if (mode !== 'month') {
+        if (which === 'today') return { start: today, end: today };
+        if (which === 'yday') {
+            const y = addDays(today, -1);
+            return { start: y, end: y };
+        }
         if (which === 'cur') return { start: `${thisMonth}-01`, end: today };
         const prevEnd = addDays(`${thisMonth}-01`, -1);
         return { start: `${prevEnd.slice(0, 7)}-01`, end: prevEnd };
