@@ -95,10 +95,12 @@
     .detail-tabs button.active { color: var(--accent); }
     body[data-detail="1"] .toasts { bottom: calc(76px + env(safe-area-inset-bottom)); }
 
-    .page { padding: 16px 12px calc(16px + env(safe-area-inset-bottom)); }
+    .page { overflow-x: clip; padding: 16px 12px calc(16px + env(safe-area-inset-bottom)); }
 
     .panel-name { padding: 12px 12px 0; }
-    .toolbar { padding: 12px; }
+    .toolbar { min-width: 0; max-width: 100%; padding: 12px; }
+    .tabs { flex-wrap: wrap; max-width: 100%; min-width: 0; }
+    .sec-events, .sec-events .panel, .timeline { min-width: 0; max-width: 100%; }
     .field.search { flex: 1 1 100%; }
     .tool-r { margin-left: 0; }
     .tool-r .field { max-width: 100%; }

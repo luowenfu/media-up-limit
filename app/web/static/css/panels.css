@@ -121,14 +121,14 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 .rank-v small { margin-left: 2px; font-size: 11px; font-weight: 600; color: var(--text-2); }
 
 /* 事件条目：卡片，不用时间线 */
-.timeline { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
+.timeline { display: flex; flex-direction: column; gap: 8px; padding: 12px; min-width: 0; }
 .day { display: flex; align-items: center; gap: 8px; padding: 6px 2px 0; font-size: 12.5px; font-weight: 750; color: var(--text-1); }
 .day small { font-weight: 500; color: var(--text-3); }
-.ev-item { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: #fbfcfe; }
+.ev-item { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: #fbfcfe; min-width: 0; max-width: 100%; }
 .ev-item:hover { border-color: #d6dde7; }
-.ev-item-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.ev-name { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
-.ev-name b { font-size: 13.5px; color: var(--text); white-space: nowrap; }
+.ev-item-top { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.ev-name { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; }
+.ev-name b { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; color: var(--text); white-space: nowrap; }
 .ev-ico { width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; flex: none; }
 .ev-ico svg { width: 15px; height: 15px; }
 .ev-ico.danger { background: #fef2f2; color: var(--danger); }
@@ -144,8 +144,8 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 .tag.up { background: #eff6ff; color: #2563eb; }
 .tag.up.warn { background: #fff7ed; color: #c2410c; }
 .ev-pop div.ev-note { display: block; max-width: 240px; font-weight: 650; line-height: 1.5; text-align: left; }
-.ev-desc { margin-top: 6px; font-size: 12.5px; color: var(--text-2); }
-.ev-meta { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; color: var(--text-2); }
+.ev-desc { margin-top: 6px; font-size: 12.5px; color: var(--text-2); overflow-wrap: anywhere; }
+.ev-meta { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; font-size: 12px; color: var(--text-2); overflow-wrap: anywhere; }
 .ev-meta span b { color: var(--text-1); font-weight: 700; }
 .ev-prog { height: 4px; margin-top: 8px; border-radius: 3px; background: #eef2f7; overflow: hidden; }
 .ev-prog i { display: block; height: 100%; background: linear-gradient(90deg, var(--emby-2), var(--emby)); }
