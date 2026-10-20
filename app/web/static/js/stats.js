@@ -368,9 +368,8 @@ function toolbar(m, kind) {
     const range = kind === 'qb' || picked !== 'total' ? picked : (state.statsChartRange || 'day');
     const chartRange = range === 'total' ? (state.statsChartRange || 'day') : range;
     const anchor = state.statsDate || defaultAnchor(chartRange);
-    const dateField = chartRange === 'hour'
-        ? `<input type="date" id="stDate" value="${anchor}" max="${defaultAnchor('hour')}">`
-        : chartRange === 'day' ? `<input type="month" id="stDate" value="${anchor}" max="${defaultAnchor('day')}">` : '';
+    const dateField = chartRange === 'day'
+        ? `<input type="month" id="stDate" value="${anchor}" max="${defaultAnchor('day')}">` : '';
     const span = state.statsSpan || '6';
     const spans = [['6', '近6个月'], ['12', '近12个月'], ['24', '近24个月'], ['all', '全部']];
     const periodField = range === 'total' ? '' : chartRange === 'month'
@@ -383,7 +382,6 @@ function toolbar(m, kind) {
             ${kind === 'emby' ? `<span class="field"><span class="k">用户</span><select id="stUser"><option value="${ALL_USERS}">全部用户</option>${(m.users || []).map(u => `<option ${u === state.statsUser ? 'selected' : ''} value="${esc(u)}">${esc(u)}</option>`).join('')}</select>${I.chev}</span>` : ''}
             <div class="tabs" data-range>
                 ${totalTab}
-                <button data-r="hour" class="${range === 'hour' ? 'on' : ''}">按小时</button>
                 <button data-r="day" class="${range === 'day' ? 'on' : ''}">按天</button>
                 <button data-r="month" class="${range === 'month' ? 'on' : ''}">按月</button>
             </div>
@@ -466,6 +464,8 @@ export async function renderStats(kind) {
     const dev = currentDevice(kind);
     if (!dev) return NO_DEVICE(kind);
     state.statsDevice = dev.name;
+    if (state.statsRange === 'hour') state.statsRange = 'day';
+    if (state.statsChartRange === 'hour') state.statsChartRange = 'day';
     const range = kind === 'qb' ? state.statsRange : (state.statsRange === 'total' ? (state.statsChartRange || 'day') : state.statsRange);
     const chartRange = range === 'total' ? (state.statsChartRange || 'day') : range;
     const anchor = state.statsDate || defaultAnchor(chartRange);

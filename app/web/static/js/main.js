@@ -116,7 +116,7 @@ document.addEventListener('click', e => {
     if (t.id === 'metricsSplit') { toggleMetricsDock(); return; }
     if (t.closest('[data-range]') && t.dataset.r) {
         const next = t.dataset.r;
-        if (next === 'hour' || next === 'day' || next === 'month') {
+        if (next === 'day' || next === 'month') {
             state.statsChartRange = next;
             state.statsDate = '';
         }

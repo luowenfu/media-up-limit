@@ -1,4 +1,4 @@
-/* 流量图表的数据层：按小时 / 天 / 月取数并整理成图表模型 */
+/* 流量图表的数据层：按天 / 月取数并整理成图表模型 */
 
 import * as api from './api.js';
 import { enc, q } from './api.js';
@@ -135,7 +135,7 @@ async function fetchRows(url, sp, extra) {
     return res.data || [];
 }
 
-/** qB：按累计只读当前种子快照；按小时、按天、按月查本项目库 */
+/** qB：按累计只读当前种子快照；按天、按月查本项目库 */
 export async function loadQbStats(name, range, anchor) {
     if (range === 'total') return loadQbCumulative(name);
     let sp = spec(range, anchor);
