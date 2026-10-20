@@ -53,7 +53,8 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 .rank-head-main { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .rank-fold { width: 18px; height: 18px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-3); display: grid; place-items: center; cursor: pointer; }
 .rank-fold:hover { background: #f1f5f9; color: var(--text-1); }
-.rank-fold.open .rank-caret { transform: rotate(90deg); }
+.rank-fold .rank-caret { transform: rotate(90deg); }
+.rank-fold.open .rank-caret { transform: rotate(-90deg); }
 .kpi-k { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--text-2); }
 .kpi-ico { width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; }
 .kpi-ico svg { width: 15px; height: 15px; }
