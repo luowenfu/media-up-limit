@@ -113,8 +113,10 @@
     .field.search { flex: 1 1 100%; }
     .tool-r { margin-left: 0; }
     .tool-r .field { max-width: 100%; }
-    .field.monthf { flex-wrap: wrap; height: auto; min-height: 36px; row-gap: 4px; }
-    .field.monthf .month-text { width: 6.4em; }
+    .range-field { width: 100%; box-sizing: border-box; justify-content: space-between; gap: 4px; padding-left: 10px; }
+    .range-field .month-slot { flex: 1; min-width: 0; }
+    .range-field .month-text,
+    .range-field.is-day .month-text { flex: 1; width: auto; min-width: 0; }
     .chart-svg { height: 200px; }
     .kpis { gap: 0; }
     .kpi { padding: 8px 12px; }

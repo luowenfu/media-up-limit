@@ -74,6 +74,7 @@ html[data-scheme="dark"] .tabs button.on,
 html[data-scheme="dark"] .toggle span.on,
 html[data-scheme="dark"] .seg-f button.on,
 html[data-scheme="dark"] .field,
+html[data-scheme="dark"] .range-field,
 html[data-scheme="dark"] .btn:not(.primary),
 html[data-scheme="dark"] .inp,
 html[data-scheme="dark"] button.opt,
@@ -108,6 +109,7 @@ html[data-scheme="dark"] .session-empty .ico {
 }
 html[data-scheme="dark"] .inp,
 html[data-scheme="dark"] .field,
+html[data-scheme="dark"] .range-field,
 html[data-scheme="dark"] .msg-box { border-color: var(--line); background: #1b2436; color: var(--text-1); }
 html[data-scheme="dark"] select option,
 html[data-scheme="dark"] select optgroup {

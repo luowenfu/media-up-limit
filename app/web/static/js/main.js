@@ -14,7 +14,7 @@ import { toggleReveal } from './cards.js';
 import { openSettings } from './settings.js';
 import { toggleScheme } from './theme.js';
 import { openChooser } from './dialogs.js';
-import { defaultAnchor, parseMonth, visibleMonthRange } from './stats_data.js';
+import { normalizeDayRange, normalizeMonthRange, parseDay, parseMonth, visibleDayRange, visibleMonthRange } from './stats_data.js';
 import { chartOrderPref, moveChartBlock } from './stats.js';
 import {
     $, closeDrawer, closeModal, closeSheet, toast,
@@ -156,8 +156,7 @@ document.addEventListener('change', e => {
     else if (t.classList.contains('month-native')) {
         const text = document.getElementById(t.dataset.for);
         if (text) text.value = t.value;
-        if (t.dataset.for === 'stDate') commitDay(t.value);
-        else commitMonthRange();
+        commitRange();
     }
     else if (t.id === 'evUser') { state.eventsUser = t.value; render(); }
     else if (t.id === 'evDays') { state.eventsDays = +t.value; render(); }
@@ -178,66 +177,47 @@ document.addEventListener('mousedown', e => {
 });
 document.addEventListener('focusout', e => {
     const id = e.target.id;
-    if (id !== 'stDate' && id !== 'stFrom' && id !== 'stTo') return;
+    if (id !== 'stFrom' && id !== 'stTo') return;
     setTimeout(() => {
-        const active = document.activeElement;
-        if (id !== 'stDate' && active?.closest?.('.monthf')) return;
-        if (id === 'stDate') commitDay(e.target.value);
-        else commitMonthRange();
+        if (document.activeElement?.closest?.('.range-field')) return;
+        commitRange();
     }, 0);
 });
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeModal(); closeSheet(); return; }
-    if (e.key === 'Enter' && (e.target.id === 'stDate' || e.target.id === 'stFrom' || e.target.id === 'stTo')) {
+    if (e.key === 'Enter' && (e.target.id === 'stFrom' || e.target.id === 'stTo')) {
         e.preventDefault();
         e.target.blur();
     }
 });
 
-function commitDay(raw) {
-    const max = defaultAnchor('month');
-    const cur = /^\d{4}-\d{2}$/.test(state.statsDate || '') ? state.statsDate : max;
-    const next = parseMonth(raw, max);
-    const input = document.getElementById('stDate');
-    if (!next) {
-        if (input) input.value = cur;
-        return;
-    }
-    if (next === cur) return;
-    state.statsDate = next === max ? '' : next;
-    render();
+function chartMode() {
+    const picked = state.statsRange === 'total' ? (state.statsChartRange || 'day') : state.statsRange;
+    return picked === 'month' ? 'month' : 'day';
 }
 
-function commitMonthRange() {
-    const max = defaultAnchor('month');
-    const endEl = document.getElementById('stTo');
+function commitRange() {
     const fromEl = document.getElementById('stFrom');
-    if (!endEl || !fromEl) return;
-    const before = visibleMonthRange(state.statsDate || max);
-    let end = parseMonth(endEl.value, max);
-    if (!end) {
+    const endEl = document.getElementById('stTo');
+    if (!fromEl || !endEl) return;
+    const month = chartMode() === 'month';
+    const before = month ? visibleMonthRange() : visibleDayRange();
+    const start = (month ? parseMonth : parseDay)(fromEl.value);
+    const end = (month ? parseMonth : parseDay)(endEl.value);
+    if (!start || !end) {
+        fromEl.value = before.start;
         endEl.value = before.end;
-        end = before.end;
-    }
-    const fromRaw = fromEl.value.trim();
-    if (!fromRaw) {
-        if (before.all && end === before.end) return;
-        state.statsSpan = 'all';
-        state.statsFrom = '';
-        state.statsDate = end === max ? '' : end;
-        render();
         return;
     }
-    let start = parseMonth(fromRaw, max);
-    if (!start) {
-        fromEl.value = before.all ? '' : before.start;
+    const saved = month ? normalizeMonthRange(start, end) : normalizeDayRange(start, end);
+    if (saved.start === before.start && saved.end === before.end) {
+        fromEl.value = before.start;
+        endEl.value = before.end;
         return;
     }
-    if (start > end) [start, end] = [end, start];
-    if (!before.all && start === before.start && end === before.end) return;
-    state.statsFrom = start;
-    state.statsDate = end === max ? '' : end;
-    if (state.statsSpan === 'all') state.statsSpan = '6';
+    state.statsFrom = saved.start;
+    state.statsDate = saved.end;
+    if (month && state.statsSpan === 'all') state.statsSpan = '6';
     render();
 }
 $('#sheetMask').addEventListener('click', closeSheet);

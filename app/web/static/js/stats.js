@@ -4,7 +4,7 @@ import { I } from './icons.js';
 import { foldHead, foldOpen } from './events.js';
 import { esc, fmtBytes, splitBytes, trimNum } from './format.js';
 import { state } from './store.js';
-import { ALL_USERS, currentDevice, defaultAnchor, loadEmbyStats, loadQbStats, visibleMonthRange } from './stats_data.js';
+import { ALL_USERS, currentDevice, defaultAnchor, loadEmbyStats, loadQbStats, visibleDayRange, visibleMonthRange } from './stats_data.js';
 
 const SERIES = {
     qb: { nameA: '上传', nameB: '下载', colorA: '#2563eb', colorB: '#f59e0b' },
@@ -363,22 +363,21 @@ function ranksOf(m) {
 }
 
 /* ---------- 页面 ---------- */
-function monthSlot(id, value, max, label) {
-    const shown = value || '';
+function rangeSlot(id, value, max, mode) {
+    const day = mode === 'day';
     const cal = I.cal.replace(/16/g, '14');
-    return `<span class="month-slot"><input type="text" id="${id}" class="month-text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="${shown ? 'YYYY-MM' : '最早'}" value="${esc(shown)}" maxlength="10" aria-label="${label}"><button type="button" class="month-pick" data-month-pick="${id}" aria-label="选择${label}">${cal}</button><input type="month" class="month-native" tabindex="-1" data-for="${id}" value="${shown || max}" max="${max}"></span>`;
+    const label = id === 'stFrom' ? '开始' : '结束';
+    return `<span class="month-slot"><input type="text" id="${id}" class="month-text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="${day ? 'YYYY-MM-DD' : 'YYYY-MM'}" value="${esc(value)}" maxlength="${day ? 12 : 10}" aria-label="${label}"><button type="button" class="month-pick" data-month-pick="${id}" aria-label="选择${label}">${cal}</button><input type="${day ? 'date' : 'month'}" class="month-native" tabindex="-1" data-for="${id}" value="${value}" max="${max}"></span>`;
 }
 
 function toolbar(m, kind) {
     const picked = state.statsRange;
     const range = kind === 'qb' || picked !== 'total' ? picked : (state.statsChartRange || 'day');
     const chartRange = range === 'total' ? (state.statsChartRange || 'day') : range;
-    const maxMonth = defaultAnchor('month');
-    const anchor = /^\d{4}-\d{2}$/.test(state.statsDate || '') ? state.statsDate : maxMonth;
-    const win = visibleMonthRange(anchor);
-    const periodField = range === 'total' ? '' : chartRange === 'month'
-        ? `<span class="field monthf"><span class="k">时段</span>${monthSlot('stFrom', win.all ? '' : win.start, maxMonth, '开始月份')}<span class="sep">~</span>${monthSlot('stTo', win.end, maxMonth, '结束月份')}</span>`
-        : `<span class="field monthf"><span class="k">月份</span>${monthSlot('stDate', anchor, maxMonth, '月份')}</span>`;
+    const day = chartRange !== 'month';
+    const win = day ? visibleDayRange() : visibleMonthRange();
+    const max = defaultAnchor(day ? 'day' : 'month');
+    const periodField = range === 'total' ? '' : `<div class="range-field${day ? ' is-day' : ''}">${rangeSlot('stFrom', win.start, max, day ? 'day' : 'month')}<span class="sep">至</span>${rangeSlot('stTo', win.end, max, day ? 'day' : 'month')}</div>`;
     const totalTab = kind === 'qb'
         ? `<button data-r="total" class="${range === 'total' ? 'on' : ''}">按累计</button>`
         : '';
@@ -472,7 +471,7 @@ export async function renderStats(kind) {
     if (state.statsChartRange === 'hour') state.statsChartRange = 'day';
     const range = kind === 'qb' ? state.statsRange : (state.statsRange === 'total' ? (state.statsChartRange || 'day') : state.statsRange);
     const chartRange = range === 'total' ? (state.statsChartRange || 'day') : range;
-    const anchor = state.statsDate || defaultAnchor(chartRange);
+    const anchor = range === 'day' ? visibleDayRange().end : range === 'month' ? visibleMonthRange().end : (state.statsDate || defaultAnchor(chartRange));
     const m = kind === 'emby'
         ? await loadEmbyStats(dev.name, range, anchor, state.statsUser)
         : await loadQbStats(dev.name, range, anchor);

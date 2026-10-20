@@ -176,10 +176,8 @@ function applyPage(saved) {
     else if (PAGE_RANGES.has(saved.statsRange)) state.statsRange = saved.statsRange;
     if (saved.statsChartRange === 'hour') state.statsChartRange = 'day';
     else if (CHART_RANGES.has(saved.statsChartRange)) state.statsChartRange = saved.statsChartRange;
-    if (typeof saved.statsDate === 'string') {
-        state.statsDate = /^\d{4}-\d{2}-\d{2}$/.test(saved.statsDate) ? saved.statsDate.slice(0, 7) : saved.statsDate;
-    }
-    if (typeof saved.statsFrom === 'string' && /^\d{4}-\d{2}$/.test(saved.statsFrom)) state.statsFrom = saved.statsFrom;
+    if (typeof saved.statsDate === 'string') state.statsDate = saved.statsDate;
+    if (typeof saved.statsFrom === 'string') state.statsFrom = saved.statsFrom;
     if (PAGE_SPANS.has(String(saved.statsSpan || ''))) state.statsSpan = String(saved.statsSpan);
     if (typeof saved.statsUser === 'string') state.statsUser = saved.statsUser;
     if (typeof saved.eventsType === 'string') state.eventsType = saved.eventsType;

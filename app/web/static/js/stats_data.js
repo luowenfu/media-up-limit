@@ -18,10 +18,10 @@ const addDays = (anchor, n) => {
     return ymd(new Date(y, m - 1, d + n));
 };
 
-/** 当前统计范围的默认锚点 */
+/** 当前统计范围的默认锚点。按天是今天，按月是本月 */
 export function defaultAnchor(range) {
     const now = new Date();
-    return range === 'hour' ? ymd(now) : ym(now);
+    return range === 'month' ? ym(now) : ymd(now);
 }
 
 const monthKey = r => {
@@ -47,6 +47,24 @@ export function parseMonth(text, max) {
     return key;
 }
 
+/** 手输日期：2026-10-10、2026/10/10、20261010、2026年10月10日 */
+export function parseDay(text, max) {
+    const raw = String(text || '').trim();
+    if (!raw) return '';
+    const hit = raw.match(/^(\d{4})\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})\s*日?$/) || raw.match(/^(\d{4})(\d{2})(\d{2})$/);
+    if (!hit) return null;
+    const y = +hit[1];
+    const m = +hit[2];
+    const d = +hit[3];
+    if (y < 2000 || y > 2100 || m < 1 || m > 12 || d < 1 || d > 31) return null;
+    const dt = new Date(y, m - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+    let key = ymd(dt);
+    if (key < '2000-01-01') key = '2000-01-01';
+    if (max && key > max) key = max;
+    return key;
+}
+
 function clampMonths(start, end) {
     let from = start > end ? end : start;
     if (addMonths(from, 239) < end) from = addMonths(end, -239);
@@ -60,20 +78,59 @@ function clampMonths(start, end) {
     return months;
 }
 
-/** 按月窗口。显式 from 优先；否则 span 为 6 / 12 / 24 / all，anchor 是结束月 */
-function monthSpec(span, anchor, from) {
-    const end = anchor || ym(new Date());
-    const explicit = /^\d{4}-\d{2}$/.test(from || '') ? from : '';
-    if (!explicit && span === 'all') {
-        return {
-            period: 'monthly', all: true,
-            params: { start: '2000-01', end }, end, prev: null, prevFrom: null, caption: '全部',
-            labels: [`${end.slice(5)}月`], keys: [end], keyOf: monthKey,
-        };
+/** 按天的起止日期。没选时从本月 1 日到今天，最长 366 天 */
+export function normalizeDayRange(start, end) {
+    const today = ymd(new Date());
+    let stop = parseDay(end, today) || today;
+    let from = parseDay(start, today) || `${stop.slice(0, 7)}-01`;
+    if (from > stop) [from, stop] = [stop, from];
+    const cap = addDays(stop, -365);
+    if (from < cap) from = cap;
+    return { start: from, end: stop };
+}
+
+/** 按月的起止月份。没选时沿用已记住的跨度，默认近 6 个月 */
+export function normalizeMonthRange(start, end) {
+    const max = ym(new Date());
+    let stop = parseMonth(end, max) || max;
+    let from = parseMonth(start, max) || '';
+    if (!from) {
+        const n = [6, 12, 24].includes(+state.statsSpan) ? +state.statsSpan : 6;
+        from = addMonths(stop, 1 - n);
     }
-    const nPreset = [6, 12, 24].includes(+span) ? +span : 6;
-    const start = explicit || addMonths(end, 1 - nPreset);
-    const months = clampMonths(start, end);
+    if (from > stop) [from, stop] = [stop, from];
+    const months = clampMonths(from, stop);
+    return { start: months[0], end: months[months.length - 1] };
+}
+
+export const visibleDayRange = () => normalizeDayRange(state.statsFrom, state.statsDate);
+export const visibleMonthRange = () => normalizeMonthRange(state.statsFrom, state.statsDate);
+
+function daySpec(start, end) {
+    const win = normalizeDayRange(start, end);
+    const days = [];
+    let cur = win.start;
+    while (cur <= win.end && days.length < 366) {
+        days.push(cur);
+        cur = addDays(cur, 1);
+    }
+    const n = days.length;
+    const cross = days[0].slice(0, 4) !== days[n - 1].slice(0, 4);
+    return {
+        period: 'daily',
+        params: { start: days[0], end: days[n - 1] },
+        labels: days.map(k => (cross ? k.slice(2) : k.slice(5))),
+        keyOf: r => String(r.day || '').slice(0, 10),
+        keys: days,
+        prev: addDays(days[0], -1),
+        prevFrom: addDays(days[0], -n),
+        caption: `${days[0]} 至 ${days[n - 1]}`,
+    };
+}
+
+function monthSpec(start, end) {
+    const win = normalizeMonthRange(start, end);
+    const months = clampMonths(win.start, win.end);
     const n = months.length;
     const label = k => (n > 6 ? `${k.slice(2, 4)}/${k.slice(5)}` : `${k.slice(5)}月`);
     return {
@@ -84,20 +141,8 @@ function monthSpec(span, anchor, from) {
         keys: months,
         prev: addMonths(months[0], -1),
         prevFrom: addMonths(months[0], -n),
-        caption: `${months[0]} ~ ${months[n - 1]}`,
+        caption: `${months[0]} 至 ${months[n - 1]}`,
     };
-}
-
-/** 工具栏上按月要显示的开始、结束。开始为空表示全部 */
-export function visibleMonthRange(end) {
-    const stop = end || ym(new Date());
-    if (/^\d{4}-\d{2}$/.test(state.statsFrom || '')) {
-        const start = state.statsFrom > stop ? stop : state.statsFrom;
-        return { start, end: stop, all: false };
-    }
-    if ((state.statsSpan || '6') === 'all') return { start: '', end: stop, all: true };
-    const n = [6, 12, 24].includes(+state.statsSpan) ? +state.statsSpan : 6;
-    return { start: addMonths(stop, 1 - n), end: stop, all: false };
 }
 
 /** 全部：从最早有数据的月份画到当前月，中间没有流量的月份补 0 */
@@ -125,7 +170,6 @@ function fitMonths(sp, groups) {
     };
 }
 export function spec(range, anchor, opt) {
-    const now = new Date();
     if (range === 'hour') {
         return {
             period: 'hourly',
@@ -137,23 +181,9 @@ export function spec(range, anchor, opt) {
             caption: anchor,
         };
     }
-    if (range === 'day') {
-        const [y, m] = anchor.split('-').map(Number);
-        const last = new Date(y, m, 0).getDate();
-        const shown = anchor === ym(now) ? now.getDate() : last;
-        const days = Array.from({ length: shown }, (_, i) => p2(i + 1));
-        return {
-            period: 'daily',
-            params: { start: `${anchor}-01`, end: `${anchor}-${p2(last)}` },
-            labels: days.map(d => `${p2(m)}-${d}`),
-            keyOf: r => String(r.day || '').slice(8, 10),
-            keys: days,
-            prev: addMonths(anchor, -1),
-            caption: `${anchor}-01 ~ ${p2(m)}-${days[days.length - 1]}`,
-        };
-    }
     const from = opt && Object.prototype.hasOwnProperty.call(opt, 'from') ? opt.from : state.statsFrom;
-    return monthSpec(state.statsSpan || '6', anchor, from);
+    if (range === 'day') return daySpec(from, anchor);
+    return monthSpec(from, anchor);
 }
 
 function fill(sp, rows, field) {
@@ -184,7 +214,7 @@ async function fetchRows(url, sp, extra) {
 export async function loadQbStats(name, range, anchor) {
     if (range === 'total') return loadQbCumulative(name);
     let sp = spec(range, anchor);
-    const pv = sp.prev ? spec(range, sp.prev, { from: sp.prevFrom || '' }) : null;
+    const pv = sp.prev ? spec(range, sp.prev, sp.prevFrom ? { from: sp.prevFrom } : undefined) : null;
     const base = `/api/stats/${enc(name)}`;
     const rankQuery = {
         instance: name, period: sp.period, start: sp.params.start, end: sp.params.end,
@@ -240,7 +270,7 @@ function asRatioRow(row) {
 /** Emby：播放 + 选片（按用户或全部用户） */
 export async function loadEmbyStats(name, range, anchor, user) {
     let sp = spec(range, anchor);
-    const pv = sp.prev ? spec(range, sp.prev, { from: sp.prevFrom || '' }) : null;
+    const pv = sp.prev ? spec(range, sp.prev, sp.prevFrom ? { from: sp.prevFrom } : undefined) : null;
     const u = user || ALL_USERS;
     const base = `/api/emby/playback-stats/${enc(name)}`;
     const [cur, prev, monthRank, records, content, filmRanks] = await Promise.all([
