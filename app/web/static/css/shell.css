@@ -249,7 +249,14 @@ body[data-detail="1"] .sec-chart { grid-area: chart; }
         grid-template-columns: minmax(0, 680px) minmax(280px, 1fr);
         grid-template-areas: "card events" "chart chart";
     }
+    /* 行高由左侧卡片决定。事件区高度先记为 0，再拉到这一行，
+       记录再多也不会先把页面撑开。面板按内容收缩，最高跟卡片齐平。 */
+    body[data-detail="1"] .sec-events {
+        height: 0; min-height: 100%;
+        display: flex; flex-direction: column;
+    }
     body[data-detail="1"] .sec-events > .panel {
+        height: 100%; max-height: max-content; min-height: 0;
         display: flex; flex-direction: column; overflow: hidden;
     }
     body[data-detail="1"] .sec-events > .panel > .panel-name,

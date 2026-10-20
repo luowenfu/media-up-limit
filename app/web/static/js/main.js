@@ -7,7 +7,7 @@ import {
     rememberPage, restorePage, savePrefs, syncMerge,
 } from './store.js';
 import {
-    fitEvents, fixRoute, isListView, rememberPart, render, refreshLogsInPlace, revealSection, syncDetailFold, toggleMetricsBar, toggleMetricsDock, toggleNavGroup,
+    fixRoute, isListView, rememberPart, render, refreshLogsInPlace, revealSection, syncDetailFold, toggleMetricsBar, toggleMetricsDock, toggleNavGroup,
 } from './shell.js';
 import { uiClick, uiInput, relockTiles } from './interact.js';
 import { toggleReveal } from './cards.js';
@@ -234,7 +234,6 @@ $('#scrim').addEventListener('click', closeDrawer);
 let wasMobile = matchMedia('(max-width: 992px)').matches;
 window.addEventListener('resize', () => {
     relockTiles();
-    fitEvents();
     const mobile = matchMedia('(max-width: 992px)').matches;
     const needDevice = mobile && (state.view === 'merge' || ((state.view === 'qb' || state.view === 'emby') && !state.dev));
     if (needDevice || mobile !== wasMobile) render();

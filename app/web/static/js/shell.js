@@ -485,7 +485,6 @@ export async function render({ soft = false } = {}) {
     bindEventPop();
     syncPlayProgress();
     relockTiles();
-    fitEvents();
     syncDetailFold();
     if (state.focus) {
         const focus = state.focus;
@@ -516,16 +515,6 @@ export function syncDetailFold() {
         box.classList.toggle('open', open);
         btn.setAttribute('aria-expanded', open ? 'true' : 'false');
     });
-}
-
-/** 右侧事件卡片最高与设备卡片齐平，多出的记录在卡片内滚动 */
-export function fitEvents() {
-    const card = document.querySelector('#sec-card .dev');
-    const events = document.getElementById('sec-events');
-    const panel = events?.querySelector(':scope > .panel');
-    if (!card || !panel) return;
-    const sideBySide = Math.abs(card.getBoundingClientRect().top - events.getBoundingClientRect().top) < 2;
-    panel.style.maxHeight = sideBySide ? card.offsetHeight + 'px' : '';
 }
 
 /** 日志页的后台刷新：只更新统计和列表，保留搜索框焦点 */
