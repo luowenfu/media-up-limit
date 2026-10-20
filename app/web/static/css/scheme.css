@@ -138,9 +138,11 @@ html[data-scheme="dark"] .tb-metric.hot { background: rgba(234, 88, 12, .16); }
 html[data-scheme="dark"] .prog,
 html[data-scheme="dark"] .ev-prog,
 html[data-scheme="dark"] .rank-bar { background: #243044; }
-html[data-scheme="dark"] { scrollbar-color: rgba(148, 163, 184, .4) transparent; }
+@supports not selector(::-webkit-scrollbar) {
+    html[data-scheme="dark"] { scrollbar-color: rgba(148, 163, 184, .4) transparent; }
+}
 html[data-scheme="dark"]::-webkit-scrollbar-thumb,
-html[data-scheme="dark"] *::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, .4); }
+html[data-scheme="dark"] ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, .4); }
 html[data-scheme="dark"] .rank-toggle:hover,
 html[data-scheme="dark"] .rank-fold:hover { background: #243044; color: var(--text-1); }
 html[data-scheme="dark"] .log:hover { background: #1e293b; }

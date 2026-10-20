@@ -35,16 +35,12 @@ body[data-theme="emby"] { --accent: var(--emby); --accent-2: var(--emby-2); --ac
 body[data-theme="merge"] { --accent: var(--merge); --accent-2: #64748b; --accent-soft: var(--merge-soft); }
 
 * { box-sizing: border-box; }
-html {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(100, 116, 139, .45) transparent;
+@supports not selector(::-webkit-scrollbar) {
+    html { scrollbar-width: thin; scrollbar-color: rgba(100, 116, 139, .45) transparent; }
 }
-html::-webkit-scrollbar,
-*::-webkit-scrollbar { width: 6px; height: 6px; }
-html::-webkit-scrollbar-track,
-*::-webkit-scrollbar-track { background: transparent; }
-html::-webkit-scrollbar-thumb,
-*::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, .45); border-radius: 999px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, .45); border-radius: 999px; }
 html, body { margin: 0; }
 body {
     min-height: 100vh;
