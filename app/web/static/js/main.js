@@ -15,6 +15,7 @@ import { openSettings } from './settings.js';
 import { toggleScheme } from './theme.js';
 import { openChooser } from './dialogs.js';
 import { normalizeDayRange, normalizeMonthRange, parseDay, parseMonth, visibleDayRange, visibleMonthRange } from './stats_data.js';
+import { bindRangePicker, closeRangePicker } from './range_picker.js';
 import { chartOrderPref, moveChartBlock } from './stats.js';
 import {
     $, closeDrawer, closeModal, closeSheet, toast,
@@ -129,15 +130,6 @@ document.addEventListener('click', e => {
     if (t.closest('[data-logsrc]')) { state.logSrc = t.dataset.v; render(); return; }
     if (t.closest('[data-loglv]')) { state.logLv = t.dataset.v; render(); return; }
     if (t.hasAttribute('data-hidelan')) { state.eventsHideLan = !state.eventsHideLan; render(); return; }
-    if (t.dataset.monthPick) {
-        const native = t.parentElement?.querySelector('.month-native');
-        if (!native) return;
-        try {
-            if (typeof native.showPicker === 'function') native.showPicker();
-            else native.click();
-        } catch (err) { native.click(); }
-        return;
-    }
     if (t.hasAttribute('data-log-export')) { exportLogs(state.logLv, state.logQuery); return; }
     if (t.hasAttribute('data-log-more')) { loadMoreLogs(); return; }
     if (t.hasAttribute('data-close') || t.id === 'modal') closeModal();
@@ -153,11 +145,6 @@ async function logout() {
 document.addEventListener('change', e => {
     const t = e.target;
     if (t.id === 'stUser') { state.statsUser = t.value === '__all_users__' ? '' : t.value; render(); }
-    else if (t.classList.contains('month-native')) {
-        const text = document.getElementById(t.dataset.for);
-        if (text) text.value = t.value;
-        commitRange();
-    }
     else if (t.id === 'evUser') { state.eventsUser = t.value; render(); }
     else if (t.id === 'evDays') { state.eventsDays = +t.value; render(); }
 });
@@ -173,7 +160,7 @@ document.addEventListener('input', e => {
 });
 
 document.addEventListener('mousedown', e => {
-    if (e.target.closest('[data-month-pick]')) e.preventDefault();
+    if (e.target.closest('[data-range-open], .rp-pop')) e.preventDefault();
 });
 document.addEventListener('focusout', e => {
     const id = e.target.id;
@@ -184,7 +171,10 @@ document.addEventListener('focusout', e => {
     }, 0);
 });
 document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeModal(); closeSheet(); return; }
+    if (e.key === 'Escape') {
+        if (document.querySelector('.rp-pop')) { closeRangePicker(true); return; }
+        closeModal(); closeSheet(); return;
+    }
     if (e.key === 'Enter' && (e.target.id === 'stFrom' || e.target.id === 'stTo')) {
         e.preventDefault();
         e.target.blur();
@@ -197,6 +187,7 @@ function chartMode() {
 }
 
 function commitRange() {
+    closeRangePicker(false);
     const fromEl = document.getElementById('stFrom');
     const endEl = document.getElementById('stTo');
     if (!fromEl || !endEl) return;
@@ -220,6 +211,7 @@ function commitRange() {
     if (month && state.statsSpan === 'all') state.statsSpan = '6';
     render();
 }
+bindRangePicker(commitRange);
 $('#sheetMask').addEventListener('click', closeSheet);
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
 $('#menuBtn').addEventListener('click', () => document.body.classList.add('drawer'));

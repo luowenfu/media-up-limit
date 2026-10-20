@@ -113,10 +113,7 @@
     .field.search { flex: 1 1 100%; }
     .tool-r { margin-left: 0; }
     .tool-r .field { max-width: 100%; }
-    .range-field { width: 100%; box-sizing: border-box; justify-content: space-between; gap: 4px; padding-left: 10px; }
-    .range-field .month-slot { flex: 1; min-width: 0; }
-    .range-field .month-text,
-    .range-field.is-day .month-text { flex: 1; width: auto; min-width: 0; }
+    .range-field, .range-field.is-day, .range-field:not(.is-day) { width: 100%; }
     .chart-svg { height: 200px; }
     .kpis { gap: 0; }
     .kpi { padding: 8px 12px; }
@@ -170,6 +167,9 @@
     .toasts { top: auto; bottom: calc(16px + env(safe-area-inset-bottom)); }
 }
 @media (max-width: 560px) {
+    .rp-pop { flex-direction: column; max-width: calc(100vw - 16px); }
+    .rp-pane + .rp-pane { border-left: 0; margin-left: 0; padding-left: 0; border-top: 1px solid #f0f0f0; margin-top: 8px; padding-top: 8px; }
+    .rp-pane, .rp-pop.is-month .rp-pane { width: min(280px, calc(100vw - 40px)); }
     .rank-name.has-kind { gap: 4px; }
     .rank-kind { font-size: 10px; }
     .rank-row.can-open { gap: 6px; grid-template-columns: 22px minmax(0, 1fr) auto 18px; }

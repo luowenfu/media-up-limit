@@ -363,11 +363,11 @@ function ranksOf(m) {
 }
 
 /* ---------- 页面 ---------- */
-function rangeSlot(id, value, max, mode) {
-    const day = mode === 'day';
-    const cal = I.cal.replace(/16/g, '14');
-    const label = id === 'stFrom' ? '开始' : '结束';
-    return `<span class="month-slot"><input type="text" id="${id}" class="month-text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="${day ? 'YYYY-MM-DD' : 'YYYY-MM'}" value="${esc(value)}" maxlength="${day ? 12 : 10}" aria-label="${label}"><button type="button" class="month-pick" data-month-pick="${id}" aria-label="选择${label}">${cal}</button><input type="${day ? 'date' : 'month'}" class="month-native" tabindex="-1" data-for="${id}" value="${value}" max="${max}"></span>`;
+const RANGE_ARROW = '<svg class="range-arrow" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2.2 8h10.2M9.2 4.6 12.8 8 9.2 11.4" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function rangeInput(id, value, day) {
+    const label = id === 'stFrom' ? (day ? '开始日期' : '开始月份') : (day ? '结束日期' : '结束月份');
+    return `<input type="text" id="${id}" class="month-text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="${label}" value="${esc(value)}" maxlength="${day ? 12 : 10}" aria-label="${label}">`;
 }
 
 function toolbar(m, kind) {
@@ -377,7 +377,7 @@ function toolbar(m, kind) {
     const day = chartRange !== 'month';
     const win = day ? visibleDayRange() : visibleMonthRange();
     const max = defaultAnchor(day ? 'day' : 'month');
-    const periodField = range === 'total' ? '' : `<div class="range-field${day ? ' is-day' : ''}">${rangeSlot('stFrom', win.start, max, day ? 'day' : 'month')}<span class="sep">至</span>${rangeSlot('stTo', win.end, max, day ? 'day' : 'month')}</div>`;
+    const periodField = range === 'total' ? '' : `<div class="range-field${day ? ' is-day' : ''}" data-range-field data-mode="${day ? 'day' : 'month'}" data-max="${max}">${rangeInput('stFrom', win.start, day)}<span class="sep">${RANGE_ARROW}</span>${rangeInput('stTo', win.end, day)}<button type="button" class="month-pick" data-range-open aria-label="${day ? '选择日期范围' : '选择月份范围'}">${I.cal.replace(/16/g, '14')}</button></div>`;
     const totalTab = kind === 'qb'
         ? `<button data-r="total" class="${range === 'total' ? 'on' : ''}">按累计</button>`
         : '';
