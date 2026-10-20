@@ -293,15 +293,42 @@ function cumulativeKpis(m) {
     ];
 }
 
-function cumulativeTrend(m, dev) {
-    const empty = !m.available;
+function pieSlice(cx, cy, r, start, end) {
+    const large = end - start > Math.PI ? 1 : 0;
+    const x1 = cx + r * Math.sin(start);
+    const y1 = cy - r * Math.cos(start);
+    const x2 = cx + r * Math.sin(end);
+    const y2 = cy - r * Math.cos(end);
+    return `M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+}
+
+function cumulativePie(uploaded, downloaded) {
+    const S = SERIES.qb;
+    const up = Math.max(0, Number(uploaded) || 0);
+    const down = Math.max(0, Number(downloaded) || 0);
+    const total = up + down;
+    const cx = 60, cy = 60, r = 52;
+    let shape;
+    if (total <= 0) shape = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#eef2f7"/>`;
+    else if (down <= 0) shape = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${S.colorA}"/>`;
+    else if (up <= 0) shape = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${S.colorB}"/>`;
+    else {
+        const sweep = up / total * Math.PI * 2;
+        shape = `<path d="${pieSlice(cx, cy, r, 0, sweep)}" fill="${S.colorA}"/><path d="${pieSlice(cx, cy, r, sweep, Math.PI * 2)}" fill="${S.colorB}"/>`;
+    }
+    const pct = bytes => (total > 0 ? `${(bytes / total * 100).toFixed(1)}%` : '0%');
+    const row = (color, name, bytes) => `<div class="pie-row"><i style="background:${color}"></i><span class="pie-k">${name}</span><b class="num">${kbig(bytes, 1024)}</b><span class="pie-pct">${pct(bytes)}</span></div>`;
+    return `<div class="pie-wrap"><svg class="pie-svg" viewBox="0 0 120 120" aria-hidden="true">${shape}</svg><div class="pie-legend">${row(S.colorA, '上传合计', up)}${row(S.colorB, '下载合计', down)}</div></div>`;
+}
+
+function cumulativeTrend(m) {
     const totals = m.totals || {};
-    const body = empty
-        ? '<div class="hint-t">当前读不到这台设备的种子</div>'
-        : `<div class="cumul-totals"><div><div class="k">上传合计</div><div class="v num">${kbig(totals.uploaded, 1024)}</div></div><div><div class="k">下载合计</div><div class="v num">${kbig(totals.downloaded, 1024)}</div></div></div>`;
+    const body = m.available
+        ? cumulativePie(totals.uploaded, totals.downloaded)
+        : '<div class="hint-t">当前读不到这台设备的种子</div>';
     return `<div class="chart-grid has-kpis">
         <div class="chart-main">
-            <h3 class="panel-title">设备累计<small>${esc(dev.name)}</small></h3>
+            <h3 class="panel-title">设备总计<small>当前累计</small></h3>
             ${body}
         </div>
         <div class="chart-kpis">${kpiHtml(cumulativeKpis(m))}</div>
@@ -413,9 +440,9 @@ export function statsHtml(m, kind, dev) {
     const S = SERIES[kind];
     const kpis = kpisOf(m);
     const bodies = {
-        trend: m.cumulative ? cumulativeTrend(m, dev) : `<div class="chart-grid has-kpis">
+        trend: m.cumulative ? cumulativeTrend(m) : `<div class="chart-grid has-kpis">
         <div class="chart-main">
-            <h3 class="panel-title">${kind === 'emby' ? '播放流量趋势' : '上传流量趋势'}<small>${esc(dev.name)}</small>
+            <h3 class="panel-title">${kind === 'emby' ? '播放流量趋势' : '上传流量趋势'}<small>${kind === 'emby' ? esc(dev.name) : esc(m.sp.caption)}</small>
                 <span class="r chart-legend"><span><i style="background:${S.colorA}"></i>${S.nameA}</span>${kind === 'emby' ? `<span><i style="background:${S.colorB}"></i>${S.nameB}</span>` : ''}</span>
             </h3>
             <div class="chart-wrap" id="chartWrap">${barChart(m)}<div class="chart-tip" id="chartTip"></div></div>
