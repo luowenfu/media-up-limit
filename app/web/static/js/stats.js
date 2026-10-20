@@ -4,6 +4,7 @@ import { I } from './icons.js';
 import { foldHead, foldOpen } from './events.js';
 import { esc, fmtBytes, splitBytes, trimNum } from './format.js';
 import { state } from './store.js';
+import { siteName } from './pt_sites.js';
 import { ALL_USERS, currentDevice, defaultAnchor, loadEmbyStats, loadQbStats, quickPreset, visibleDayRange, visibleMonthRange } from './stats_data.js';
 
 const SERIES = {
@@ -118,6 +119,11 @@ function torrentNotes(row) {
     const share = raw == null || !Number.isFinite(ratio) || ratio < 0 || ratio >= 9999
         ? '∞' : ratio.toFixed(2);
     return [byteNote('体积', row[2]), `分享率${share}`];
+}
+
+function siteNotes(row) {
+    const name = siteName(row && row[0]);
+    return name ? [name] : [];
 }
 
 function ratioNotes(row) {
@@ -358,7 +364,7 @@ function ranksOf(m) {
     return [
         rankCard('分享率 Top 10', caption, rankBars(m.ratios, ratioText, emptyTorrent, null, ratioNotes, ratioWidth)),
         rankCard('种子上传 Top 10', caption, rankBars(m.torrents, v => fmtBytes(v), emptyTorrent, null, torrentNotes)),
-        rankCard('站点上传 Top 10', caption, rankBars(m.sites, v => fmtBytes(v), emptySite)),
+        rankCard('站点上传 Top 10', caption, rankBars(m.sites, v => fmtBytes(v), emptySite, null, siteNotes)),
     ].join('');
 }
 
