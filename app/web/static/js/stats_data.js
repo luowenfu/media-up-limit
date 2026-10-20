@@ -89,15 +89,12 @@ export function normalizeDayRange(start, end) {
     return { start: from, end: stop };
 }
 
-/** 按月的起止月份。没选时沿用已记住的跨度，默认近 6 个月 */
+/** 按月的起止月份。没选开始月时，从结束月所在年的 1 月算起，默认就是今年 */
 export function normalizeMonthRange(start, end) {
     const max = ym(new Date());
     let stop = parseMonth(end, max) || max;
     let from = parseMonth(start, max) || '';
-    if (!from) {
-        const n = [6, 12, 24].includes(+state.statsSpan) ? +state.statsSpan : 6;
-        from = addMonths(stop, 1 - n);
-    }
+    if (!from) from = `${stop.slice(0, 4)}-01`;
     if (from > stop) [from, stop] = [stop, from];
     const months = clampMonths(from, stop);
     return { start: months[0], end: months[months.length - 1] };
