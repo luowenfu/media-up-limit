@@ -166,27 +166,47 @@ def api_qb_torrent_ranks():
         period = (request.args.get('period') or '').strip()
         start = (request.args.get('start') or '').strip()
         end = (request.args.get('end') or '').strip()
-        if period not in ('hourly', 'daily', 'monthly') or not start or not end:
+        if period != 'total' and (period not in ('hourly', 'daily', 'monthly') or not start or not end):
             return jsonify({'success': False, 'error': '缺少时段参数'}), 400
         with state.monitor._config_lock:
             client = state.monitor.clients.get(instance_name)
         if not client:
             return jsonify({'success': False, 'error': '设备不存在'}), 404
-        raw = traffic_db.get_torrent_period_ranks(
-            instance_name, start, end, hourly=(period == 'hourly'),
-        )
         rows = []
-        for row in raw:
-            uploaded = int(row['uploaded'] or 0)
-            if uploaded <= 0:
-                continue
-            rows.append({
-                'name': row['name'],
-                'uploaded': uploaded,
-                'size': int(row['size'] or 0),
-                'ratio': _period_ratio(uploaded, int(row['downloaded'] or 0)),
-                'tracker': row['tracker'],
-            })
+        if period == 'total':
+            for row in client.list_torrent_uploads() or []:
+                uploaded = int(row.get('uploaded') or 0)
+                if uploaded <= 0:
+                    continue
+                ratio = row.get('ratio')
+                try:
+                    ratio = float(ratio)
+                except (TypeError, ValueError):
+                    ratio = 0
+                if ratio < 0 or ratio >= _RATIO_CAP:
+                    ratio = None
+                rows.append({
+                    'name': row['name'],
+                    'uploaded': uploaded,
+                    'size': int(row.get('size') or 0),
+                    'ratio': ratio,
+                    'tracker': row.get('tracker') or '',
+                })
+        else:
+            raw = traffic_db.get_torrent_period_ranks(
+                instance_name, start, end, hourly=(period == 'hourly'),
+            )
+            for row in raw:
+                uploaded = int(row['uploaded'] or 0)
+                if uploaded <= 0:
+                    continue
+                rows.append({
+                    'name': row['name'],
+                    'uploaded': uploaded,
+                    'size': int(row['size'] or 0),
+                    'ratio': _period_ratio(uploaded, int(row['downloaded'] or 0)),
+                    'tracker': row['tracker'],
+                })
         torrents = sorted(rows, key=lambda row: row['uploaded'], reverse=True)[:10]
         ratios = sorted(
             (row for row in rows if _ratio_key(row) > 0),

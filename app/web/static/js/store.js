@@ -13,6 +13,7 @@ export const state = {
     detailFold: { card: true, events: false, chart: false },
     detailTab: 'card',
     statsRange: 'day',
+    statsChartRange: 'day',
     statsSpan: '6',
     statsDevice: '',
     statsUser: '',
@@ -138,7 +139,8 @@ export const navCollapsed = () => (Array.isArray(state.prefs.nav_collapsed) ? st
 
 const PAGE_VIEWS = new Set(['qb', 'emby', 'merge', 'syslogs']);
 const PAGE_TABS = new Set(['card', 'events', 'chart']);
-const PAGE_RANGES = new Set(['hour', 'day', 'month']);
+const PAGE_RANGES = new Set(['hour', 'day', 'month', 'total']);
+const CHART_RANGES = new Set(['hour', 'day', 'month']);
 const PAGE_SPANS = new Set(['6', '12', '24', 'all']);
 const PAGE_KEY = 'qb-page';
 let pageSig = '';
@@ -150,6 +152,7 @@ export function pageSnapshot() {
         dev: state.dev || '',
         detailTab: state.detailTab || 'card',
         statsRange: state.statsRange || 'day',
+        statsChartRange: state.statsChartRange || 'day',
         statsDate: state.statsDate || '',
         statsSpan: String(state.statsSpan || '6'),
         statsUser: state.statsUser || '',
@@ -168,6 +171,7 @@ function applyPage(saved) {
     state.dev = typeof saved.dev === 'string' ? saved.dev : '';
     if (PAGE_TABS.has(saved.detailTab)) state.detailTab = saved.detailTab;
     if (PAGE_RANGES.has(saved.statsRange)) state.statsRange = saved.statsRange;
+    if (CHART_RANGES.has(saved.statsChartRange)) state.statsChartRange = saved.statsChartRange;
     if (typeof saved.statsDate === 'string') state.statsDate = saved.statsDate;
     if (PAGE_SPANS.has(String(saved.statsSpan || ''))) state.statsSpan = String(saved.statsSpan);
     if (typeof saved.statsUser === 'string') state.statsUser = saved.statsUser;

@@ -135,27 +135,30 @@ async function fetchRows(url, sp, extra) {
     return res.data || [];
 }
 
-/** qB：上传 + 下载，外加上一周期上传用于对比 */
+/** qB：上传 + 下载，外加上一周期上传用于对比。按累计时图表仍用上次的小时/天/月 */
 export async function loadQbStats(name, range, anchor) {
-    let sp = spec(range, anchor);
-    const pv = sp.prev ? spec(range, sp.prev) : null;
+    const total = range === 'total';
+    const chartRange = total ? (state.statsChartRange || 'day') : range;
+    const chartAnchor = total ? (state.statsDate || defaultAnchor(chartRange)) : anchor;
+    let sp = spec(chartRange, chartAnchor);
+    const pv = sp.prev ? spec(chartRange, sp.prev) : null;
     const base = `/api/stats/${enc(name)}`;
+    const rankQuery = total
+        ? { instance: name, period: 'total' }
+        : { instance: name, period: sp.period, start: sp.params.start, end: sp.params.end };
     const [up, down, prev, prevDown, events, ranks] = await Promise.all([
         fetchRows(base, sp, { direction: 'upload' }),
         fetchRows(base, sp, { direction: 'download' }),
         pv ? fetchRows(base, pv, { direction: 'upload' }).catch(() => []) : [],
         pv ? fetchRows(base, pv, { direction: 'download' }).catch(() => []) : [],
         api.get(`/api/events${q({ instance: name, limit: 500 })}`).then(r => r.data || []).catch(() => []),
-        api.get(`/api/qb/torrent-ranks${q({
-            instance: name, period: sp.period,
-            start: sp.params.start, end: sp.params.end,
-        })}`).then(r => r.data || {}).catch(() => ({})),
+        api.get(`/api/qb/torrent-ranks${q(rankQuery)}`).then(r => r.data || {}).catch(() => ({})),
     ]);
     if (sp.all) sp = fitMonths(sp, [up, down]);
     const a = fill(sp, up, 'total_bytes'), b = fill(sp, down, 'total_bytes');
     const hits = events.filter(e => e.event_type === 'limit_applied' && inSpan(e.event_time, sp)).length;
     return {
-        kind: 'qb', sp, a, b, name, hits,
+        kind: 'qb', sp, a, b, name, hits, cumulative: total,
         torrents: ranks.torrents || [],
         ratios: (ranks.ratios || []).map(asRatioRow),
         sites: ranks.sites || [],

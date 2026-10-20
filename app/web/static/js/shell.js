@@ -351,7 +351,7 @@ window.addEventListener('resize', syncMetricsEdge);
 const LOADING = '<div class="panel panel-pad" style="text-align:center;color:var(--text-3);padding:48px 16px">加载中…</div>';
 const ERROR = msg => `<div class="panel panel-pad" style="text-align:center;color:var(--danger);padding:48px 16px">${esc(msg)}</div>`;
 
-const chartKey = () => [state.view, state.dev, state.statsRange, state.statsDate, state.statsSpan, state.statsUser].join('\0');
+const chartKey = () => [state.view, state.dev, state.statsRange, state.statsChartRange, state.statsDate, state.statsSpan, state.statsUser].join('\0');
 const playStateKey = () => embyList().flatMap(d => (d.sessions || []).map(s => `${s.id}:${s.item_id || ''}:${s.playback_started_at || ''}:${s.is_paused ? 1 : 0}:${s.upload_anomaly ? 1 : 0}`)).join('|');
 const eventsKey = (kind, dev) => [kind, dev, kind === 'qb' ? state.eventsType : playStateKey(), state.eventsUser, state.eventsDays, state.eventsHideLan].join('\0');
 

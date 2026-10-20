@@ -576,6 +576,47 @@ class QBittorrentClient:
         self._last_counter_rows = []
         return rows
 
+    def list_torrent_uploads(self) -> Optional[list]:
+        """当前种子的名称、累计上传、体积、分享率和 tracker。离线或失败时返回 None。"""
+        with self._api_lock:
+            try:
+                if not self._connected:
+                    if not self._connect_unlocked(probe=True):
+                        return None
+                torrents = self._client.torrents_info()
+            except qbittorrentapi.exceptions.APIConnectionError:
+                self._disconnect_unlocked()
+                logger.warning(f"[{self.name}] 连接断开")
+                return None
+            except Exception as e:
+                logger.error(f"[{self.name}] 获取种子列表失败: {e}")
+                return None
+            rows = []
+            for torrent in torrents or []:
+                name = str(torrent.get('name') or '').strip()
+                if not name:
+                    continue
+                try:
+                    uploaded = int(torrent.get('uploaded') or 0)
+                except (TypeError, ValueError):
+                    uploaded = 0
+                try:
+                    size = int(torrent.get('size') or 0)
+                except (TypeError, ValueError):
+                    size = 0
+                try:
+                    ratio = float(torrent.get('ratio'))
+                except (TypeError, ValueError):
+                    ratio = 0.0
+                rows.append({
+                    'name': name,
+                    'uploaded': max(0, uploaded),
+                    'size': max(0, size),
+                    'ratio': ratio,
+                    'tracker': str(torrent.get('tracker') or '').strip(),
+                })
+            return rows
+
     def get_transfer_info(self, probe: bool = False) -> Optional[Dict]:
         """获取传输统计信息（供状态刷新等非采集路径使用）"""
         with self._api_lock:

@@ -114,7 +114,16 @@ document.addEventListener('click', e => {
     if (t.id === 'backBtn') { go({ dev: '' }); return; }
     if (t.id === 'metricsBtn') { toggleMetricsBar(); return; }
     if (t.id === 'metricsSplit') { toggleMetricsDock(); return; }
-    if (t.closest('[data-range]') && t.dataset.r) { state.statsRange = t.dataset.r; state.statsDate = ''; render(); return; }
+    if (t.closest('[data-range]') && t.dataset.r) {
+        const next = t.dataset.r;
+        if (next === 'hour' || next === 'day' || next === 'month') {
+            state.statsChartRange = next;
+            state.statsDate = '';
+        }
+        state.statsRange = next;
+        render();
+        return;
+    }
     if (t.closest('[data-evtype]')) { state.eventsType = t.dataset.v; render(); return; }
     if (t.closest('[data-logsrc]')) { state.logSrc = t.dataset.v; render(); return; }
     if (t.closest('[data-loglv]')) { state.logLv = t.dataset.v; render(); return; }
@@ -135,7 +144,11 @@ async function logout() {
 document.addEventListener('change', e => {
     const t = e.target;
     if (t.id === 'stUser') { state.statsUser = t.value === '__all_users__' ? '' : t.value; render(); }
-    else if (t.id === 'stDate') { state.statsDate = t.value || defaultAnchor(state.statsRange); render(); }
+    else if (t.id === 'stDate') {
+        const range = state.statsRange === 'total' ? (state.statsChartRange || 'day') : state.statsRange;
+        state.statsDate = t.value || defaultAnchor(range);
+        render();
+    }
     else if (t.id === 'stSpan') { state.statsSpan = t.value; render(); }
     else if (t.id === 'evUser') { state.eventsUser = t.value; render(); }
     else if (t.id === 'evDays') { state.eventsDays = +t.value; render(); }

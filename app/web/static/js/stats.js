@@ -284,28 +284,37 @@ function ranksOf(m) {
             rankCard('类型点播 Top 10', m.sp.caption, genreBody, note, true),
         ].join('');
     }
+    const caption = m.cumulative ? '按设备累计' : m.sp.caption;
+    const emptyTorrent = m.cumulative ? '当前没有可排行的种子' : '该时段没有可排行的种子';
+    const emptySite = m.cumulative ? '当前没有可排行的站点' : '该时段没有可排行的站点';
     return [
-        rankCard('分享率排行', m.sp.caption, rankBars(m.ratios, ratioText, '该时段没有可排行的种子', null, ratioNotes, ratioWidth)),
-        rankCard('种子上传排行', m.sp.caption, rankBars(m.torrents, v => fmtBytes(v), '该时段没有可排行的种子', null, torrentNotes)),
-        rankCard('站点上传排行', m.sp.caption, rankBars(m.sites, v => fmtBytes(v), '该时段没有可排行的站点')),
+        rankCard('分享率 Top 10', caption, rankBars(m.ratios, ratioText, emptyTorrent, null, ratioNotes, ratioWidth)),
+        rankCard('种子上传 Top 10', caption, rankBars(m.torrents, v => fmtBytes(v), emptyTorrent, null, torrentNotes)),
+        rankCard('站点上传 Top 10', caption, rankBars(m.sites, v => fmtBytes(v), emptySite)),
     ].join('');
 }
 
 /* ---------- 页面 ---------- */
 function toolbar(m, kind) {
-    const range = state.statsRange;
-    const anchor = state.statsDate || defaultAnchor(range);
-    const dateField = range === 'hour'
+    const picked = state.statsRange;
+    const range = kind === 'qb' || picked !== 'total' ? picked : (state.statsChartRange || 'day');
+    const chartRange = range === 'total' ? (state.statsChartRange || 'day') : range;
+    const anchor = state.statsDate || defaultAnchor(chartRange);
+    const dateField = chartRange === 'hour'
         ? `<input type="date" id="stDate" value="${anchor}" max="${defaultAnchor('hour')}">`
-        : range === 'day' ? `<input type="month" id="stDate" value="${anchor}" max="${defaultAnchor('day')}">` : '';
+        : chartRange === 'day' ? `<input type="month" id="stDate" value="${anchor}" max="${defaultAnchor('day')}">` : '';
     const span = state.statsSpan || '6';
     const spans = [['6', '近6个月'], ['12', '近12个月'], ['24', '近24个月'], ['all', '全部']];
-    const periodField = range === 'month'
+    const periodField = chartRange === 'month'
         ? `<span class="field"><span class="k">时段</span><select id="stSpan">${spans.map(([v, lab]) => `<option value="${v}" ${span === v ? 'selected' : ''}>${lab}</option>`).join('')}</select>${I.chev}</span>`
         : `<span class="field datef" data-datef>${I.cal.replace(/16/g, '14')}${m.sp.caption}${dateField}</span>`;
+    const totalTab = kind === 'qb'
+        ? `<button data-r="total" class="${range === 'total' ? 'on' : ''}">按累计</button>`
+        : '';
     return `<div class="toolbar">
             ${kind === 'emby' ? `<span class="field"><span class="k">用户</span><select id="stUser"><option value="${ALL_USERS}">全部用户</option>${(m.users || []).map(u => `<option ${u === state.statsUser ? 'selected' : ''} value="${esc(u)}">${esc(u)}</option>`).join('')}</select>${I.chev}</span>` : ''}
             <div class="tabs" data-range>
+                ${totalTab}
                 <button data-r="hour" class="${range === 'hour' ? 'on' : ''}">按小时</button>
                 <button data-r="day" class="${range === 'day' ? 'on' : ''}">按天</button>
                 <button data-r="month" class="${range === 'month' ? 'on' : ''}">按月</button>
@@ -391,10 +400,12 @@ export async function renderStats(kind) {
     const dev = currentDevice(kind);
     if (!dev) return NO_DEVICE(kind);
     state.statsDevice = dev.name;
-    const anchor = state.statsDate || defaultAnchor(state.statsRange);
+    const range = kind === 'qb' ? state.statsRange : (state.statsRange === 'total' ? (state.statsChartRange || 'day') : state.statsRange);
+    const chartRange = range === 'total' ? (state.statsChartRange || 'day') : range;
+    const anchor = state.statsDate || defaultAnchor(chartRange);
     const m = kind === 'emby'
-        ? await loadEmbyStats(dev.name, state.statsRange, anchor, state.statsUser)
-        : await loadQbStats(dev.name, state.statsRange, anchor);
+        ? await loadEmbyStats(dev.name, range, anchor, state.statsUser)
+        : await loadQbStats(dev.name, range, anchor);
     return statsHtml(m, kind, dev);
 }
 
