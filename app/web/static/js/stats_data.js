@@ -120,6 +120,16 @@ function fill(sp, rows, field) {
 const sum = arr => arr.reduce((a, b) => a + b, 0);
 const delta = (cur, prev) => (prev > 0 ? (cur - prev) / prev * 100 : null);
 
+/** 事件时间是否落在当前图表所选时段内 */
+function inSpan(time, sp) {
+    const t = String(time || '');
+    if (!t || !sp || !sp.params) return false;
+    if (sp.period === 'hourly') return t.slice(0, 10) === String(sp.params.start).slice(0, 10);
+    const start = String(sp.params.start);
+    const end = String(sp.params.end);
+    return t.slice(0, start.length) >= start && t.slice(0, end.length) <= end;
+}
+
 async function fetchRows(url, sp, extra) {
     const res = await api.get(`${url}/${sp.period}${q({ ...sp.params, ...extra })}`);
     return res.data || [];
@@ -130,23 +140,35 @@ export async function loadQbStats(name, range, anchor) {
     let sp = spec(range, anchor);
     const pv = sp.prev ? spec(range, sp.prev) : null;
     const base = `/api/stats/${enc(name)}`;
-    const [up, down, prev, prevDown, events] = await Promise.all([
+    const [up, down, prev, prevDown, events, share, ranks] = await Promise.all([
         fetchRows(base, sp, { direction: 'upload' }),
         fetchRows(base, sp, { direction: 'download' }),
         pv ? fetchRows(base, pv, { direction: 'upload' }).catch(() => []) : [],
         pv ? fetchRows(base, pv, { direction: 'download' }).catch(() => []) : [],
         api.get(`/api/events${q({ instance: name, limit: 500 })}`).then(r => r.data || []).catch(() => []),
+        loadQbShare(sp),
+        api.get(`/api/qb/torrent-ranks${q({ instance: name })}`).then(r => r.data || {}).catch(() => ({})),
     ]);
     if (sp.all) sp = fitMonths(sp, [up, down]);
     const a = fill(sp, up, 'total_bytes'), b = fill(sp, down, 'total_bytes');
-    const dev = qbList().find(d => d.name === name);
-    const cycleStart = dev && dev.raw.cycle ? String(dev.raw.cycle.start || '').slice(0, 10) : '';
-    const hits = events.filter(e => e.event_type === 'limit_applied' && String(e.event_time).slice(0, 10) >= cycleStart).length;
+    const hits = events.filter(e => e.event_type === 'limit_applied' && inSpan(e.event_time, sp)).length;
     return {
-        kind: 'qb', sp, a, b, name, hits,
+        kind: 'qb', sp, a, b, name, hits, share,
+        torrents: ranks.torrents || [], sites: ranks.sites || [],
         change: pv ? delta(sum(a), sum(fill(pv, prev, 'total_bytes'))) : null,
         changeDown: pv ? delta(sum(b), sum(fill(pv, prevDown, 'total_bytes'))) : null,
     };
+}
+
+/** 各设备在所选时段内的上传，用于占比 */
+async function loadQbShare(sp) {
+    const rows = await Promise.all(qbList().map(async d => {
+        try {
+            const data = await fetchRows(`/api/stats/${enc(d.name)}`, sp, { direction: 'upload' });
+            return [d.name, sum(data.map(r => Number(r.total_bytes) || 0))];
+        } catch (e) { return [d.name, 0]; }
+    }));
+    return rows.sort((a, b) => b[1] - a[1]);
 }
 
 /** Emby：播放 + 选片（按用户或全部用户） */
@@ -155,11 +177,15 @@ export async function loadEmbyStats(name, range, anchor, user) {
     const pv = sp.prev ? spec(range, sp.prev) : null;
     const u = user || ALL_USERS;
     const base = `/api/emby/playback-stats/${enc(name)}`;
-    const [cur, prev, monthRank, records] = await Promise.all([
+    const [cur, prev, monthRank, records, content] = await Promise.all([
         fetchRows(base, sp, { user: u }),
         pv ? fetchRows(base, pv, { user: u }).catch(() => []) : [],
-        loadUserRank(name),
+        loadUserRank(name, sp),
         api.get(`/api/emby/playback-records${q({ instance: name, limit: 500 })}`).then(r => r.data || []).catch(() => []),
+        api.get(`/api/emby/content-rank${q({
+            instance: name, user: u, period: sp.period,
+            start: sp.params.start, end: sp.params.end,
+        })}`).then(r => r.data || {}).catch(() => ({ genre_error: true })),
     ]);
     if (sp.all) sp = fitMonths(sp, [cur]);
     const a = fill(sp, cur, 'playback_bytes'), b = fill(sp, cur, 'browse_bytes');
@@ -172,21 +198,24 @@ export async function loadEmbyStats(name, range, anchor, user) {
     return {
         kind: 'emby', sp, a, b, name, user: u,
         change: pv ? delta(sum(a), sum(fill(pv, prev, 'playback_bytes'))) : null,
-        users: monthRank.users, rank: monthRank.rank, plays,
+        users: monthRank.users, rank: monthRank.rank,
+        films: content.films || [], genres: content.genres || [],
+        genreError: !!content.genre_error, rankTruncated: !!content.truncated,
+        active: u === ALL_USERS ? monthRank.rank.length : monthRank.rank.some(r => r[0] === u) ? 1 : 0,
+        plays: content.play_count != null ? content.play_count : plays,
     };
 }
 
-/** 用户流量排行：本月每个用户的播放 + 选片上传 */
-async function loadUserRank(name) {
+/** 用户流量排行：所选时段内每个用户的播放 + 选片上传 */
+async function loadUserRank(name, sp) {
     let users = [];
     try {
         users = (await api.get(`/api/emby/playback-users${q({ instance: name })}`)).data || [];
     } catch (e) { return { users: [], rank: [] }; }
-    const month = ym(new Date());
     const rows = await Promise.all(users.map(async user => {
         try {
-            const res = await api.get(`/api/emby/playback-stats/${enc(name)}/monthly${q({ user, start: month, end: month })}`);
-            return [user, sum((res.data || []).map(r => Number(r.total_bytes) || 0))];
+            const data = await fetchRows(`/api/emby/playback-stats/${enc(name)}`, sp, { user });
+            return [user, sum(data.map(r => Number(r.total_bytes) || 0))];
         } catch (e) { return [user, 0]; }
     }));
     return { users, rank: rows.filter(r => r[1] > 0).sort((x, y) => y[1] - x[1]) };

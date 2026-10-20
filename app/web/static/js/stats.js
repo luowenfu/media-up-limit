@@ -1,13 +1,14 @@
-/* 流量图表页：柱状图、KPI、设备占比 / 用户排行（markup 与改造计划原型一致） */
+/* 流量图表页：柱状图、KPI，以及趋势图下方的三列排行 */
 
 import { I } from './icons.js';
+import { foldHead, foldOpen } from './events.js';
 import { esc, fmtBytes, splitBytes, trimNum } from './format.js';
-import { state, qbList, embyList } from './store.js';
+import { state } from './store.js';
 import { ALL_USERS, currentDevice, defaultAnchor, loadEmbyStats, loadQbStats } from './stats_data.js';
 
 const SERIES = {
-    qb: { nameA: '上传', nameB: '下载', colorA: '#3b82f6', colorB: '#c7d7fe' },
-    emby: { nameA: '播放上传', nameB: '选片上传', colorA: '#10b981', colorB: '#a7f3d0' },
+    qb: { nameA: '上传', nameB: '下载', colorA: '#2563eb', colorB: '#f59e0b' },
+    emby: { nameA: '播放上传', nameB: '选片上传', colorA: '#059669', colorB: '#7c3aed' },
 };
 const UNIT_NAMES = ['KB', 'MB', 'GB', 'TB'];
 const PALETTE = ['#3b82f6', '#a5b4fc', '#60a5fa', '#c7d2fe', '#818cf8', '#93c5fd'];
@@ -35,6 +36,14 @@ const changeHtml = (pct, rev) => {
     return `<span class="${cls}">${up ? '▲' : '▼'} ${Math.abs(pct).toFixed(0)}%</span> 较上一周期`;
 };
 
+const CHART_W = 900, CHART_H = 300, CHART_L = 58, CHART_R = 8, CHART_T = 16, CHART_B = 28;
+
+function tickText(v) {
+    const n = Number(v) || 0;
+    if (Math.abs(n) >= 100) return String(Math.round(n));
+    return trimNum(+n.toFixed(n >= 10 ? 1 : 1));
+}
+
 /* ---------- 柱状图 ---------- */
 export function barChart(m) {
     const S = SERIES[m.kind], emby = m.kind === 'emby';
@@ -42,35 +51,39 @@ export function barChart(m) {
     const stackedMax = Math.max(...m.a.map((v, i) => v + (emby ? m.b[i] : 0)), 0);
     const { unit, conv } = pickUnit(stackedMax, base);
     const a = m.a.map(conv), b = m.b.map(conv), labels = m.sp.labels;
-    const W = 900, H = 300, L = 44, R = 10, T = 14, B = 30;
+    const W = CHART_W, H = CHART_H, L = CHART_L, R = CHART_R, T = CHART_T, B = CHART_B;
     const values = emby ? a.map((v, i) => v + b[i]) : a;
-    const max = Math.max(...values) * 1.15 || 1;
+    const max = Math.max(...values) * 1.12 || 1;
     const nice = (() => { const k = Math.pow(10, Math.floor(Math.log10(max))); return Math.ceil(max / k) * k; })();
-    const n = labels.length, slot = (W - L - R) / n, bw = Math.min(28, slot * .58);
+    const n = labels.length, slot = (W - L - R) / n, bw = Math.min(26, slot * .62);
     const y = v => T + (H - T - B) * (1 - v / nice);
     let grid = '';
+    const yTicks = [];
     for (let k = 0; k <= 4; k++) {
         const v = nice * k / 4, yy = y(v);
-        grid += `<line x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}" stroke="#eef2f7" ${k ? 'stroke-dasharray="3 4"' : ''}/>
-                 <text x="${L - 8}" y="${yy + 4}" text-anchor="end" font-size="11" fill="#94a3b8">${+v.toFixed(1)}</text>`;
+        const axis = k === 0;
+        grid += `<line class="${axis ? 'axis' : 'grid'}" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}" ${axis ? '' : 'stroke-dasharray="3 4"'}/>`;
+        const label = k === 4 ? `${tickText(v)} ${unit}` : tickText(v);
+        yTicks.push(`<span class="chart-ytick" style="left:${(L - 8) / W * 100}%;top:${yy / H * 100}%">${label}</span>`);
     }
-    const every = Math.ceil(n / 12);
+    const every = Math.ceil(n / 8);
+    const xTicks = [];
     const cols = labels.map((lab, i) => {
         const cx = L + slot * i + slot / 2;
         const av = a[i], bv = emby ? b[i] : 0;
         const ya = y(av), yb = y(av + bv);
         const tip = `${lab}|${S.nameA} ${trimNum(+av.toFixed(2))} ${unit}|${S.nameB} ${trimNum(+b[i].toFixed(2))} ${unit}`;
+        if (i % every === 0) xTicks.push(`<span class="chart-xtick" style="left:${cx / W * 100}%">${esc(lab)}</span>`);
         return `<g class="col" data-tip="${esc(tip)}" data-x="${cx}" data-y="${Math.min(ya, yb)}">
             <rect x="${L + slot * i}" y="${T}" width="${slot}" height="${H - T - B}" fill="transparent"/>
-            ${emby && bv ? `<rect class="bar" x="${cx - bw / 2}" y="${yb}" width="${bw}" height="${ya - yb}" rx="4" fill="${S.colorB}"/>` : ''}
-            <rect class="bar" x="${cx - bw / 2}" y="${ya}" width="${bw}" height="${Math.max(0, H - B - ya)}" rx="${emby && bv ? 0 : 5}" fill="url(#g${m.kind})"/>
-            ${i % every === 0 ? `<text x="${cx}" y="${H - 9}" text-anchor="middle" font-size="11" fill="#94a3b8">${lab}</text>` : ''}
+            ${emby && bv ? `<rect class="bar" x="${cx - bw / 2}" y="${yb}" width="${bw}" height="${Math.max(0, ya - yb)}" rx="3" fill="${S.colorB}"/>` : ''}
+            <rect class="bar" x="${cx - bw / 2}" y="${ya}" width="${bw}" height="${Math.max(0, H - B - ya)}" rx="${emby && bv ? 0 : 3}" fill="${S.colorA}"/>
         </g>`;
     }).join('');
     return `<svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-        <defs><linearGradient id="g${m.kind}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${S.colorA}"/><stop offset="1" stop-color="${S.colorA}" stop-opacity=".55"/></linearGradient></defs>
         ${grid}${cols}
-    </svg>`;
+    </svg>
+    <div class="chart-ticks">${yTicks.join('')}${xTicks.join('')}</div>`;
 }
 
 /* ---------- 设备占比环形图 ---------- */
@@ -85,13 +98,38 @@ export function donut(parts, totalText) {
         return s;
     }).join('');
     return `<div style="display:flex;justify-content:center"><svg width="150" height="150" viewBox="0 0 140 140">
-        <circle cx="70" cy="70" r="${r}" fill="none" stroke="#eef2f7" stroke-width="18"/>${arcs}
-        <text x="70" y="66" text-anchor="middle" font-size="12" fill="#64748b">合计</text>
-        <text x="70" y="86" text-anchor="middle" font-size="17" font-weight="800" fill="#0f172a">${esc(totalText)}</text>
+        <circle class="donut-track" cx="70" cy="70" r="${r}" fill="none" stroke-width="18"/>${arcs}
+        <text class="donut-k" x="70" y="66" text-anchor="middle" font-size="12" fill="currentColor">合计</text>
+        <text class="donut-v" x="70" y="86" text-anchor="middle" font-size="17" font-weight="800" fill="currentColor">${esc(totalText)}</text>
     </svg></div>`;
 }
 
-/* ---------- KPI 与侧栏 ---------- */
+/* ---------- KPI 与排行 ---------- */
+const RANK_LIMIT = 10;
+const PLAY_LIMIT_NOTE = '仅统计最近 500 条播放记录';
+
+const filmKindLabel = kind => (kind === 'series' ? '剧集' : kind === 'movie' ? '电影' : '');
+
+function rankName(name, kind) {
+    const label = filmKindLabel(kind);
+    if (!label) return `<div class="rank-name" title="${esc(name)}">${esc(name)}</div>`;
+    return `<div class="rank-name has-kind" title="${esc(name)}"><span>${esc(name)}</span><span class="rank-kind ${kind}">${label}</span></div>`;
+}
+
+function rankBars(rows, formatValue, emptyText) {
+    const list = (rows || []).filter(row => row && row[1] > 0).slice(0, RANK_LIMIT);
+    const top = list[0] ? list[0][1] : 1;
+    if (!list.length) return `<div class="hint-t">${emptyText}</div>`;
+    return `<div class="rank">${list.map((row, i) => `
+        <div class="rank-row"><span class="rank-no">${i + 1}</span><div>${rankName(row[0], row[2])}<div class="rank-bar"><i style="width:${top ? row[1] / top * 100 : 0}%"></i></div></div><span class="rank-v num">${formatValue(row[1])}</span></div>`).join('')}</div>`;
+}
+
+function rankCard(title, caption, body, note) {
+    const aside = note ? `<small class="r rank-limit-note">${esc(note)}</small>` : '';
+    return `<div class="chart-side"><h3 class="panel-title">${title}<small>${esc(caption)}</small>${aside}</h3>${body}</div>`;
+}
+
+const playCount = value => `${value}<small>次</small>`;
 function kpisOf(m) {
     const base = baseOf(m.kind);
     const sa = sum(m.a), sb = sum(m.b);
@@ -99,39 +137,53 @@ function kpisOf(m) {
     const peakLab = peak > 0 ? m.sp.labels[idx] : '—';
     if (m.kind === 'emby') {
         return [
-            ['sum', '#ecfdf5', '#059669', '播放上传合计', kbig(sa, base), changeHtml(m.change)],
-            ['film', '#f5f3ff', '#7c3aed', '选片流量', kbig(sb, base), `占比 ${(sa + sb ? sb / (sa + sb) * 100 : 0).toFixed(1)}%`],
-            ['peak', '#fff7ed', '#ea580c', '峰值时段', kbig(peak, base), peakLab],
-            ['user', '#eff6ff', '#2563eb', '活跃用户', `${m.rank.length}<small>人</small>`, `共 ${m.plays} 次播放`],
+            ['sum', 'tone-mint', '', '播放上传合计', kbig(sa, base), changeHtml(m.change)],
+            ['film', 'tone-violet', '', '选片流量', kbig(sb, base), `占比 ${(sa + sb ? sb / (sa + sb) * 100 : 0).toFixed(1)}%`],
+            ['peak', 'tone-orange', '', '峰值时段', kbig(peak, base), peakLab],
+            ['user', 'tone-info', '', '活跃用户', `${m.active}<small>人</small>`, `共 ${m.plays} 次播放`],
         ];
     }
     return [
-        ['up', '#eff6ff', '#2563eb', '上传合计', kbig(sa, base), changeHtml(m.change)],
-        ['down', '#ecfdf5', '#059669', '下载合计', kbig(sb, base), changeHtml(m.changeDown, true)],
-        ['peak', '#fff7ed', '#ea580c', '上传峰值', kbig(peak, base), peakLab],
-        ['shield', '#fef2f2', '#dc2626', '限速触发', `${m.hits}<small>次</small>`, `本周期 · ${esc(m.name)}`],
+        ['up', 'tone-info', '', '上传合计', kbig(sa, base), changeHtml(m.change)],
+        ['down', 'tone-mint', '', '下载合计', kbig(sb, base), changeHtml(m.changeDown, true)],
+        ['peak', 'tone-orange', '', '上传峰值', kbig(peak, base), peakLab],
+        ['shield', 'tone-red', '', '限速触发', `${m.hits}<small>次</small>`, esc(m.sp.caption)],
     ];
 }
 
-function sideOf(m) {
-    if (m.kind === 'emby') {
-        const rank = m.rank.slice(0, 7), top = rank[0] ? rank[0][1] : 1;
-        return `<h3 class="panel-title">用户流量排行<small>本月</small></h3>
-           <div class="rank">${rank.map(([u, v], i) => `
-             <div class="rank-row"><span class="rank-no">${i + 1}</span><div><div class="rank-name">${esc(u)}</div><div class="rank-bar"><i style="width:${v / top * 100}%"></i></div></div><span class="rank-v num">${fmtBytes(v, 1000)}</span></div>`).join('') || '<div class="hint-t">本月暂无用户流量</div>'}</div>`;
-    }
-    const list = qbList().map(d => [d.name, Number(d.raw.cycle_uploaded_bytes) || 0]);
+function deviceRank(m) {
+    const list = (m.share || []).slice(0, RANK_LIMIT);
     const total = sum(list.map(x => x[1]));
     const parts = list.map((x, i) => [x[0], x[1], PALETTE[i % PALETTE.length]]);
-    return `<h3 class="panel-title">设备流量占比<small>本周期上传</small></h3>
-       ${donut(parts, fmtBytes(total))}
-       <div class="rank" style="margin-top:16px">${list.map((r, i) => `
-         <div class="rank-row"><span class="rank-no">${i + 1}</span><div><div class="rank-name">${esc(r[0])}</div><div class="rank-bar"><i style="width:${total ? r[1] / total * 100 : 0}%;background:${PALETTE[i % PALETTE.length]}"></i></div></div><span class="rank-v num">${fmtBytes(r[1])}</span></div>`).join('')}</div>`;
+    const rows = list.map((row, i) => `
+        <div class="rank-row"><span class="rank-no">${i + 1}</span><div><div class="rank-name" title="${esc(row[0])}">${esc(row[0])}</div><div class="rank-bar"><i style="width:${total ? row[1] / total * 100 : 0}%;background:${PALETTE[i % PALETTE.length]}"></i></div></div><span class="rank-v num">${fmtBytes(row[1])}</span></div>`).join('');
+    const body = `${donut(parts, fmtBytes(total))}<div class="rank" style="margin-top:16px">${rows}</div>`;
+    return rankCard('设备上传排行', m.sp.caption, body);
+}
+
+function ranksOf(m) {
+    if (m.kind === 'emby') {
+        const note = m.rankTruncated ? PLAY_LIMIT_NOTE : '';
+        const films = m.films || [];
+        const genreEmpty = films.length ? '该时段暂无类型' : '该时段暂无播放';
+        const genreBody = m.genreError
+            ? '<div class="hint-t">暂时取不到影片类型</div>'
+            : rankBars(m.genres, playCount, genreEmpty);
+        return [
+            rankCard('用户上传排行', m.sp.caption, rankBars(m.rank, v => fmtBytes(v, 1000), '该时段暂无用户流量')),
+            rankCard('影片点播排行', m.sp.caption, rankBars(films, playCount, '该时段暂无播放'), note),
+            rankCard('类型点播排行', m.sp.caption, genreBody, note),
+        ].join('');
+    }
+    return [
+        deviceRank(m),
+        rankCard('种子上传排行', '当前累计', rankBars(m.torrents, v => fmtBytes(v), '当前没有可排行的种子')),
+        rankCard('站点上传排行', '当前累计', rankBars(m.sites, v => fmtBytes(v), '当前没有可排行的站点')),
+    ].join('');
 }
 
 /* ---------- 页面 ---------- */
-function toolbar(m, kind, dev) {
-    const list = kind === 'emby' ? embyList() : qbList();
+function toolbar(m, kind) {
     const range = state.statsRange;
     const anchor = state.statsDate || defaultAnchor(range);
     const dateField = range === 'hour'
@@ -142,9 +194,7 @@ function toolbar(m, kind, dev) {
     const periodField = range === 'month'
         ? `<span class="field"><span class="k">时段</span><select id="stSpan">${spans.map(([v, lab]) => `<option value="${v}" ${span === v ? 'selected' : ''}>${lab}</option>`).join('')}</select>${I.chev}</span>`
         : `<span class="field datef" data-datef>${I.cal.replace(/16/g, '14')}${m.sp.caption}${dateField}</span>`;
-    return `<div class="panel">
-        <div class="toolbar">
-            <span class="field"><span class="k">设备</span><select id="stDev">${list.map(d => `<option ${d.name === dev.name ? 'selected' : ''} value="${esc(d.name)}">${esc(d.name)}</option>`).join('')}</select>${I.chev}</span>
+    return `<div class="toolbar">
             ${kind === 'emby' ? `<span class="field"><span class="k">用户</span><select id="stUser"><option value="${ALL_USERS}">全部用户</option>${(m.users || []).map(u => `<option ${u === state.statsUser ? 'selected' : ''} value="${esc(u)}">${esc(u)}</option>`).join('')}</select>${I.chev}</span>` : ''}
             <div class="tabs" data-range>
                 <button data-r="hour" class="${range === 'hour' ? 'on' : ''}">按小时</button>
@@ -154,25 +204,74 @@ function toolbar(m, kind, dev) {
             <div class="tool-r">
                 ${periodField}
             </div>
-        </div>
-    </div>`;
+        </div>`;
+}
+
+function kpiHtml(kpis) {
+    return kpis.map(k => `
+        <div class="kpi"><div class="kpi-top"><span class="kpi-name">${k[3]}</span><span class="kpi-ico ${k[1]}">${I[k[0]]}</span></div><div class="kpi-v num">${k[4]}</div><div class="kpi-d">${k[5]}</div></div>`).join('');
+}
+
+const CHART_BLOCKS = ['trend', 'rank'];
+
+function chartBlockOrder(kind, name) {
+    const all = state.prefs.chart_block_orders;
+    const bucket = all && typeof all === 'object' ? all[kind] : null;
+    const raw = bucket && Array.isArray(bucket[name]) ? bucket[name] : [];
+    const order = [];
+    raw.forEach(id => {
+        if (CHART_BLOCKS.includes(id) && !order.includes(id)) order.push(id);
+    });
+    CHART_BLOCKS.forEach(id => { if (!order.includes(id)) order.push(id); });
+    return order;
+}
+
+const swapSplit = () => `<div class="block-split"><button type="button" class="block-swap" data-block-swap title="上下互换" aria-label="上下互换">${I.swap}</button></div>`;
+
+/** 当前设备的顺序偏好。只改这一台，其它设备保持原样 */
+export function chartOrderPref(order) {
+    const kind = state.view === 'emby' ? 'emby' : 'qb';
+    const name = state.dev || '';
+    if (!name) return null;
+    const prev = state.prefs.chart_block_orders;
+    const all = prev && typeof prev === 'object' ? prev : {};
+    const bucket = all[kind] && typeof all[kind] === 'object' ? all[kind] : {};
+    return { chart_block_orders: { ...all, [kind]: { ...bucket, [name]: order } } };
+}
+
+/** 交换分割线两侧的板块，返回新的顺序 */
+export function moveChartBlock(btn) {
+    const split = btn?.closest('.block-split');
+    const host = split?.parentElement;
+    const prev = split?.previousElementSibling;
+    const next = split?.nextElementSibling;
+    if (!host?.classList.contains('chart-blocks') || !prev?.dataset.chartBlock || !next?.dataset.chartBlock) return null;
+    host.insertBefore(next, prev);
+    host.insertBefore(split, prev);
+    return [...host.querySelectorAll(':scope > [data-chart-block]')].map(el => el.dataset.chartBlock);
 }
 
 export function statsHtml(m, kind, dev) {
     const S = SERIES[kind];
     const kpis = kpisOf(m);
-    return `${toolbar(m, kind, dev)}
-    <div class="kpis">${kpis.map(k => `
-        <div class="panel kpi"><div class="kpi-k"><span class="kpi-ico" style="background:${k[1]};color:${k[2]}">${I[k[0]]}</span>${k[3]}</div><div class="kpi-v num">${k[4]}</div><div class="kpi-d">${k[5]}</div></div>`).join('')}
-    </div>
-    <div class="chart-grid">
-        <div class="panel panel-pad">
+    const bodies = {
+        trend: `<div class="chart-grid has-kpis">
+        <div class="chart-main">
             <h3 class="panel-title">${kind === 'emby' ? '播放流量趋势' : '上传流量趋势'}<small>${esc(dev.name)}</small>
                 <span class="r chart-legend"><span><i style="background:${S.colorA}"></i>${S.nameA}</span>${kind === 'emby' ? `<span><i style="background:${S.colorB}"></i>${S.nameB}</span>` : ''}</span>
             </h3>
             <div class="chart-wrap" id="chartWrap">${barChart(m)}<div class="chart-tip" id="chartTip"></div></div>
         </div>
-        <div class="panel panel-pad">${sideOf(m)}</div>
+        <div class="chart-kpis">${kpiHtml(kpis)}</div>
+    </div>`,
+        rank: `<div class="rank-grid">${ranksOf(m)}</div>`,
+    };
+    const order = chartBlockOrder(kind, dev.name);
+    const blocks = order.map((id, index) => `<section class="chart-block" data-chart-block="${id}">${bodies[id]}</section>${index < order.length - 1 ? swapSplit() : ''}`).join('');
+    return `<div class="panel${foldOpen('chart') ? ' open' : ''}">
+    ${foldHead('chart', `${I.chart}流量图表`)}
+    ${toolbar(m, kind)}
+    <div class="chart-blocks">${blocks}</div>
     </div>`;
 }
 
@@ -193,7 +292,8 @@ export async function renderStats(kind) {
 /** 鼠标悬停提示 */
 export function bindChart(kind) {
     const wrap = document.getElementById('chartWrap');
-    if (!wrap) return;
+    if (!wrap || wrap.dataset.bound) return;
+    wrap.dataset.bound = '1';
     const tip = document.getElementById('chartTip');
     const svg = wrap.querySelector('svg');
     const color = SERIES[kind];
@@ -201,7 +301,7 @@ export function bindChart(kind) {
         g.addEventListener('mouseenter', () => {
             const [lab, a, bb] = g.dataset.tip.split('|');
             tip.innerHTML = `<b>${esc(lab)}</b><span><i style="background:${color.colorA}"></i>${esc(a)}</span><span><i style="background:${color.colorB}"></i>${esc(bb)}</span>`;
-            const sx = svg.clientWidth / 900, sy = svg.clientHeight / 300;
+            const sx = svg.clientWidth / CHART_W, sy = svg.clientHeight / CHART_H;
             tip.style.left = (+g.dataset.x * sx) + 'px';
             tip.style.top = (+g.dataset.y * sy - 6) + 'px';
             tip.style.opacity = 1;

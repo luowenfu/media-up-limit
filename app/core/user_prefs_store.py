@@ -18,7 +18,12 @@ DEVICE_PREF_KEYS = (
     'merge_emby_selection',
     'merge_qb_order',
     'merge_emby_order',
+    'nav_collapsed',
+    'chart_block_orders',
 )
+NAV_GROUPS = ('qb', 'emby')
+CHART_KINDS = ('qb', 'emby')
+CHART_BLOCKS = ('trend', 'rank')
 
 
 def _load_all() -> dict:
@@ -27,6 +32,34 @@ def _load_all() -> dict:
 
 def _save_all(data: dict) -> None:
     _write_json(USER_PREFS_PATH, data)
+
+
+def _normalize_chart_order(value) -> list:
+    picked = [item for item in _normalize_string_list(value) if item in CHART_BLOCKS]
+    for item in CHART_BLOCKS:
+        if item not in picked:
+            picked.append(item)
+    return picked
+
+
+def _normalize_chart_orders(value) -> dict:
+    """按设备名保存。结构：{qb: {设备名: [trend, rank]}, emby: {...}}"""
+    if not isinstance(value, dict):
+        return {}
+    result = {}
+    for kind in CHART_KINDS:
+        block = value.get(kind)
+        if not isinstance(block, dict):
+            continue
+        orders = {}
+        for name, order in block.items():
+            device = str(name or '').strip()
+            if not device:
+                continue
+            orders[device] = _normalize_chart_order(order)
+        if orders:
+            result[kind] = orders
+    return result
 
 
 def _normalize_string_list(value) -> list:
@@ -64,6 +97,12 @@ def validate_device_prefs(data: dict) -> dict:
         if src_key in data:
             result[dst_key] = _normalize_string_list(data.get(src_key))
 
+    if 'nav_collapsed' in data:
+        result['nav_collapsed'] = [g for g in _normalize_string_list(data.get('nav_collapsed')) if g in NAV_GROUPS]
+
+    if 'chart_block_orders' in data:
+        result['chart_block_orders'] = _normalize_chart_orders(data.get('chart_block_orders'))
+
     return result
 
 
@@ -76,7 +115,10 @@ def get_device_prefs(username: str) -> dict:
         stored = all_prefs.get(user, {}).get('devices', {})
         if not isinstance(stored, dict):
             return {}
-        return {key: stored[key] for key in DEVICE_PREF_KEYS if key in stored}
+        result = {key: stored[key] for key in DEVICE_PREF_KEYS if key in stored}
+        if 'chart_block_orders' in result:
+            result['chart_block_orders'] = _normalize_chart_orders(result['chart_block_orders'])
+        return result
 
 
 def update_device_prefs(username: str, partial: dict) -> dict:
@@ -92,6 +134,18 @@ def update_device_prefs(username: str, partial: dict) -> dict:
         all_prefs = _load_all()
         user_prefs = all_prefs.setdefault(user, {})
         devices = user_prefs.setdefault('devices', {})
+        orders = validated.pop('chart_block_orders', None)
         devices.update(validated)
+        if orders:
+            stored_orders = devices.get('chart_block_orders')
+            if not isinstance(stored_orders, dict):
+                stored_orders = {}
+            for kind, by_device in orders.items():
+                bucket = stored_orders.get(kind)
+                if not isinstance(bucket, dict):
+                    bucket = {}
+                bucket.update(by_device)
+                stored_orders[kind] = bucket
+            devices['chart_block_orders'] = stored_orders
         _save_all(all_prefs)
         return get_device_prefs(user)

@@ -10,6 +10,179 @@ from urllib3.util import Retry
 from core.config_manager import INSTANCE_HTTP_TIMEOUT, DISPLAY_PRIORITY_MAX
 import core.secrets_store as secrets_store
 
+_TORRENT_COMPLETE_STATES = {
+    'uploading', 'stalledUP', 'pausedUP', 'queuedUP', 'forcedUP',
+    'stoppedUP', 'checkingUP',
+}
+_TORRENT_INCOMPLETE_STATES = {
+    'downloading', 'stalledDL', 'pausedDL', 'queuedDL', 'forcedDL',
+    'stoppedDL', 'checkingDL', 'metaDL', 'allocating', 'checkingResumeData',
+    'missingFiles', 'error',
+}
+
+
+def _torrent_complete(fields: dict, previous):
+    progress = fields.get('progress')
+    if progress is not None:
+        try:
+            return float(progress) >= 0.999
+        except (TypeError, ValueError):
+            pass
+    state = str(fields.get('state') or '')
+    if state in _TORRENT_COMPLETE_STATES:
+        return True
+    if state in _TORRENT_INCOMPLETE_STATES:
+        return False
+    return bool(previous)
+
+
+def _torrent_fields(fields) -> dict:
+    if not fields:
+        return {}
+    if isinstance(fields, dict):
+        return fields
+    out = {}
+    getter = getattr(fields, 'get', None)
+    for key in ('name', 'state', 'progress', 'added_on', 'completion_on'):
+        value = getter(key) if callable(getter) else getattr(fields, key, None)
+        if value is not None:
+            out[key] = value
+    return out
+
+
+def _positive_unix(value):
+    try:
+        ts = int(value)
+    except (TypeError, ValueError):
+        return None
+    return ts if ts > 0 else None
+
+
+def _torrent_event(event_type, name, key, when=None, backfill=False):
+    name = str(name or '').strip()
+    if not name:
+        return None
+    return {
+        'event_type': event_type,
+        'reason': name,
+        'event_key': str(key),
+        'event_time': when,
+        'backfill': bool(backfill),
+    }
+
+
+def _history_events(key, fields, view):
+    """用种子自带的添加、完成时间补历史。没有时间或没有名字的不补。"""
+    name = str(view.get('name') or '').strip()
+    if not name:
+        return []
+    fields = _torrent_fields(fields)
+    events = []
+    added = _positive_unix(fields.get('added_on'))
+    done = _positive_unix(fields.get('completion_on'))
+    if added:
+        item = _torrent_event('torrent_added', name, key, added, True)
+        if item:
+            events.append(item)
+    if done:
+        item = _torrent_event('torrent_completed', name, key, done, True)
+        if item:
+            events.append(item)
+    return events
+
+
+def _live_event(event_type, name, key, fields=None):
+    when = None
+    if fields is not None:
+        fields = _torrent_fields(fields)
+        if event_type == 'torrent_added':
+            when = _positive_unix(fields.get('added_on'))
+        elif event_type == 'torrent_completed':
+            when = _positive_unix(fields.get('completion_on'))
+    return _torrent_event(event_type, name, key, when, False)
+
+
+def _torrent_view(fields: dict, prev: dict = None) -> dict:
+    fields = _torrent_fields(fields)
+    name = str((prev or {}).get('name') or '')
+    incoming = str(fields.get('name') or '').strip()
+    if incoming:
+        name = incoming
+    complete = _torrent_complete(
+        fields, None if prev is None else prev.get('complete'),
+    )
+    return {'name': name, 'complete': bool(complete)}
+
+
+def diff_torrent_sync(seen: dict, ready: bool, changed: dict,
+                      removed: list, full: bool):
+    """对比 qB 同步结果。首次全量建立基线，并按添加、完成时间补历史。"""
+    changed = changed or {}
+    removed = list(removed or [])
+    if not ready:
+        if not full:
+            return seen, False, []
+        baseline = {}
+        events = []
+        for torrent_hash, fields in changed.items():
+            key = str(torrent_hash)
+            view = _torrent_view(fields)
+            baseline[key] = view
+            events.extend(_history_events(key, fields, view))
+        return baseline, True, events
+
+    events = []
+    seen = dict(seen or {})
+    if full:
+        current = {}
+        for torrent_hash, fields in changed.items():
+            key = str(torrent_hash)
+            prev = seen.get(key)
+            view = _torrent_view(fields, prev)
+            current[key] = view
+            if prev is None:
+                item = _live_event('torrent_added', view['name'] or key, key, fields)
+                if item:
+                    events.append(item)
+            elif not prev.get('complete') and view['complete']:
+                item = _live_event(
+                    'torrent_completed', view['name'] or key, key, fields,
+                )
+                if item:
+                    events.append(item)
+        for key, prev in seen.items():
+            if key not in current:
+                item = _torrent_event(
+                    'torrent_deleted', prev.get('name') or key, key,
+                )
+                if item:
+                    events.append(item)
+        return current, True, events
+
+    for torrent_hash in removed:
+        key = str(torrent_hash)
+        prev = seen.pop(key, None)
+        if prev is not None:
+            item = _torrent_event('torrent_deleted', prev.get('name') or key, key)
+            if item:
+                events.append(item)
+    for torrent_hash, fields in changed.items():
+        key = str(torrent_hash)
+        prev = seen.get(key)
+        view = _torrent_view(fields, prev)
+        seen[key] = view
+        if prev is None:
+            item = _live_event('torrent_added', view['name'] or key, key, fields)
+            if item:
+                events.append(item)
+        elif not prev.get('complete') and view['complete']:
+            item = _live_event(
+                'torrent_completed', view['name'] or key, key, fields,
+            )
+            if item:
+                events.append(item)
+    return seen, True, events
+
 logger = logging.getLogger(__name__)
 
 
@@ -94,6 +267,9 @@ class QBittorrentClient:
         self._last_connect_error = ''
         self._api_lock = threading.RLock()
         self._session_announced = False
+        self._torrent_sync_rid = 0
+        self._torrent_seen = {}
+        self._torrent_seen_ready = False
 
     def _announce_session(self, message: str) -> None:
         if self._session_announced:
@@ -252,6 +428,7 @@ class QBittorrentClient:
         self._connected = False
         self._client = None
         self._session_announced = False
+        self._torrent_sync_rid = 0
 
     def fetch_for_collection(self, prefer_probe: bool = False) -> Optional[Dict]:
         """采集专用：在线优先正式连接；离线探测时优先快速探测再正式连接"""
@@ -317,6 +494,68 @@ class QBittorrentClient:
             self._disconnect_unlocked()
             logger.error(f"[{self.name}] 获取传输信息失败: {e}")
             return None
+
+    def poll_torrent_events(self) -> list:
+        """对比种子同步结果，返回添加、下载完成、删除。首次全量按种子时间补历史。"""
+        with self._api_lock:
+            if not self._connected or self._client is None:
+                return []
+            try:
+                data = self._client.sync_maindata(rid=self._torrent_sync_rid)
+            except qbittorrentapi.exceptions.APIConnectionError:
+                self._disconnect_unlocked()
+                logger.warning(f"[{self.name}] 连接断开")
+                return []
+            except Exception as e:
+                logger.debug(f"[{self.name}] 同步种子列表失败: {e}")
+                return []
+            try:
+                rid = int(data.get('rid') or 0)
+                changed = data.get('torrents') or {}
+                removed = data.get('torrents_removed') or []
+                full = bool(data.get('full_update'))
+                seen, ready, events = diff_torrent_sync(
+                    self._torrent_seen, self._torrent_seen_ready,
+                    changed, removed, full,
+                )
+            except Exception as e:
+                logger.debug(f"[{self.name}] 解析种子同步结果失败: {e}")
+                return []
+            self._torrent_sync_rid = rid
+            self._torrent_seen = seen
+            self._torrent_seen_ready = ready
+            return [event for event in events if event.get('reason')]
+
+    def list_torrent_uploads(self) -> Optional[list]:
+        """当前种子的名称、累计上传和 tracker。离线或失败时返回 None。"""
+        with self._api_lock:
+            try:
+                if not self._connected:
+                    if not self._connect_unlocked(probe=True):
+                        return None
+                torrents = self._client.torrents_info()
+            except qbittorrentapi.exceptions.APIConnectionError:
+                self._disconnect_unlocked()
+                logger.warning(f"[{self.name}] 连接断开")
+                return None
+            except Exception as e:
+                logger.error(f"[{self.name}] 获取种子列表失败: {e}")
+                return None
+            rows = []
+            for torrent in torrents or []:
+                name = str(torrent.get('name') or '').strip()
+                if not name:
+                    continue
+                try:
+                    uploaded = int(torrent.get('uploaded') or 0)
+                except (TypeError, ValueError):
+                    uploaded = 0
+                rows.append({
+                    'name': name,
+                    'uploaded': max(0, uploaded),
+                    'tracker': str(torrent.get('tracker') or '').strip(),
+                })
+            return rows
 
     def get_transfer_info(self, probe: bool = False) -> Optional[Dict]:
         """获取传输统计信息（供状态刷新等非采集路径使用）"""

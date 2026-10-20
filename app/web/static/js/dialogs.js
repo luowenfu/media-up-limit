@@ -17,8 +17,8 @@ export function openChooser() {
     box.className = 'modal';
     box.innerHTML = `<div class="modal-head"><h3>添加设备</h3><button data-close>${I.x}</button></div>
     <div class="modal-body"><div class="choose">
-        <button data-addkind="qb" style="${state.platform === 'emby' ? '' : 'border-color:var(--qb);box-shadow:0 0 0 4px var(--qb-soft)'}"><span class="ci" style="background:linear-gradient(140deg,#3b82f6,#1d4ed8);font-weight:800">qB</span><b>qBittorrent</b><small>按周期统计上传流量，达量自动限速</small></button>
-        <button data-addkind="emby" style="${state.platform === 'emby' ? 'border-color:var(--emby);box-shadow:0 0 0 4px var(--emby-soft)' : ''}"><span class="ci" style="background:linear-gradient(140deg,#10b981,#047857)">${ico('play', 20)}</span><b>Emby</b><small>按用户统计播放流量，记录播放与选片</small></button>
+        <button data-addkind="qb" style="${state.view === 'emby' ? '' : 'border-color:var(--qb);box-shadow:0 0 0 4px var(--qb-soft)'}"><span class="ci" style="background:linear-gradient(140deg,#3b82f6,#1d4ed8);font-weight:800">qB</span><b>qBittorrent</b><small>按周期统计上传流量，达量自动限速</small></button>
+        <button data-addkind="emby" style="${state.view === 'emby' ? 'border-color:var(--emby);box-shadow:0 0 0 4px var(--emby-soft)' : ''}"><span class="ci" style="background:linear-gradient(140deg,#10b981,#047857)">${ico('play', 20)}</span><b>Emby</b><small>按用户统计播放流量，记录播放与选片</small></button>
     </div></div>`;
     $('#modal').classList.add('open');
 }
@@ -119,6 +119,65 @@ export function openDelete(kind, name) {
         <button type="button" class="opt danger" data-keep="0"><span class="radio"></span><div><b>不保留数据</b><small>同时清空该设备的全部历史记录，此操作不可恢复</small></div></button>
     </div></div>
     <div class="m-foot"><button type="button" class="btn" data-close>取消</button><button type="button" class="btn danger" id="delGo" data-kind="${kind}" data-name="${esc(d.name)}" disabled>${ico('del', 15)}请选择处理方式</button></div>`);
+}
+
+const MESSAGE_TIMEOUT_MS = 8000;
+
+function sessionTitleLabel(s) {
+    if (s.series_name) {
+        const ep = s.episode_title || s.title || '';
+        return ep ? `${s.series_name} — ${ep}` : s.series_name;
+    }
+    return s.title || '当前内容';
+}
+
+/** 向正在播放的客户端发一条屏幕消息 */
+export function openSessionMessage(dev, sid) {
+    const d = embyByName(dev);
+    const s = (d && d.sessions || []).find(x => x.id === sid);
+    if (!s) { toast('会话已结束或不存在', 'info'); return; }
+    const user = s.user_name || '该用户';
+    openSmall(`${mTop('green', 'msg', '发送消息', `发给 <b>${esc(user)}</b>`)}
+    <div class="m-body">
+        <p class="msg-hint">正在观看：${esc(sessionTitleLabel(s))}</p>
+        <div class="msg-style">
+            <div class="seg-f" id="msgStyle">
+                <button type="button" class="on" data-msg-style="toast">短消息</button>
+                <button type="button" data-msg-style="dialog">确认框</button>
+            </div>
+            <p class="msg-style-hint" id="msgStyleHint">短暂显示，3秒后自动消失</p>
+        </div>
+        <label class="fl" for="msgInp">消息内容</label>
+        <textarea id="msgInp" class="msg-box" rows="3" maxlength="500" placeholder="输入消息" enterkeyhint="send" autocomplete="off"></textarea>
+    </div>
+    <div class="m-foot"><button type="button" class="btn" data-close>取消</button><button type="button" class="btn primary" style="--sheet-accent:#059669;--sheet-accent-2:#10b981" id="msgGo" data-dev="${esc(dev)}" data-sid="${esc(sid)}">${ico('msg', 15)}发送</button></div>`);
+    const input = $('#msgInp');
+    if (!input) return;
+    input.focus();
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            const btn = $('#msgGo');
+            if (btn && !btn.disabled) sendSessionMessage(btn);
+        }
+    });
+}
+
+export async function sendSessionMessage(btn) {
+    const text = ($('#msgInp') && $('#msgInp').value || '').trim();
+    if (!text) { toast('请输入消息内容', 'err'); return; }
+    const { dev, sid } = btn.dataset;
+    await busy(btn, '发送中…', async () => {
+        try {
+            const style = document.querySelector('#msgStyle button.on');
+            const toastStyle = !style || style.dataset.msgStyle !== 'dialog';
+            await api.post(`/api/emby/sessions/${enc(dev)}/${enc(sid)}/message`, {
+                text, timeout_ms: toastStyle ? MESSAGE_TIMEOUT_MS : null,
+            });
+            closeModal();
+            toast('消息已发送');
+        } catch (e) { toast(e.message, 'err'); }
+    });
 }
 
 export async function applyDelete(btn) {

@@ -2,6 +2,7 @@
 
 import { I, ico } from './icons.js';
 import { esc, fmtBytes, fmtDuration, maskIp, splitSpeed } from './format.js';
+import { anomalyTip, foldHead, foldOpen, playMode, tipTag } from './events.js';
 import { state, qbList, embyList } from './store.js';
 
 /* ---------- 迷你曲线 ---------- */
@@ -40,20 +41,47 @@ const liveBoxes = (d, key) => `<div class="live">
     <div class="live-box down"><div class="live-label">${I.down}实时下载</div><div class="live-val num">${d.live.down[0]}<small>${d.live.down[1]}</small></div>${spark(d.sparkDown, '#10b981', 'sd' + key)}</div>
 </div>`;
 
-const urlLine = d => {
+/** 打码文字右侧的小眼睛：点开看原文，再点恢复打码 */
+export function maskedText(kind, name, full, masked) {
+    if (full === masked) return esc(full);
+    const key = `${kind}:${name}`;
+    const on = !!state.revealHost[key];
+    const shown = on ? full : masked;
+    return `<span class="mask-line"><span class="mask-val" data-mask="${esc(key)}" data-full="${esc(full)}" data-masked="${esc(masked)}">${esc(shown)}</span><button type="button" class="eye-btn${on ? ' on' : ''}" data-reveal="${esc(key)}" title="${on ? '隐藏地址' : '显示地址'}" aria-pressed="${on ? 'true' : 'false'}" aria-label="${on ? '隐藏地址' : '显示地址'}">${on ? I.eyeOff : I.eye}</button></span>`;
+}
+
+export function toggleReveal(key) {
+    const on = !(state.revealHost[key]);
+    state.revealHost[key] = on;
+    const sel = CSS.escape(key);
+    document.querySelectorAll(`[data-mask="${sel}"]`).forEach(el => {
+        el.textContent = on ? el.dataset.full : el.dataset.masked;
+    });
+    document.querySelectorAll(`[data-reveal="${sel}"]`).forEach(btn => {
+        btn.classList.toggle('on', on);
+        btn.title = on ? '隐藏地址' : '显示地址';
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        btn.setAttribute('aria-label', btn.title);
+        btn.innerHTML = on ? I.eyeOff : I.eye;
+    });
+}
+
+const urlLine = (d, kind) => {
     const raw = d.raw;
-    return `${raw.use_https ? 'https' : 'http'}://${esc(maskIp(raw.host))}:${raw.port}`;
+    const scheme = raw.use_https ? 'https' : 'http';
+    return maskedText(kind, d.name, `${scheme}://${raw.host}:${raw.port}`, `${scheme}://${maskIp(raw.host)}:${raw.port}`);
 };
 const dot = d => `<span class="online ${d.online ? '' : 'off'}"></span>`;
 
 /* ---------- qB 卡片 ---------- */
 export function qbCard(d, i) {
-    return `<article class="dev ${d.online ? '' : 'is-off'}">
+    return `<article class="dev ${d.online ? '' : 'is-off'}${foldOpen('card') ? ' open' : ''}">
+        ${foldHead('card', `${I.server}设备详情`)}
         <header class="dev-head">
             <div class="dev-icon" title="qBittorrent"><img src="/static/img/qbittorrent-logo.svg" alt=""></div>
             <div class="dev-title">
-                <div class="dev-name">${esc(d.name)}</div>
-                <div class="dev-url">${dot(d)}${urlLine(d)}</div>
+                <div class="dev-name" data-open-dev data-kind="qb" data-dev="${esc(d.name)}" title="查看设备详情">${esc(d.name)}</div>
+                <div class="dev-url">${dot(d)}${urlLine(d, 'qb')}</div>
             </div>
             <div class="dev-chips">
                 ${d.online ? '' : '<span class="chip">离线</span>'}
@@ -76,7 +104,7 @@ export function qbCard(d, i) {
             </div>
             <div class="dev-col">
                 <h4 class="sec-title">${I.rules}达量限速规则<span style="color:var(--text-3);font-weight:600">${d.rules.length}</span>
-                    <span class="more"><button class="mini-btn" data-goto="stats" data-dev="${esc(d.name)}">${I.chart}图表</button><button class="mini-btn" data-goto="events" data-dev="${esc(d.name)}">${I.list}记录</button></span>
+                    <span class="more"><button class="mini-btn" data-goto="chart" data-kind="qb" data-dev="${esc(d.name)}">${I.chart}图表</button><button class="mini-btn" data-goto="events" data-kind="qb" data-dev="${esc(d.name)}">${I.list}记录</button></span>
                 </h4>
                 <div class="rules">${d.rules.map(r => `
                     <div class="rule ${r.st || ''}">
@@ -96,45 +124,76 @@ export function qbCard(d, i) {
 /* ---------- Emby 会话 ---------- */
 function sessionTitle(s) {
     if (s.session_mode === 'browsing') return s.viewing_title || s.viewing_series_name || '正在选片';
-    const base = s.series_name
-        ? `${s.series_name}${s.episode_label ? ' ' + s.episode_label : ''}${s.episode_title ? ' · ' + s.episode_title : ''}`
-        : (s.title || s.episode_title || '未知内容');
-    return base;
+    if (s.series_name) {
+        const ep = [s.episode_label, s.episode_title].filter(Boolean).join(' · ');
+        return `${s.series_name}${ep ? ' ' + ep : ''}`;
+    }
+    return s.title || s.episode_title || '未知内容';
+}
+
+function sessionIp(s) {
+    if (s.client_ip) return s.client_ip;
+    const ep = String(s.remote_endpoint || '').trim();
+    if (!ep) return '未记录';
+    if (ep.startsWith('[')) {
+        const end = ep.indexOf(']');
+        if (end > 1) return ep.slice(1, end);
+    }
+    return (ep.split('.').length === 4 && ep.includes(':')) ? ep.slice(0, ep.lastIndexOf(':')) : ep;
+}
+
+function sessionUserTip(s) {
+    const rows = [['IP 地址', sessionIp(s)]];
+    const dev = [s.client, s.device_name].filter(Boolean).join(' · ');
+    if (dev) rows.push(['设备', dev]);
+    return rows;
 }
 
 function sessionHtml(s, d) {
     const base = 1000;
     const wan = !!s.is_remote;
     const browse = s.session_mode === 'browsing';
-    const speed = splitSpeed(s.estimated_upload_bytes_1s_live || 0, base);
     const pos = Number(s.position_seconds) || 0;
     const run = Number(s.runtime_seconds) || 0;
     const pct = s.progress_percent != null ? Math.min(100, Number(s.progress_percent) || 0) : (run ? Math.min(100, pos / run * 100) : 0);
-    const user = I.user.replace('viewBox', 'width="12" height="12" viewBox');
-    const ctl = browse ? '' : `<span style="display:flex;gap:4px">
-        <button type="button" class="mini-btn" data-sess="${s.is_paused ? 'unpause' : 'pause'}" data-sid="${esc(s.id)}" data-dev="${esc(d.name)}">${s.is_paused ? '继续' : '暂停'}</button>
-        <button type="button" class="mini-btn" data-sess="stop" data-sid="${esc(s.id)}" data-dev="${esc(d.name)}">停止</button></span>`;
-    return `<div class="session"><div class="poster">▶</div><div class="session-main">
+    const who = `${s.user_name || '未知用户'} · ${wan ? '外网' : '局域网'}`;
+    const [sn, su] = splitSpeed(Math.max(0, Number(s.estimated_upload_bytes_1s_live) || 0), base);
+    const speed = `${sn} ${su}`;
+    const anomaly = wan && !browse && !(Number(s.estimated_upload_bytes_live) > 0) && !!s.upload_anomaly;
+    const mode = browse ? null : playMode(s);
+    const cmd = (act, label, icon) => `<button type="button" class="mini-btn icon" title="${label}" data-sess="${act}" data-sid="${esc(s.id)}" data-dev="${esc(d.name)}">${icon}</button>`;
+    const ctl = browse ? '' : `<span class="session-ctl">${cmd(s.is_paused ? 'unpause' : 'pause', s.is_paused ? '继续' : '暂停', s.is_paused ? I.play : I.pause)}${cmd('stop', '停止', I.stop)}${cmd('message', '发送消息', I.msg)}</span>`;
+    const posterId = s.poster_item_id || '';
+    const posterSrc = posterId
+        ? `/api/emby/poster?instance=${encodeURIComponent(d.name)}&item=${encodeURIComponent(posterId)}${s.poster_tag ? `&tag=${encodeURIComponent(s.poster_tag)}` : ''}`
+        : ((s.item_type === 'Movie' || s.item_type === 'Series' || s.item_type === 'Video' || s.item_type === 'BoxSet') && s.item_id && d.url
+            ? `${d.url}/Items/${encodeURIComponent(s.item_id)}/Images/Primary?maxHeight=320`
+            : '');
+    const poster = posterSrc ? `<img src="${esc(posterSrc)}" alt="" onerror="this.remove()">` : '';
+    return `<div class="session"><div class="poster">▶${poster}</div><div class="session-main">
         <div class="session-title">${esc(sessionTitle(s))}</div>
-        <div class="session-sub"><span class="tag ${wan ? 'wan' : 'lan'}">${wan ? '外网' : '局域网'}</span>${browse ? '<span class="tag emby">选片</span>' : ''}${s.is_paused ? '<span class="tag sys">已暂停</span>' : ''}<span>${user}</span>${esc(s.user_name || '')} · ${esc(s.client || '')} · ${speed[0]} ${speed[1]}</div>
-        ${browse ? '' : `<div class="ev-prog"><i style="width:${pct.toFixed(1)}%"></i></div>
-        <div class="session-sub" style="margin:5px 0 0;justify-content:space-between"><span>${fmtDuration(pos)}${run ? ' / ' + fmtDuration(run) : ''}</span><span>已用 ${fmtBytes(s.estimated_upload_bytes_live || 0, base)}</span></div>`}
-        ${ctl ? `<div class="session-sub" style="margin:6px 0 0;justify-content:flex-end">${ctl}</div>` : ''}
+        <div class="session-tags">${tipTag(who, wan ? 'who' : 'who lan', sessionUserTip(s))}${mode ? tipTag(mode.label, mode.cls, mode.tip) : ''}${browse ? '<span class="tag emby">选片</span>' : ''}</div>
+        ${browse ? '' : `<div class="session-meter">
+            ${wan ? `<div class="session-speed">${speed}</div><div class="session-up${anomaly ? ' warn has-tip' : ''}">${anomaly ? `上传 异常${anomalyTip()}` : `上传 ${fmtBytes(s.estimated_upload_bytes_live || 0, base)}`}</div>` : ''}
+            <div class="ev-prog"><i style="width:${pct.toFixed(1)}%"></i></div>
+            <div class="session-bot"><span class="num">${fmtDuration(pos)}${run ? ' / ' + fmtDuration(run) : ''}</span>${ctl}</div>
+        </div>`}
     </div></div>`;
 }
 
-const emptySession = `<div class="session-empty"><div><div class="ico">${I.tv}</div></div><div><b>暂无活跃播放</b>有人开始播放时，这里会实时显示会话</div></div>`;
+const emptySession = `<div class="session-empty"><div><div class="ico">${I.tv}</div></div><div><b>暂无活跃播放</b></div></div>`;
 
 /* ---------- Emby 卡片 ---------- */
 export function embyCard(d, i) {
     const has = d.sessions.length > 0;
     const key = 'e' + i;
-    return `<article class="dev ${d.online ? '' : 'is-off'}">
+    return `<article class="dev ${d.online ? '' : 'is-off'}${foldOpen('card') ? ' open' : ''}">
+        ${foldHead('card', `${I.server}设备详情`)}
         <header class="dev-head emby">
             <div class="dev-icon" title="Emby"><img src="/static/img/emby-icon.svg" alt=""></div>
             <div class="dev-title">
-                <div class="dev-name">${esc(d.name)}</div>
-                <div class="dev-url">${dot(d)}${urlLine(d)}</div>
+                <div class="dev-name" data-open-dev data-kind="emby" data-dev="${esc(d.name)}" title="查看设备详情">${esc(d.name)}</div>
+                <div class="dev-url">${dot(d)}${urlLine(d, 'emby')}</div>
             </div>
             <div class="dev-chips">
                 <span class="chip">${d.online ? 'API 在线' : 'API 离线'}</span>
@@ -156,7 +215,7 @@ export function embyCard(d, i) {
             </div>
             <div class="dev-col" style="display:flex;flex-direction:column">
                 <h4 class="sec-title">${I.play}当前播放会话
-                    <span class="more"><button class="mini-btn" data-goto="stats" data-dev="${esc(d.name)}">${I.chart}图表</button><button class="mini-btn" data-goto="events" data-dev="${esc(d.name)}">${I.list}记录</button></span>
+                    <span class="more"><button class="mini-btn" data-goto="chart" data-kind="emby" data-dev="${esc(d.name)}">${I.chart}图表</button><button class="mini-btn" data-goto="events" data-kind="emby" data-dev="${esc(d.name)}">${I.list}记录</button></span>
                 </h4>
                 <div style="flex:1;display:flex;flex-direction:column;justify-content:${has ? 'flex-start' : 'stretch'}">${has ? d.sessions.map(s => sessionHtml(s, d)).join('') : emptySession}</div>
             </div>
@@ -168,6 +227,14 @@ export function embyCard(d, i) {
 }
 
 const EMPTY = (title, sub) => `<div class="panel panel-pad" style="text-align:center;color:var(--text-3);padding:48px 16px"><b style="display:block;color:var(--text-1);font-size:15px;margin-bottom:6px">${title}</b>${sub}</div>`;
+
+/** 设备详情页顶部的单张卡片；设备不存在时返回空串 */
+export function deviceCard(kind, name) {
+    const list = kind === 'emby' ? embyList() : qbList();
+    const i = list.findIndex(d => d.name === name);
+    if (i < 0) return '';
+    return kind === 'emby' ? embyCard(list[i], i) : qbCard(list[i], i);
+}
 
 /* ---------- 设备管理页 ---------- */
 export function renderDevices(p) {

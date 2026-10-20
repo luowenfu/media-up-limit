@@ -79,6 +79,29 @@ def _match_backend(location: str, emby_host: str, emby_port: int) -> bool:
     return port == target_port
 
 
+def _truthy(value) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() in ('1', 'true', 'yes', 'on')
+    return bool(value)
+
+
+def _front_label(domain: str, listen_port: int, scheme: str, fallback: str) -> str:
+    """监听地址带上 http/https。域名里若已写协议，沿用该协议。"""
+    host = str(domain or '').strip()
+    use = scheme if scheme in ('http', 'https') else 'http'
+    if '://' in host:
+        parsed = urlparse(host)
+        if parsed.scheme in ('http', 'https'):
+            use = parsed.scheme
+        host = parsed.hostname or ''
+    if host and listen_port:
+        return f'{use}://{host}:{listen_port}'
+    if host:
+        return f'{use}://{host}'
+    name = str(fallback or '').strip()
+    return f'{use}://{name}' if name else ''
+
+
 def parse_proxy_candidates(rule_list: list) -> List[dict]:
     candidates: List[dict] = []
     for rule in rule_list or []:
@@ -105,12 +128,10 @@ def parse_proxy_candidates(rule_list: list) -> List[dict]:
             ]
             backend = locations[0] if locations else ''
             domain = domains[0] if domains else ''
-            if domain and listen_port:
-                front = f'{domain}:{listen_port}'
-            elif domain:
-                front = domain
-            else:
-                front = rule_name or rule_key
+            scheme = 'https' if _truthy(rule.get('EnableTLS')) else 'http'
+            front = _front_label(domain, listen_port, scheme, rule_name or rule_key)
+            if backend and '://' not in backend:
+                backend = f'http://{backend}'
             label = f'{front} → {backend}' if backend else front
             candidates.append({
                 'rule_key': rule_key,
@@ -151,6 +172,34 @@ def auto_match_candidate(
     if len(candidates) == 1:
         return candidates[0], candidates
     return None, candidates
+
+
+def choose_selected_candidates(
+    candidates: List[dict],
+    saved: List[dict],
+    *,
+    emby_host: str = '',
+    emby_port: int = 8096,
+) -> List[dict]:
+    """勾选已保存的规则，以及后端就是这台 Emby 的规则。"""
+    saved_pairs = {
+        (str(item.get('rule_key') or ''), str(item.get('sub_key') or ''))
+        for item in (saved or [])
+        if item.get('rule_key') and item.get('sub_key')
+    }
+    selected: List[dict] = []
+    for item in candidates or []:
+        pair = (item.get('rule_key'), item.get('sub_key'))
+        backend_hit = bool(
+            emby_host and emby_port and _match_backend(
+                str(item.get('backend') or ''), emby_host, emby_port,
+            )
+        )
+        if pair in saved_pairs or backend_hit:
+            selected.append(item)
+    if not selected and len(candidates or []) == 1:
+        return list(candidates)
+    return selected
 
 
 def build_rule_label(candidate: dict) -> str:
@@ -322,11 +371,16 @@ def calc_ip_traffic_deltas(
     baselines: Dict[str, Dict[str, int]],
     *,
     wan_only: bool = True,
+    key_prefix: str = '',
 ) -> Tuple[Dict[str, int], Dict[str, int], Dict[str, Dict[str, int]]]:
-    """按 IP 读取 Lucky 累计 TrafficOut/In，与持久化基线求差得增量。"""
+    """按 IP 读取 Lucky 累计 TrafficOut/In，与持久化基线求差得增量。
+
+    key_prefix 只用于基线键。多条反代分开记账，增量仍按真实 IP 相加。
+    """
     out_deltas: Dict[str, int] = {}
     in_deltas: Dict[str, int] = {}
     new_baselines = dict(baselines or {})
+    prefix = str(key_prefix or '')
     for item in res_list or []:
         if not isinstance(item, dict):
             continue
@@ -335,15 +389,16 @@ def calc_ip_traffic_deltas(
             continue
         if wan_only and is_lan_ip(ip):
             continue
+        base_key = f'{prefix}{ip}' if prefix else ip
         current_out = max(0, int(item.get('TrafficOut') or 0))
         current_in = max(0, int(item.get('TrafficIn') or 0))
-        prev = new_baselines.get(ip)
+        prev = new_baselines.get(base_key)
         first_seen = prev is None
         last_out = max(0, int((prev or {}).get('out') or 0))
         last_in = max(0, int((prev or {}).get('in') or 0))
         delta_out = _lucky_traffic_delta(current_out, last_out, first_seen=first_seen)
         delta_in = _lucky_traffic_delta(current_in, last_in, first_seen=first_seen)
-        new_baselines[ip] = {'out': current_out, 'in': current_in}
+        new_baselines[base_key] = {'out': current_out, 'in': current_in}
         if delta_out > 0:
             out_deltas[ip] = out_deltas.get(ip, 0) + delta_out
         if delta_in > 0:
@@ -454,22 +509,28 @@ def calc_conn_traffic_deltas(
     baselines: Dict[str, Dict[str, int]],
     *,
     wan_only: bool = True,
+    key_prefix: str = '',
 ) -> Tuple[Dict[str, int], Dict[str, int], Dict[str, Dict[str, int]]]:
-    """按 RemoteAddr 读取连接级累计并与基线求差。"""
+    """按 RemoteAddr 读取连接级累计并与基线求差。
+
+    key_prefix 只用于基线键，返回的增量键仍是真实 RemoteAddr。
+    """
     out_deltas: Dict[str, int] = {}
     in_deltas: Dict[str, int] = {}
     new_baselines = dict(baselines or {})
+    prefix = str(key_prefix or '')
     for conn in iter_wan_conn_statistics(res_list, wan_only=wan_only):
         key = conn['remote_addr']
+        base_key = f'{prefix}{key}' if prefix else key
         current_out = max(0, int(conn.get('traffic_out') or 0))
         current_in = max(0, int(conn.get('traffic_in') or 0))
-        prev = new_baselines.get(key)
+        prev = new_baselines.get(base_key)
         first_seen = prev is None
         last_out = max(0, int((prev or {}).get('out') or 0))
         last_in = max(0, int((prev or {}).get('in') or 0))
         delta_out = _lucky_traffic_delta(current_out, last_out, first_seen=first_seen)
         delta_in = _lucky_traffic_delta(current_in, last_in, first_seen=first_seen)
-        new_baselines[key] = {'out': current_out, 'in': current_in}
+        new_baselines[base_key] = {'out': current_out, 'in': current_in}
         if delta_out > 0:
             out_deltas[key] = out_deltas.get(key, 0) + delta_out
         if delta_in > 0:

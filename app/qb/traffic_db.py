@@ -32,10 +32,12 @@ _SCHEMA_COLUMNS = (
     ('instance_status', 'deleted_at', 'DATETIME'),
     ('traffic_hourly', 'backfilled_uploaded_bytes', 'BIGINT NOT NULL DEFAULT 0'),
     ('traffic_hourly', 'backfilled_downloaded_bytes', 'BIGINT NOT NULL DEFAULT 0'),
+    ('device_events', 'event_key', 'TEXT'),
 )
 
-# 数据保留策略（防止数据库无限增长）
-EVENT_RETENTION_COUNT = 1000
+# 数据保留策略（防止数据库无限增长）。种子历史按添加、完成时间补记后，
+# 每台设备大约两条乘以当前种子数，1000 条会把较早的补记清掉。
+EVENT_RETENTION_COUNT = 5000
 _VACUUM_INTERVAL_DAYS = 30
 _last_vacuum_day = None
 _vacuum_running = False
@@ -228,6 +230,10 @@ def init_db():
         c.execute('''
             CREATE INDEX IF NOT EXISTS idx_device_events_time
             ON device_events(event_time DESC)
+        ''')
+        c.execute('''
+            CREATE INDEX IF NOT EXISTS idx_device_events_key
+            ON device_events(instance_name, event_type, event_key)
         ''')
 
         conn.commit()
@@ -1439,28 +1445,96 @@ def try_begin_cycle_transition(instance_name: str,
             conn.close()
 
 
-def add_device_event(instance_name: str, event_type: str,
-                     speed_limit_kbps: int = None, reason: str = None):
+def _coerce_event_time(value):
+    """入库时间：空为当前；整数按 Unix 秒转到配置时区。"""
+    if value is None or value == '':
+        return now_local()
+    if isinstance(value, datetime):
+        return _to_local_naive(value)
+    try:
+        ts = int(value)
+    except (TypeError, ValueError):
+        return now_local()
+    if ts <= 0:
+        return now_local()
+    return datetime.fromtimestamp(
+        ts, timezone.utc,
+    ).astimezone(get_config_timezone()).replace(tzinfo=None)
+
+
+def _backfill_exists(cursor, instance_name: str, event_type: str,
+                     event_key: str, reason: str, when: datetime) -> bool:
+    """同一哈希已补过，或旧记录在同一小时内已有同名事件，就不再插入。"""
+    if event_key:
+        cursor.execute('''
+            SELECT 1 FROM device_events
+            WHERE instance_name = ? AND event_type = ? AND event_key = ?
+            LIMIT 1
+        ''', (instance_name, event_type, event_key))
+        if cursor.fetchone():
+            return True
+        if reason and when is not None:
+            cursor.execute('''
+                SELECT 1 FROM device_events
+                WHERE instance_name = ? AND event_type = ? AND reason = ?
+                  AND (event_key IS NULL OR event_key = '')
+                  AND event_time >= ? AND event_time <= ?
+                LIMIT 1
+            ''', (
+            instance_name, event_type, reason,
+            when - timedelta(hours=1), when + timedelta(hours=1),
+        ))
+        if cursor.fetchone():
+            return True
+    return False
+
+
+def add_device_events(instance_name: str, events: list):
+    """写入设备事件。backfill 为真时按哈希跳过已有记录，并只在末尾做一次保留裁剪。"""
+    if not events:
+        return
     with _lock:
         conn = get_conn()
         try:
             c = conn.cursor()
-            c.execute('''
-                INSERT INTO device_events
-                (instance_name, event_time, event_type, speed_limit_kbps, reason)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (instance_name, now_local(), event_type, speed_limit_kbps, reason))
-
+            for event in events:
+                event_type = event.get('event_type')
+                if not event_type:
+                    continue
+                when = _coerce_event_time(event.get('event_time'))
+                reason = event.get('reason') or None
+                event_key = event.get('event_key') or None
+                if event.get('backfill') and _backfill_exists(
+                    c, instance_name, event_type, event_key, reason, when,
+                ):
+                    continue
+                c.execute('''
+                    INSERT INTO device_events
+                    (instance_name, event_time, event_type,
+                     speed_limit_kbps, reason, event_key)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (
+                    instance_name, when, event_type,
+                    event.get('speed_limit_kbps'), reason, event_key,
+                ))
             c.execute('''
                 DELETE FROM device_events WHERE id NOT IN (
                     SELECT id FROM device_events
                     ORDER BY event_time DESC LIMIT ?
                 )
             ''', (EVENT_RETENTION_COUNT,))
-
             conn.commit()
         finally:
             conn.close()
+
+
+def add_device_event(instance_name: str, event_type: str,
+                     speed_limit_kbps: int = None, reason: str = None):
+    add_device_events(instance_name, [{
+        'event_type': event_type,
+        'speed_limit_kbps': speed_limit_kbps,
+        'reason': reason,
+    }])
 
 
 add_speed_event = add_device_event

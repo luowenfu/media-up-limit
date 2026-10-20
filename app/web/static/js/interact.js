@@ -7,11 +7,11 @@ import { esc } from './format.js';
 import { deviceUrl } from './adapt.js';
 import { state, qbByName, embyByName } from './store.js';
 import { openQbForm } from './qbform.js';
-import { openEmbyForm } from './embyform.js';
+import { addLuckyRuleRow, openEmbyForm, removeLuckyRuleRow } from './embyform.js';
 import { anchorHtml, refreshScale, ruleRow } from './plan.js';
 import { openMergeEditor, refreshMergeEditor, saveMerge, toggleAll } from './merge.js';
 import {
-    applyDelete, applyLimit, applyReset, openDelete, openLimit, openReset, refreshLimit, switchLimitMode,
+    applyDelete, applyLimit, applyReset, openDelete, openLimit, openReset, openSessionMessage, refreshLimit, sendSessionMessage, switchLimitMode,
 } from './dialogs.js';
 import {
     $, $$, busy, closeModal, closeSheet, reload, toast,
@@ -54,6 +54,7 @@ function cardAction(t) {
 
 async function sessionCommand(t) {
     const { sess, sid, dev } = t.dataset;
+    if (sess === 'message') { openSessionMessage(dev, sid); return; }
     try {
         await api.post(`/api/emby/sessions/${enc(dev)}/${enc(sid)}/playing/${sess}`);
         toast(sess === 'stop' ? '已停止播放' : sess === 'pause' ? '已暂停' : '已继续播放');
@@ -91,6 +92,10 @@ function formControl(t) {
     }
     if (t.closest('.seg-f')) {
         t.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === t));
+        if (t.dataset.msgStyle) {
+            const hint = $('#msgStyleHint');
+            if (hint) hint.textContent = t.dataset.msgStyle === 'dialog' ? '持续显示，用户需自行关闭' : '短暂显示，3秒后自动消失';
+        }
         if (t.dataset.cyc) t.closest('.plan').querySelector('.anchor').innerHTML = anchorHtml(t.dataset.cyc);
         return true;
     }
@@ -104,6 +109,8 @@ function formControl(t) {
         }
         return true;
     }
+    if (t.hasAttribute('data-rule-add')) { addLuckyRuleRow(); return true; }
+    if (t.hasAttribute('data-rule-del')) { removeLuckyRuleRow(t); return true; }
     if (t.matches('[data-lucky]')) {
         const on = !t.classList.contains('on');
         t.classList.toggle('on', on);
@@ -161,6 +168,7 @@ function dialogControl(t) {
         return true;
     }
     if (t.id === 'delGo') { applyDelete(t); return true; }
+    if (t.id === 'msgGo') { sendSessionMessage(t); return true; }
     return false;
 }
 

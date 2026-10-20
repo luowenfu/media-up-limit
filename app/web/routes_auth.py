@@ -1,9 +1,13 @@
 """登录、退出与页面入口"""
 
+import os
+
 from flask import Blueprint
+from flask import current_app
 from flask import jsonify
 from flask import render_template
 from flask import request
+from flask import send_from_directory
 from flask import session
 import logging
 
@@ -26,6 +30,11 @@ def login_page():
 @bp.route('/')
 def index():
     return render_template('index.html')
+
+
+@bp.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(current_app.static_folder, 'img'), 'favicon.ico')
 
 
 @bp.route('/api/auth/login', methods=['POST'])

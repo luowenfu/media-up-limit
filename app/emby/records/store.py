@@ -327,12 +327,14 @@ def _apply_session_meta(record: dict, session: dict) -> None:
     for key in (
         'video_codec', 'audio_codec', 'container', 'width', 'height',
         'video_bitrate', 'audio_bitrate', 'framerate', 'audio_channels',
-        'transcode_reasons',
+        'transcode_reasons', 'video_decoder', 'video_encoder',
     ):
         val = prepared.get(key)
         if val in (None, '', 0, []):
             continue
         record[key] = val
+    if prepared.get('video_encoder') or prepared.get('video_decoder'):
+        record['video_encoder_is_hardware'] = bool(prepared.get('video_encoder_is_hardware'))
     if 'is_paused' in prepared:
         record['is_paused'] = bool(prepared.get('is_paused'))
     mode = str(
@@ -376,6 +378,67 @@ def _resolve_upload_bytes(instance_name: str, record: dict) -> None:
 
 def _take_upload(instance_name: str, record: dict) -> None:
     _resolve_upload_bytes(instance_name, record)
+
+
+def _persist_content_play(instance_name: str, record: dict) -> None:
+    try:
+        import emby.traffic.db as emby_traffic_db
+        emby_traffic_db.save_content_play(
+            instance_name,
+            int(record.get('id') or 0),
+            record.get('user_name') or '',
+            record.get('started_at') or '',
+            record.get('item_id') or '',
+            record.get('item_title') or '',
+            record.get('item_type') or '',
+            record.get('series_name') or '',
+        )
+    except Exception as e:
+        logger.debug(f'[Playback:{instance_name}] 点播明细入库失败: {e}')
+
+
+def accrue_playing_upload(instance_name: str) -> int:
+    """按采集把仍在播放的外网上行增量写入账本。已入账部分不重复记。"""
+    name = (instance_name or '').strip()
+    if not name:
+        return 0
+    with _lock:
+        store = _load_store(name)
+        records = [
+            dict(rec)
+            for rec in (store.get('records') or [])
+            if rec.get('status') == 'playing' and rec.get('is_remote')
+            and str(rec.get('traffic_collect_mode') or '').strip().lower() == 'lucky'
+        ]
+    if not records:
+        return 0
+    import emby.traffic.playback as emby_playback_traffic
+    import emby.traffic.db as emby_traffic_db
+    now = _utc_now_iso()
+    booked = 0
+    for rec in records:
+        user = str(rec.get('user_name') or '').strip()
+        if not user:
+            continue
+        peek = emby_playback_traffic.peek_accumulated_upload(name, rec)
+        already = max(0, int(rec.get('estimated_upload_bytes') or 0))
+        accum = max(0, int(peek or 0))
+        checkpoint = max(0, int(rec.get('live_upload_checkpoint_bytes') or 0))
+        total = max(already + accum, checkpoint)
+        if total <= 0:
+            continue
+        if emby_traffic_db.save_playback_upload_fact(
+            name,
+            int(rec.get('id') or 0),
+            user,
+            rec.get('user_id') or '',
+            now,
+            total,
+            rec.get('series_name') or '',
+            rec.get('episode_label') or '',
+        ):
+            booked += 1
+    return booked
 
 
 def _persist_upload_fact(instance_name: str, record: dict) -> None:
@@ -443,6 +506,7 @@ def _finalize_record(instance_name: str, record: dict, *,
         if played > 0:
             record['end_position_seconds'] = max(0, int(start_pos)) + played
     _take_upload(instance_name, record)
+    _persist_content_play(instance_name, record)
     if status == 'ended' or (status == 'incomplete' and record.get('estimated_upload_bytes')):
         _persist_upload_fact(instance_name, record)
     try:
@@ -526,6 +590,7 @@ def _new_record(instance_name: str, store: dict, session: dict) -> dict:
         emby_playback_traffic.on_playback_segment_started(instance_name, record)
     except Exception as e:
         logger.debug(f'[Playback:{instance_name}] 播放段流量开始回调失败: {e}')
+    _persist_content_play(instance_name, record)
     return record
 
 
@@ -1022,6 +1087,7 @@ def _restart_recovery_finalize_unlocked(
         played = int(record.get('played_seconds') or 0)
         if played > 0:
             record['end_position_seconds'] = max(0, int(start_pos)) + played
+    _persist_content_play(instance_name, record)
     if pre_total > 0:
         _persist_upload_fact(instance_name, record)
     try:
@@ -1225,6 +1291,30 @@ def tick_from_sessions(instance_name: str, sessions: list, *,
             store['records'] = (playing + others)[:MAX_STORED_RECORDS]
             _save_store(store, immediate=needs_immediate_save)
         return _wrap_return(changed, store)
+
+
+def sync_upload_anomaly(instance_name: str, on_ids: list, off_ids: list) -> None:
+    """把「反代未覆盖到该客户端」写进仍在播放的记录，结束后保留。"""
+    name = (instance_name or '').strip()
+    on = {str(item) for item in (on_ids or []) if str(item or '').strip()}
+    off = {str(item) for item in (off_ids or []) if str(item or '').strip()}
+    if not name or not (on or off):
+        return
+    with _lock:
+        store = _load_store(name)
+        changed = False
+        for record in store.get('records') or []:
+            if record.get('status') != 'playing':
+                continue
+            sid = str(record.get('emby_session_id') or '').strip()
+            if sid in on and not record.get('upload_anomaly'):
+                record['upload_anomaly'] = True
+                changed = True
+            elif sid in off and record.get('upload_anomaly'):
+                record['upload_anomaly'] = False
+                changed = True
+        if changed:
+            _save_store(store, immediate=True)
 
 
 def list_records(instance_name: str = None, limit: int = 200) -> List[dict]:

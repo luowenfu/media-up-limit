@@ -26,12 +26,30 @@ from emby.lucky.api import (
     sum_positive,
 )
 from emby.traffic.filter import (
+    canon_client_ip,
     is_lan_ip,
     is_wan_playback_session,
 )
 from qb.scheduler import clamp_interval, ticks_per_full_collect
 
 logger = logging.getLogger(__name__)
+
+
+def _sort_sessions_newest_first(sessions) -> list:
+    """当前播放会话：最新开始的在前。没有开始时间的放最后。"""
+    dated = []
+    undated = []
+    for session in sessions or []:
+        if not isinstance(session, dict):
+            continue
+        if str(session.get('playback_started_at') or ''):
+            dated.append(session)
+        else:
+            undated.append(session)
+    dated.sort(key=lambda s: str(s.get('id') or ''))
+    undated.sort(key=lambda s: str(s.get('id') or ''))
+    dated.sort(key=lambda s: str(s.get('playback_started_at') or ''), reverse=True)
+    return dated + undated
 
 
 def _active_playback_sessions(sessions: list) -> list:
@@ -178,6 +196,8 @@ class EmbyInstanceWorker:
         self._live_upload_hydrated = False
         self._recovery_allowed_persist_keys: Optional[Set[str]] = None
         self._pending_lucky_snapshot: Optional[dict] = None
+        self._upload_miss_ticks: Dict[str, int] = {}
+        self._upload_anomaly_ids: Set[str] = set()
 
     def start(self):
         if self._running:
@@ -238,17 +258,33 @@ class EmbyInstanceWorker:
             total_in += max(0, int(item.get('TrafficIn') or 0))
         return total_out, total_in
 
-    def _fetch_lucky_access_detail(self, client: EmbyClient) -> tuple:
+    def _fetch_lucky_rule_details(self, client: EmbyClient) -> tuple:
+        """拉取已选的每条反代。
+
+        返回 ([(rule, data), ...], 是否至少成功一条, 是否每条都成功)。
+        """
         lc = self._lucky_client(client)
-        if not lc or not client.lucky_rule_key or not client.lucky_sub_key:
-            return None, False
-        data, err = lc.fetch_access_detail(
-            client.lucky_rule_key,
-            client.lucky_sub_key,
-        )
-        if err or not data:
-            return None, False
-        return data, True
+        rules = list(getattr(client, 'lucky_rules', None) or [])
+        if not lc or not rules:
+            return [], False, False
+        loaded = []
+        failed = False
+        for rule in rules:
+            label = str(rule.get('label') or rule.get('rule_key') or '').strip()
+            data, err = lc.fetch_access_detail(
+                rule.get('rule_key'),
+                rule.get('sub_key'),
+            )
+            if err or not data:
+                failed = True
+                logger.warning(
+                    f'[Emby:{self.name}] Lucky 反代读取失败'
+                    f'{(" " + label) if label else ""}: {err or "空数据"}',
+                )
+                continue
+            loaded.append((rule, data))
+        any_ok = bool(loaded)
+        return loaded, any_ok, any_ok and not failed
 
     def _fetch_sessions(self, client: EmbyClient) -> tuple:
         """返回 (sessions, ok)；拉取失败时 ok=False，调用方应保留分摊状态。"""
@@ -260,6 +296,80 @@ class EmbyInstanceWorker:
 
     def _probe_api_online(self, client: EmbyClient) -> bool:
         return client.is_reachable()
+
+    def _proxy_seen_ips(self, lucky_conn_debug, lucky_ip_traffic) -> set:
+        """已选反代里出现过的客户端地址：打开的连接，或 IP 流量列表。"""
+        seen = set()
+        debug = lucky_conn_debug or {}
+        for group in debug.get('groups') or []:
+            if not isinstance(group, dict):
+                continue
+            ip = canon_client_ip(group.get('ip') or '')
+            if ip:
+                seen.add(ip)
+        for ip in lucky_ip_traffic or {}:
+            canon = canon_client_ip(ip)
+            if canon:
+                seen.add(canon)
+        return seen
+
+    def _apply_upload_anomalies(
+        self, sessions, lucky_conn_debug, *, fresh: bool, lucky_ip_traffic=None,
+    ) -> None:
+        """外网在播、已选反代里没有这个地址，连续两次样本仍是 0 则标为异常。
+
+        fresh 仅在本次每条已选反代都读成功时为真。残缺样本不新增、也不清除标记。
+        """
+        sessions = sessions or []
+        if not fresh:
+            for session in sessions:
+                if not isinstance(session, dict):
+                    continue
+                sid = str(session.get('id') or '').strip()
+                if sid and sid in self._upload_anomaly_ids:
+                    session['upload_anomaly'] = True
+            return
+        seen = self._proxy_seen_ips(lucky_conn_debug, lucky_ip_traffic)
+        active = set()
+        turned_on = []
+        turned_off = []
+        for session in sessions:
+            if not isinstance(session, dict) or not session.get('is_remote'):
+                continue
+            if not EmbyClient.is_current_playback_session(session):
+                continue
+            sid = str(session.get('id') or '').strip()
+            if not sid:
+                continue
+            active.add(sid)
+            if 'estimated_upload_bytes_live' not in session:
+                continue
+            upload = max(0, int(session.get('estimated_upload_bytes_live') or 0))
+            ip = canon_client_ip(session.get('remote_endpoint') or '')
+            unmatched = upload <= 0 and bool(ip) and ip not in seen
+            if unmatched:
+                ticks = self._upload_miss_ticks.get(sid, 0) + 1
+                self._upload_miss_ticks[sid] = ticks
+                if ticks >= 2:
+                    session['upload_anomaly'] = True
+                    if sid not in self._upload_anomaly_ids:
+                        self._upload_anomaly_ids.add(sid)
+                        turned_on.append(sid)
+            else:
+                self._upload_miss_ticks.pop(sid, None)
+                if sid in self._upload_anomaly_ids:
+                    self._upload_anomaly_ids.discard(sid)
+                    turned_off.append(sid)
+        for sid in list(self._upload_miss_ticks):
+            if sid not in active:
+                self._upload_miss_ticks.pop(sid, None)
+        if turned_on or turned_off:
+            try:
+                playback_record_store.sync_upload_anomaly(
+                    self.name, turned_on, turned_off,
+                )
+            except Exception as e:
+                logger.debug(f'[Emby:{self.name}] 上传异常标记写入失败: {e}')
 
     def _loop(self):
         while self._running and self.monitor._running:
@@ -424,6 +534,7 @@ class EmbyInstanceWorker:
             self._live_upload_hydrated = True
 
         lucky_available = False
+        lucky_sample_ok = False
         lucky_ip_deltas: Dict[str, int] = {}
         lucky_ip_traffic: Dict[str, Dict[str, int]] = {}
         is_online = api_online
@@ -445,37 +556,58 @@ class EmbyInstanceWorker:
         }
 
         if collect_mode == 'lucky':
-            lucky_detail = None
+            loaded_rules = []
+            rules_complete = False
             if full or self._was_online:
-                lucky_detail, lucky_available = self._fetch_lucky_access_detail(client)
-            if lucky_detail:
-                is_online = api_online or lucky_available
-                res_list = lucky_detail.get('resList') or []
-                lucky_baselines = emby_traffic_db.load_lucky_ip_baselines(self.name)
-                out_deltas, in_deltas, new_baselines = calc_ip_traffic_deltas(
-                    res_list,
-                    lucky_baselines,
-                    wan_only=True,
+                loaded_rules, lucky_available, rules_complete = (
+                    self._fetch_lucky_rule_details(client)
                 )
-                emby_traffic_db.save_lucky_ip_baselines(self.name, new_baselines)
-                self._lucky_ip_baselines = new_baselines
+            if loaded_rules:
+                lucky_sample_ok = rules_complete
+                is_online = api_online or lucky_available
+                ip_baselines = emby_traffic_db.load_lucky_ip_baselines(self.name)
                 conn_baselines = emby_traffic_db.load_lucky_conn_baselines(self.name)
-                conn_out_deltas, conn_in_deltas, new_conn_baselines = (
-                    calc_conn_traffic_deltas(
+                out_deltas: Dict[str, int] = {}
+                in_deltas: Dict[str, int] = {}
+                conn_out_deltas: Dict[str, int] = {}
+                conn_rows = []
+                lucky_ip_traffic = {}
+                total_out = total_in = 0
+                for rule, detail in loaded_rules:
+                    res_list = detail.get('resList') or []
+                    prefix = f"{rule.get('rule_key')}|{rule.get('sub_key')}|"
+                    rule_out, rule_in, ip_baselines = calc_ip_traffic_deltas(
+                        res_list,
+                        ip_baselines,
+                        wan_only=True,
+                        key_prefix=prefix,
+                    )
+                    rule_conn_out, _, conn_baselines = calc_conn_traffic_deltas(
                         res_list,
                         conn_baselines,
                         wan_only=True,
+                        key_prefix=prefix,
                     )
-                )
-                emby_traffic_db.save_lucky_conn_baselines(
-                    self.name, new_conn_baselines,
-                )
-                self._lucky_conn_baselines = new_conn_baselines
-                self._lucky_conn_rows_last = iter_wan_conn_statistics(
-                    res_list, wan_only=True,
-                )
+                    for ip, amount in rule_out.items():
+                        out_deltas[ip] = out_deltas.get(ip, 0) + amount
+                    for ip, amount in rule_in.items():
+                        in_deltas[ip] = in_deltas.get(ip, 0) + amount
+                    for addr, amount in rule_conn_out.items():
+                        conn_out_deltas[addr] = conn_out_deltas.get(addr, 0) + amount
+                    conn_rows.extend(iter_wan_conn_statistics(res_list, wan_only=True))
+                    for ip, traffic in extract_wan_ip_cumulative_traffic(res_list).items():
+                        slot = lucky_ip_traffic.setdefault(ip, {'out': 0, 'in': 0})
+                        slot['out'] += int(traffic.get('out') or 0)
+                        slot['in'] += int(traffic.get('in') or 0)
+                    rule_out_total, rule_in_total = self._lucky_wan_totals(res_list)
+                    total_out += rule_out_total
+                    total_in += rule_in_total
+                emby_traffic_db.save_lucky_ip_baselines(self.name, ip_baselines)
+                self._lucky_ip_baselines = ip_baselines
+                emby_traffic_db.save_lucky_conn_baselines(self.name, conn_baselines)
+                self._lucky_conn_baselines = conn_baselines
+                self._lucky_conn_rows_last = conn_rows
                 self._lucky_conn_deltas_last = dict(conn_out_deltas)
-                lucky_ip_traffic = extract_wan_ip_cumulative_traffic(res_list)
                 self._lucky_ip_traffic_last = lucky_ip_traffic
                 self._lucky_ip_deltas_last = dict(out_deltas)
                 lucky_ip_deltas = out_deltas
@@ -503,7 +635,6 @@ class EmbyInstanceWorker:
                         f'[Emby:{self.name}] Lucky 离线恢复待分摊上行='
                         f'{raw_up / 1024 / 1024:.2f}MB'
                     )
-                total_out, total_in = self._lucky_wan_totals(res_list)
                 self._lucky_total_out = total_out
                 self._lucky_total_in = total_in
             else:
@@ -720,6 +851,12 @@ class EmbyInstanceWorker:
                 logger.debug(
                     f'[Emby:{self.name}] Lucky 连接调试快照失败: {e}',
                 )
+        self._apply_upload_anomalies(
+            sessions,
+            lucky_conn_debug,
+            fresh=lucky_sample_ok,
+            lucky_ip_traffic=lucky_ip_traffic,
+        )
         tick_wan_assigned = max(
             0,
             int(allocation_debug.get('wan_upload_bytes')
@@ -764,7 +901,7 @@ class EmbyInstanceWorker:
             traffic_collect_mode=collect_mode,
             delta_up=live_delta_up,
             delta_dl=live_delta_dl,
-            sessions=sessions,
+            sessions=_sort_sessions_newest_first(sessions),
             debug_metrics=debug_traffic_metrics,
             traffic_tick_audit={
                 'tick': self._last_tick_audit,
@@ -776,6 +913,12 @@ class EmbyInstanceWorker:
             lucky_conn_debug=lucky_conn_debug if collect_mode == 'lucky' else None,
         )
         if full:
+            try:
+                playback_record_store.accrue_playing_upload(self.name)
+            except Exception as e:
+                logger.debug(
+                    f'[Emby:{self.name}] 播放上行按采集入账失败: {e}',
+                )
             try:
                 emby_playback_traffic.sync_live_upload_persistence(
                     self.name,

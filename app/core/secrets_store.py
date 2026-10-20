@@ -263,7 +263,7 @@ def rename_lucky_open_token(old_name: str, new_name: str) -> None:
         if old_name in secrets:
             secrets[new_name] = secrets.pop(old_name)
             changed = True
-        for field in ('rule_key', 'sub_key'):
+        for field in ('rule_key', 'sub_key', 'rules'):
             old_key = _lucky_field_key(old_name, field)
             new_key = _lucky_field_key(new_name, field)
             if old_key in secrets:
@@ -327,7 +327,7 @@ def delete_lucky_rule_keys(instance_name: str) -> None:
     with _lock:
         secrets = _load_lucky_secrets()
         changed = False
-        for field in ('rule_key', 'sub_key'):
+        for field in ('rule_key', 'sub_key', 'rules'):
             field_key = _lucky_field_key(instance_name, field)
             if field_key in secrets:
                 secrets.pop(field_key, None)
@@ -336,5 +336,78 @@ def delete_lucky_rule_keys(instance_name: str) -> None:
             _save_lucky_secrets(secrets)
 
 
+def _parse_lucky_rules(raw) -> list:
+    if not isinstance(raw, list):
+        return []
+    rules = []
+    seen = set()
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        rule_key = str(item.get('rule_key') or '').strip()
+        sub_key = str(item.get('sub_key') or '').strip()
+        if not rule_key or not sub_key:
+            continue
+        pair = (rule_key, sub_key)
+        if pair in seen:
+            continue
+        seen.add(pair)
+        rules.append({
+            'rule_key': rule_key,
+            'sub_key': sub_key,
+            'label': str(item.get('label') or '').strip(),
+        })
+    return rules
+
+
+def get_lucky_rules(instance_name: str) -> list:
+    """已保存的反代规则。没有多选记录时，回退到原来的单条规则。"""
+    if not instance_name:
+        return []
+    secrets = _load_lucky_secrets()
+    blob = secrets.get(_lucky_field_key(instance_name, 'rules'))
+    if blob:
+        try:
+            parsed = _parse_lucky_rules(json.loads(decrypt_value(blob)))
+        except Exception:
+            parsed = []
+        if parsed:
+            return parsed
+    rule_key = ''
+    sub_key = ''
+    rule_token = secrets.get(_lucky_field_key(instance_name, 'rule_key'))
+    sub_token = secrets.get(_lucky_field_key(instance_name, 'sub_key'))
+    if rule_token:
+        rule_key = decrypt_value(rule_token)
+    if sub_token:
+        sub_key = decrypt_value(sub_token)
+    if rule_key and sub_key:
+        return [{'rule_key': rule_key, 'sub_key': sub_key, 'label': ''}]
+    return []
+
+
+def set_lucky_rules(instance_name: str, rules: list) -> None:
+    """保存多条反代规则，并同步第一条到旧的单条字段。"""
+    if not instance_name:
+        return
+    parsed = _parse_lucky_rules(rules)
+    with _lock:
+        secrets = _load_lucky_secrets()
+        rules_key = _lucky_field_key(instance_name, 'rules')
+        rule_key = _lucky_field_key(instance_name, 'rule_key')
+        sub_key = _lucky_field_key(instance_name, 'sub_key')
+        if parsed:
+            secrets[rules_key] = encrypt_value(
+                json.dumps(parsed, ensure_ascii=False),
+            )
+            secrets[rule_key] = encrypt_value(parsed[0]['rule_key'])
+            secrets[sub_key] = encrypt_value(parsed[0]['sub_key'])
+        else:
+            secrets.pop(rules_key, None)
+            secrets.pop(rule_key, None)
+            secrets.pop(sub_key, None)
+        _save_lucky_secrets(secrets)
+
+
 def has_lucky_rule_keys(instance_name: str) -> bool:
-    return bool(get_lucky_rule_key(instance_name) and get_lucky_sub_key(instance_name))
+    return bool(get_lucky_rules(instance_name))

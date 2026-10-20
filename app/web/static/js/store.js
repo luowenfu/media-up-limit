@@ -4,8 +4,14 @@ import * as api from './api.js';
 import { embyVM, qbVM } from './adapt.js';
 
 export const state = {
-    platform: 'qb',
-    page: 'devices',
+    view: 'qb',
+    dev: '',
+    tab: 'chart',
+    focus: '',
+    lastList: 'qb',
+    feedOpen: { qb: false, emby: false },
+    detailFold: { card: true, events: false, chart: false },
+    detailTab: 'card',
     statsRange: 'day',
     statsSpan: '6',
     statsDevice: '',
@@ -20,6 +26,7 @@ export const state = {
     logLv: 'all',
     logQuery: '',
     hide: {},
+    revealHost: {},
     qbRaw: [],
     embyRaw: [],
     global: {},
@@ -126,7 +133,76 @@ export async function refreshLive() {
     recordHist();
 }
 
-export function pickPlatform() {
+/** 侧栏里被收起的设备分组 */
+export const navCollapsed = () => (Array.isArray(state.prefs.nav_collapsed) ? state.prefs.nav_collapsed : []);
+
+const PAGE_VIEWS = new Set(['qb', 'emby', 'merge', 'syslogs']);
+const PAGE_TABS = new Set(['card', 'events', 'chart']);
+const PAGE_RANGES = new Set(['hour', 'day', 'month']);
+const PAGE_SPANS = new Set(['6', '12', '24', 'all']);
+const PAGE_KEY = 'qb-page';
+let pageSig = '';
+
+/** 当前页：刷新后用来回到同一视图、设备和筛选 */
+export function pageSnapshot() {
+    return {
+        view: state.view,
+        dev: state.dev || '',
+        detailTab: state.detailTab || 'card',
+        statsRange: state.statsRange || 'day',
+        statsDate: state.statsDate || '',
+        statsSpan: String(state.statsSpan || '6'),
+        statsUser: state.statsUser || '',
+        eventsType: state.eventsType || 'all',
+        eventsUser: state.eventsUser || '',
+        eventsDays: Number(state.eventsDays) || 7,
+        eventsHideLan: !!state.eventsHideLan,
+        logSrc: state.logSrc || 'all',
+        logLv: state.logLv || 'all',
+    };
+}
+
+function applyPage(saved) {
+    if (!saved || !PAGE_VIEWS.has(saved.view)) return false;
+    state.view = saved.view;
+    state.dev = typeof saved.dev === 'string' ? saved.dev : '';
+    if (PAGE_TABS.has(saved.detailTab)) state.detailTab = saved.detailTab;
+    if (PAGE_RANGES.has(saved.statsRange)) state.statsRange = saved.statsRange;
+    if (typeof saved.statsDate === 'string') state.statsDate = saved.statsDate;
+    if (PAGE_SPANS.has(String(saved.statsSpan || ''))) state.statsSpan = String(saved.statsSpan);
+    if (typeof saved.statsUser === 'string') state.statsUser = saved.statsUser;
+    if (typeof saved.eventsType === 'string') state.eventsType = saved.eventsType;
+    if (typeof saved.eventsUser === 'string') state.eventsUser = saved.eventsUser;
+    if (Number(saved.eventsDays) > 0) state.eventsDays = Number(saved.eventsDays);
+    if (typeof saved.eventsHideLan === 'boolean') state.eventsHideLan = saved.eventsHideLan;
+    if (typeof saved.logSrc === 'string') state.logSrc = saved.logSrc;
+    if (typeof saved.logLv === 'string') state.logLv = saved.logLv;
+    return true;
+}
+
+/** 记住当前页。内容没变时不重复写。 */
+export function rememberPage() {
+    const snap = pageSnapshot();
+    const sig = JSON.stringify(snap);
+    if (sig === pageSig) return;
+    pageSig = sig;
+    try { sessionStorage.setItem(PAGE_KEY, sig); } catch (e) { /* 隐私模式写不进时仍靠历史记录 */ }
+    try { history.replaceState(snap, ''); } catch (e) { /* 历史记录不可用时忽略 */ }
+}
+
+/** 刷新时恢复当前页。没有记录则仍走默认视图。 */
+export function restorePage() {
+    let saved = history.state && history.state.view ? history.state : null;
+    if (!saved) {
+        try { saved = JSON.parse(sessionStorage.getItem(PAGE_KEY) || 'null'); } catch (e) { saved = null; }
+    }
+    const ok = applyPage(saved);
+    if (ok) pageSig = JSON.stringify(pageSnapshot());
+    return ok;
+}
+
+/** 启动时进入的设备视图：账号偏好优先，其次全局默认 */
+export function pickView() {
     const own = state.prefs.device_view_mode;
     const def = state.global.emby_default_device_view;
     let p = own || def || 'qb';

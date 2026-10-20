@@ -214,7 +214,16 @@ class InstanceWorker:
             delta_up, delta_dl, backfill_up, backfill_dl, is_backfill,
         )
         self._sync_baseline_from_info(info)
+        self._record_torrent_events(client)
         self._was_online = True
+
+    def _record_torrent_events(self, client: QBittorrentClient):
+        try:
+            events = client.poll_torrent_events()
+        except Exception as e:
+            logger.debug(f"[{self.name}] 种子事件采集失败: {e}")
+            return
+        traffic_db.add_device_events(self.name, events)
 
     def _mark_offline(self, client: QBittorrentClient):
         was = self._was_online

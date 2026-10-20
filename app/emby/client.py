@@ -178,13 +178,46 @@ class EmbyClient:
             self.traffic_collect_mode = ''
         self.lucky_base_url = str(config.get('lucky_base_url') or '').strip()
         self.lucky_verify_ssl = bool(config.get('lucky_verify_ssl', False))
-        self.lucky_rule_key = str(config.get('lucky_rule_key') or '').strip()
-        self.lucky_sub_key = str(config.get('lucky_sub_key') or '').strip()
-        self.lucky_rule_label = str(config.get('lucky_rule_label') or '').strip()
+        self.lucky_rules = EmbyClient._lucky_rules_from_config(config)
+        first = self.lucky_rules[0] if self.lucky_rules else {}
+        self.lucky_rule_key = str(first.get('rule_key') or config.get('lucky_rule_key') or '').strip()
+        self.lucky_sub_key = str(first.get('sub_key') or config.get('lucky_sub_key') or '').strip()
+        labels = [str(item.get('label') or '').strip() for item in self.lucky_rules]
+        labels = [item for item in labels if item]
+        self.lucky_rule_label = '；'.join(labels) or str(config.get('lucky_rule_label') or '').strip()
         self.lucky_frontend_host = str(config.get('lucky_frontend_host') or '').strip()
         self.lucky_credit_browse_traffic = bool(
             config.get('lucky_credit_browse_traffic', False),
         )
+
+    @staticmethod
+    def _lucky_rules_from_config(config: dict) -> list:
+        rules = []
+        seen = set()
+        for item in config.get('lucky_rules') or []:
+            if not isinstance(item, dict):
+                continue
+            rule_key = str(item.get('rule_key') or '').strip()
+            sub_key = str(item.get('sub_key') or '').strip()
+            if not rule_key or not sub_key or (rule_key, sub_key) in seen:
+                continue
+            seen.add((rule_key, sub_key))
+            rules.append({
+                'rule_key': rule_key,
+                'sub_key': sub_key,
+                'label': str(item.get('label') or '').strip(),
+            })
+        if rules:
+            return rules
+        rule_key = str(config.get('lucky_rule_key') or '').strip()
+        sub_key = str(config.get('lucky_sub_key') or '').strip()
+        if rule_key and sub_key:
+            return [{
+                'rule_key': rule_key,
+                'sub_key': sub_key,
+                'label': str(config.get('lucky_rule_label') or '').strip(),
+            }]
+        return []
 
     @property
     def upload_tracking_enabled(self) -> bool:
@@ -345,6 +378,71 @@ class EmbyClient:
             if isinstance(data, dict):
                 return data
         return None
+
+    def get_items_by_ids(self, item_ids) -> Optional[list]:
+        """按编号批量取条目。请求失败返回 None，查无条目返回空列表。"""
+        ids = []
+        seen = set()
+        for raw in item_ids or []:
+            item_id = str(raw or '').strip()
+            if not item_id or item_id in seen:
+                continue
+            seen.add(item_id)
+            ids.append(item_id)
+        if not ids:
+            return []
+        found = []
+        for offset in range(0, len(ids), 40):
+            chunk = ids[offset:offset + 40]
+            resp = self._request('GET', '/Items', params={
+                'Ids': ','.join(chunk),
+                'Fields': 'Genres,SeriesId,Type',
+                'EnableTotalRecordCount': 'false',
+            })
+            if resp is None or resp.status_code >= 400:
+                return None
+            try:
+                data = resp.json()
+            except ValueError:
+                return None
+            if isinstance(data, dict):
+                items = data.get('Items') or []
+            elif isinstance(data, list):
+                items = data
+            else:
+                items = []
+            found.extend(item for item in items if isinstance(item, dict))
+        return found
+
+    def lookup_series_by_name(self, name: str):
+        """按剧名精确查找剧集。找到返回条目，没有返回空字典，请求失败返回 None。"""
+        raw = (name or '').strip()
+        if not raw:
+            return {}
+        resp = self._request('GET', '/Items', params={
+            'Recursive': 'true',
+            'SearchTerm': raw,
+            'IncludeItemTypes': 'Series',
+            'Limit': '8',
+            'Fields': 'Genres',
+            'EnableTotalRecordCount': 'false',
+        })
+        if resp is None or resp.status_code >= 400:
+            return None
+        try:
+            data = resp.json()
+        except ValueError:
+            return None
+        items = data.get('Items') if isinstance(data, dict) else data
+        if not isinstance(items, list):
+            return {}
+        key = raw.casefold()
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            if (item.get('Name') or '').strip().casefold() == key:
+                return item
+        return {}
 
     def _query_items(self, params: dict, user_id: str = None) -> List[dict]:
         paths = []
@@ -1260,6 +1358,7 @@ class EmbyClient:
         viewing_episode_label = EmbyClient.format_episode_label(
             viewing_type, viewing_parent_idx, viewing_idx,
         )
+        poster_item, poster_tag = EmbyClient.poster_ref(now_playing or viewing)
         session_mode = EmbyClient._session_mode(
             now_playing, viewing, play_state, transcoding,
         )
@@ -1282,6 +1381,7 @@ class EmbyClient:
             'device_type': session.get('DeviceType') or '',
             'application_version': session.get('ApplicationVersion') or '',
             'remote_endpoint': session.get('RemoteEndPoint') or '',
+            'client_ip': parse_endpoint_ip(session.get('RemoteEndPoint') or ''),
             'is_remote': EmbyClient._is_remote_session(session.get('RemoteEndPoint') or ''),
             'protocol': session.get('Protocol') or transcoding.get('SubProtocol') or '',
             'play_method': play_method,
@@ -1334,7 +1434,43 @@ class EmbyClient:
             'viewing_title': viewing.get('Name') or '',
             'viewing_series_name': viewing.get('SeriesName') or '',
             'viewing_episode_label': viewing_episode_label,
+            'poster_item_id': poster_item,
+            'poster_tag': poster_tag,
         }
+
+    @staticmethod
+    def poster_ref(item: dict) -> tuple:
+        """剧集用整部剧的海报，电影用影片海报。返回 (条目编号, 图片标记)。"""
+        if not isinstance(item, dict) or not item:
+            return '', ''
+        item_type = str(item.get('Type') or '')
+        series_id = str(item.get('SeriesId') or '').strip()
+        if item_type == 'Episode' or series_id:
+            if series_id:
+                return series_id, str(item.get('SeriesPrimaryImageTag') or '').strip()
+        item_id = str(item.get('Id') or '').strip()
+        tags = item.get('ImageTags') if isinstance(item.get('ImageTags'), dict) else {}
+        tag = str((tags or {}).get('Primary') or '').strip()
+        if item_id and (tag or item_type in ('Movie', 'Series', 'Video', 'BoxSet')):
+            return item_id, tag
+        return '', ''
+
+    def fetch_primary_image(self, item_id: str, tag: str = '') -> tuple:
+        item_id = str(item_id or '').strip()
+        if not item_id:
+            return None, ''
+        params = {'maxHeight': 320, 'quality': 80}
+        if tag:
+            params['tag'] = tag
+        resp = self._request(
+            'GET', f'/Items/{quote(item_id, safe="")}/Images/Primary', params=params,
+        )
+        if resp is None or resp.status_code >= 400 or not resp.content:
+            return None, ''
+        mime = (resp.headers.get('Content-Type') or 'image/jpeg').split(';', 1)[0].strip()
+        if not mime.startswith('image/'):
+            return None, ''
+        return resp.content, mime
 
     def get_all_client_sessions(self) -> List[dict]:
         """全部在线客户端（含局域网/外网、选片/暂停/播放）。"""
@@ -1367,15 +1503,14 @@ class EmbyClient:
 
     def send_session_message(self, session_id: str, text: str,
                              header: str = None,
-                             timeout_ms: int = DEFAULT_SESSION_MESSAGE_TIMEOUT_MS) -> dict:
+                             timeout_ms: Optional[int] = DEFAULT_SESSION_MESSAGE_TIMEOUT_MS) -> dict:
         message = str(text or '').strip()
         if not message:
             return {'ok': False, 'error': '消息内容不能为空'}
         sid = quote(str(session_id), safe='')
-        params = {
-            'Text': message,
-            'TimeoutMs': int(timeout_ms or DEFAULT_SESSION_MESSAGE_TIMEOUT_MS),
-        }
+        params = {'Text': message}
+        if timeout_ms is not None:
+            params['TimeoutMs'] = int(timeout_ms)
         if header and str(header).strip():
             params['Header'] = str(header).strip()
         resp = self._request('POST', f'/Sessions/{sid}/Message', params=params)

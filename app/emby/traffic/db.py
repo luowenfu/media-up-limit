@@ -22,6 +22,7 @@ _EMBY_DB_TABLES = (
     'emby_instance_status',
     'emby_playback_upload_facts',
     'emby_playback_upload_hourly',
+    'emby_content_plays',
     'emby_browse_upload_facts',
     'emby_browse_upload_hourly',
     'emby_lucky_ip_baselines',
@@ -216,6 +217,7 @@ def _migrate_from_legacy_traffic_db_unlocked() -> None:
 
 def init_db():
     global _emby_schema_ensured
+    _ensure_traffic_timezone_from_config()
     with _lock:
         conn = get_conn()
         try:
@@ -376,9 +378,31 @@ def init_db():
                 ON emby_browse_upload_hourly(instance_name, user_name, hour_start)
             ''')
             c.execute('''
+                CREATE TABLE IF NOT EXISTS emby_content_plays (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    instance_name TEXT NOT NULL,
+                    segment_id INTEGER NOT NULL,
+                    user_name TEXT NOT NULL DEFAULT '',
+                    started_at DATETIME NOT NULL,
+                    item_id TEXT NOT NULL DEFAULT '',
+                    item_title TEXT NOT NULL DEFAULT '',
+                    item_type TEXT NOT NULL DEFAULT '',
+                    series_name TEXT NOT NULL DEFAULT '',
+                    UNIQUE(instance_name, segment_id)
+                )
+            ''')
+            c.execute('''
+                CREATE INDEX IF NOT EXISTS idx_emby_content_plays_started
+                ON emby_content_plays(instance_name, started_at)
+            ''')
+            c.execute('''
                 CREATE INDEX IF NOT EXISTS idx_emby_playback_facts_stopped
                 ON emby_playback_upload_facts(instance_name, stopped_at DESC)
             ''')
+            try:
+                _backfill_content_plays(c)
+            except Exception:
+                logger.exception('点播明细对齐失败')
             c.execute('''
                 CREATE INDEX IF NOT EXISTS idx_emby_browse_facts_stopped
                 ON emby_browse_upload_facts(instance_name, stopped_at DESC)
@@ -1236,10 +1260,10 @@ def get_playback_upload_period_bytes_batch(instance_names: list,
             c = conn.cursor()
             c.execute(f'''
                 SELECT instance_name,
-                       COALESCE(SUM(estimated_upload_bytes), 0) AS total
-                FROM emby_playback_upload_facts
+                       COALESCE(SUM(uploaded_bytes), 0) AS total
+                FROM emby_playback_upload_hourly
                 WHERE instance_name IN ({placeholders})
-                  AND stopped_at >= ?
+                  AND hour_start >= ?
                 GROUP BY instance_name
             ''', (*names, start_s))
             for row in c.fetchall():
@@ -1276,7 +1300,7 @@ def get_playback_upload_total_bytes_batch(instance_names: list) -> dict:
 
 def get_playback_upload_period_bytes(instance_name: str,
                                      start_dt: datetime) -> int:
-    """外网播放会话上传：自 start_dt 起 ended 段 estimated_upload_bytes 之和。"""
+    """外网播放上传：自 start_dt 起按采集入账的小时增量之和。"""
     name = (instance_name or '').strip()
     if not name:
         return 0
@@ -1287,9 +1311,9 @@ def get_playback_upload_period_bytes(instance_name: str,
         try:
             c = conn.cursor()
             c.execute('''
-                SELECT COALESCE(SUM(estimated_upload_bytes), 0) AS total
-                FROM emby_playback_upload_facts
-                WHERE instance_name = ? AND stopped_at >= ?
+                SELECT COALESCE(SUM(uploaded_bytes), 0) AS total
+                FROM emby_playback_upload_hourly
+                WHERE instance_name = ? AND hour_start >= ?
             ''', (name, start_s))
             row = c.fetchone()
             return int(row['total']) if row else 0
@@ -1298,7 +1322,7 @@ def get_playback_upload_period_bytes(instance_name: str,
 
 
 def get_playback_upload_total_bytes(instance_name: str) -> int:
-    """外网播放会话上传：纳入监控以来全部 ended 段之和（与流量统计一致）。"""
+    """外网播放会话上传：已入账累计，含仍在播放的分段。"""
     name = (instance_name or '').strip()
     if not name:
         return 0
@@ -1529,6 +1553,7 @@ def delete_instance_data(instance_name: str):
                 'emby_traffic_hourly', 'emby_traffic_monthly', 'emby_instance_status',
                 'emby_playback_upload_facts', 'emby_playback_upload_hourly',
                 'emby_browse_upload_facts', 'emby_browse_upload_hourly',
+                'emby_content_plays',
             ):
                 c.execute(
                     f'DELETE FROM {table} WHERE instance_name = ?',
@@ -1601,6 +1626,7 @@ _EMBY_MEANINGFUL_DATA_TABLES = (
     'emby_traffic_hourly', 'emby_traffic_monthly',
     'emby_playback_upload_facts', 'emby_playback_upload_hourly',
     'emby_browse_upload_facts', 'emby_browse_upload_hourly',
+    'emby_content_plays',
 )
 
 _EMBY_RENAME_DATA_TABLES = _EMBY_DATA_INSTANCE_TABLES + (
@@ -1817,6 +1843,151 @@ def _hour_start_from_stopped(stopped_at: str) -> str:
     return text[:13] + ':00:00'
 
 
+def _upsert_content_play(cursor, instance_name: str, segment_id, user_name: str,
+                         started_at: str, item_id: str = '', item_title: str = '',
+                         item_type: str = '', series_name: str = '') -> bool:
+    """记下一次点播。已有字段留空时才用新值补上，不覆盖已有片名和开始时间。"""
+    name = (instance_name or '').strip()
+    try:
+        seg = int(segment_id or 0)
+    except (TypeError, ValueError):
+        return False
+    if not name or seg <= 0:
+        return False
+    started = _normalize_stopped_at(started_at)
+    if not started:
+        return False
+    cursor.execute('''
+        INSERT INTO emby_content_plays (
+            instance_name, segment_id, user_name, started_at,
+            item_id, item_title, item_type, series_name
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(instance_name, segment_id) DO UPDATE SET
+            user_name = CASE
+                WHEN emby_content_plays.user_name != '' THEN emby_content_plays.user_name
+                ELSE excluded.user_name END,
+            item_id = CASE
+                WHEN emby_content_plays.item_id != '' THEN emby_content_plays.item_id
+                ELSE excluded.item_id END,
+            item_title = CASE
+                WHEN emby_content_plays.item_title != '' THEN emby_content_plays.item_title
+                ELSE excluded.item_title END,
+            item_type = CASE
+                WHEN emby_content_plays.item_type != '' THEN emby_content_plays.item_type
+                ELSE excluded.item_type END,
+            series_name = CASE
+                WHEN emby_content_plays.series_name != '' THEN emby_content_plays.series_name
+                ELSE excluded.series_name END
+    ''', (
+        name, seg, str(user_name or '').strip(), started,
+        str(item_id or '').strip(), str(item_title or '').strip(),
+        str(item_type or '').strip(), str(series_name or '').strip(),
+    ))
+    return True
+
+
+def save_content_play(instance_name: str, segment_id, user_name: str,
+                      started_at: str, item_id: str = '', item_title: str = '',
+                      item_type: str = '', series_name: str = '') -> bool:
+    """播放段开始或结束时写入点播明细，供所选时段排行使用。"""
+    _ensure_emby_schema()
+    with _lock:
+        conn = get_conn()
+        try:
+            ok = _upsert_content_play(
+                conn.cursor(), instance_name, segment_id, user_name, started_at,
+                item_id, item_title, item_type, series_name,
+            )
+            conn.commit()
+            return ok
+        finally:
+            conn.close()
+
+
+def list_content_plays(instance_name: str, period: str, start: str, end: str,
+                       user_name: str = '') -> list:
+    """所选时段内的全部点播，不受播放记录 500 条上限限制。"""
+    name = (instance_name or '').strip()
+    if not name:
+        return []
+    _ensure_emby_schema()
+    all_users = (
+        not user_name or user_name == PLAYBACK_ALL_USERS_TOKEN
+    )
+    sql = '''
+        SELECT user_name, started_at, item_id, item_title, item_type, series_name
+        FROM emby_content_plays
+        WHERE instance_name = ?
+    '''
+    args = [name]
+    if period == 'hourly':
+        sql += ' AND substr(started_at, 1, 10) = ?'
+        args.append(str(start or '')[:10])
+    else:
+        start_s = str(start or '')
+        end_s = str(end or '')
+        if start_s:
+            sql += ' AND substr(started_at, 1, ?) >= ?'
+            args.extend([len(start_s), start_s])
+        if end_s:
+            sql += ' AND substr(started_at, 1, ?) <= ?'
+            args.extend([len(end_s), end_s])
+    if not all_users:
+        sql += ' AND user_name = ?'
+        args.append(user_name)
+    sql += ' ORDER BY started_at'
+    with _lock:
+        conn = get_conn()
+        try:
+            rows = conn.execute(sql, args).fetchall()
+        finally:
+            conn.close()
+    return [dict(row) for row in rows]
+
+
+def _backfill_content_plays(cursor) -> None:
+    """用仍在的播放记录和历史上行事实补齐点播明细。每次启动跑一次，已有记录不会被空值覆盖。"""
+    count = 0
+    for rec in _iter_playback_records_for_rebuild():
+        if _upsert_content_play(
+            cursor,
+            rec.get('instance_name') or '',
+            rec.get('id') or 0,
+            rec.get('user_name') or '',
+            rec.get('started_at') or rec.get('stopped_at') or '',
+            rec.get('item_id') or '',
+            rec.get('item_title') or '',
+            rec.get('item_type') or '',
+            rec.get('series_name') or '',
+        ):
+            count += 1
+    cursor.execute('''
+        SELECT instance_name, segment_id, user_name, stopped_at,
+               series_name, episode_label
+        FROM emby_playback_upload_facts
+    ''')
+    for row in cursor.fetchall():
+        series = str(row['series_name'] or '').strip()
+        label = str(row['episode_label'] or '').strip()
+        title = series or label
+        if not title:
+            continue
+        if _upsert_content_play(
+            cursor,
+            row['instance_name'],
+            row['segment_id'],
+            row['user_name'] or '',
+            row['stopped_at'] or '',
+            '',
+            title,
+            'Episode' if series else 'Movie',
+            series,
+        ):
+            count += 1
+    if count:
+        logger.info(f'点播明细已对齐 {count} 条')
+
+
 def _iter_playback_records_for_rebuild(instance_name: str = None):
     """遍历播放记录 JSON，供重建外网用户上行聚合使用。"""
     import emby.records.store as playback_record_store
@@ -1874,11 +2045,18 @@ def rebuild_playback_upload_stats(instance_name: str = None) -> dict:
 
     stats = {'facts': 0, 'skipped': 0, 'instances': set()}
     for rec in _iter_playback_records_for_rebuild(instance_name):
-        if rec.get('status') == 'playing':
-            continue
         if not rec.get('is_remote'):
             continue
-        upload = rec.get('estimated_upload_bytes')
+        playing = rec.get('status') == 'playing'
+        if playing:
+            upload = max(
+                int(rec.get('estimated_upload_bytes') or 0),
+                int(rec.get('live_upload_checkpoint_bytes') or 0),
+            )
+            stopped_at = rec.get('last_tick_at') or rec.get('started_at') or ''
+        else:
+            upload = rec.get('estimated_upload_bytes')
+            stopped_at = rec.get('stopped_at') or rec.get('last_tick_at') or ''
         if upload is None or int(upload) <= 0:
             continue
         inst = (rec.get('instance_name') or '').strip()
@@ -1891,7 +2069,7 @@ def rebuild_playback_upload_stats(instance_name: str = None) -> dict:
             int(rec.get('id') or 0),
             user_name,
             rec.get('user_id') or '',
-            rec.get('stopped_at') or rec.get('last_tick_at') or '',
+            stopped_at,
             int(upload),
             rec.get('series_name') or '',
             rec.get('episode_label') or '',
@@ -1994,9 +2172,10 @@ def save_playback_upload_fact(instance_name: str, segment_id: int,
                               user_name: str, user_id: str,
                               stopped_at: str, upload_bytes: int,
                               series_name: str = '', episode_label: str = '') -> bool:
-    """ended 外网段结束时写入事实表并累加小时聚合。"""
+    """把外网播放段累计上行写入事实表。小时账只加尚未入账的增量，已入账的不回退。"""
     name = (instance_name or '').strip()
-    if not name or not user_name or int(upload_bytes or 0) <= 0:
+    new_total = int(upload_bytes or 0)
+    if not name or not user_name or new_total <= 0:
         return False
     stopped_s = _normalize_stopped_at(stopped_at)
     hour_start = _hour_start_from_stopped(stopped_s)
@@ -2006,24 +2185,48 @@ def save_playback_upload_fact(instance_name: str, segment_id: int,
         try:
             c = conn.cursor()
             c.execute('''
-                INSERT OR IGNORE INTO emby_playback_upload_facts (
-                    instance_name, segment_id, user_name, user_id, stopped_at,
-                    estimated_upload_bytes, series_name, episode_label
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                name, int(segment_id), user_name, user_id or '',
-                stopped_s, int(upload_bytes), series_name or '', episode_label or '',
-            ))
-            if c.rowcount <= 0:
-                return False
+                SELECT estimated_upload_bytes
+                FROM emby_playback_upload_facts
+                WHERE instance_name = ? AND segment_id = ?
+            ''', (name, int(segment_id)))
+            row = c.fetchone()
+            if row is None:
+                delta = new_total
+                segment_inc = 1
+                c.execute('''
+                    INSERT INTO emby_playback_upload_facts (
+                        instance_name, segment_id, user_name, user_id, stopped_at,
+                        estimated_upload_bytes, series_name, episode_label
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    name, int(segment_id), user_name, user_id or '',
+                    stopped_s, new_total, series_name or '', episode_label or '',
+                ))
+            else:
+                old_total = int(row['estimated_upload_bytes'] or 0)
+                delta = new_total - old_total
+                if delta <= 0:
+                    return False
+                segment_inc = 0
+                c.execute('''
+                    UPDATE emby_playback_upload_facts
+                    SET estimated_upload_bytes = ?, stopped_at = ?,
+                        user_name = ?, user_id = ?,
+                        series_name = ?, episode_label = ?
+                    WHERE instance_name = ? AND segment_id = ?
+                ''', (
+                    new_total, stopped_s, user_name, user_id or '',
+                    series_name or '', episode_label or '',
+                    name, int(segment_id),
+                ))
             c.execute('''
                 INSERT INTO emby_playback_upload_hourly (
                     instance_name, user_name, hour_start, uploaded_bytes, segment_count
-                ) VALUES (?, ?, ?, ?, 1)
+                ) VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT(instance_name, user_name, hour_start) DO UPDATE SET
                     uploaded_bytes = uploaded_bytes + excluded.uploaded_bytes,
-                    segment_count = segment_count + 1
-            ''', (name, user_name, hour_start, int(upload_bytes)))
+                    segment_count = segment_count + excluded.segment_count
+            ''', (name, user_name, hour_start, delta, segment_inc))
             conn.commit()
             return True
         finally:
@@ -2246,22 +2449,22 @@ def get_playback_upload_daily_stats(instance_name: str, user_name: str,
                 start_s = traffic_db._normalize_range_start(start)
                 end_s = traffic_db._normalize_range_end_exclusive(end, hourly=False)
                 c.execute('''
-                    SELECT date(stopped_at) AS day,
-                           SUM(estimated_upload_bytes) AS total_bytes
-                    FROM emby_playback_upload_facts
+                    SELECT date(hour_start) AS day,
+                           SUM(uploaded_bytes) AS total_bytes
+                    FROM emby_playback_upload_hourly
                     WHERE instance_name = ? AND user_name = ?
-                      AND stopped_at >= ? AND stopped_at < ?
-                    GROUP BY date(stopped_at)
+                      AND hour_start >= ? AND hour_start < ?
+                    GROUP BY date(hour_start)
                     ORDER BY day
                 ''', (name, user, start_s, end_s))
             else:
                 cutoff = _cutoff_str(days=days)
                 c.execute('''
-                    SELECT date(stopped_at) AS day,
-                           SUM(estimated_upload_bytes) AS total_bytes
-                    FROM emby_playback_upload_facts
-                    WHERE instance_name = ? AND user_name = ? AND stopped_at >= ?
-                    GROUP BY date(stopped_at)
+                    SELECT date(hour_start) AS day,
+                           SUM(uploaded_bytes) AS total_bytes
+                    FROM emby_playback_upload_hourly
+                    WHERE instance_name = ? AND user_name = ? AND hour_start >= ?
+                    GROUP BY date(hour_start)
                     ORDER BY day
                 ''', (name, user, cutoff))
             rows = []
@@ -2288,22 +2491,22 @@ def get_playback_upload_monthly_stats(instance_name: str, user_name: str,
                 start_s = traffic_db._normalize_range_start(start)
                 end_s = traffic_db._normalize_range_end_exclusive(end, hourly=False)
                 c.execute('''
-                    SELECT strftime('%Y-%m', stopped_at) AS month,
-                           SUM(estimated_upload_bytes) AS total_bytes
-                    FROM emby_playback_upload_facts
+                    SELECT strftime('%Y-%m', hour_start) AS month,
+                           SUM(uploaded_bytes) AS total_bytes
+                    FROM emby_playback_upload_hourly
                     WHERE instance_name = ? AND user_name = ?
-                      AND stopped_at >= ? AND stopped_at < ?
-                    GROUP BY strftime('%Y-%m', stopped_at)
+                      AND hour_start >= ? AND hour_start < ?
+                    GROUP BY strftime('%Y-%m', hour_start)
                     ORDER BY month
                 ''', (name, user, start_s, end_s))
             else:
                 cutoff = _cutoff_str(days=months * 31)
                 c.execute('''
-                    SELECT strftime('%Y-%m', stopped_at) AS month,
-                           SUM(estimated_upload_bytes) AS total_bytes
-                    FROM emby_playback_upload_facts
-                    WHERE instance_name = ? AND user_name = ? AND stopped_at >= ?
-                    GROUP BY strftime('%Y-%m', stopped_at)
+                    SELECT strftime('%Y-%m', hour_start) AS month,
+                           SUM(uploaded_bytes) AS total_bytes
+                    FROM emby_playback_upload_hourly
+                    WHERE instance_name = ? AND user_name = ? AND hour_start >= ?
+                    GROUP BY strftime('%Y-%m', hour_start)
                     ORDER BY month
                 ''', (name, user, cutoff))
             return [{'month': r['month'], 'total_bytes': int(r['total_bytes'] or 0)}
@@ -2328,18 +2531,18 @@ def get_playback_upload_weekly_stats(instance_name: str, user_name: str,
                 start_s = traffic_db._normalize_range_start(start)
                 end_s = traffic_db._normalize_range_end_exclusive(end, hourly=False)
                 params = (name, user, start_s, end_s)
-                where_time = 'stopped_at >= ? AND stopped_at < ?'
+                where_time = 'hour_start >= ? AND hour_start < ?'
             else:
                 cutoff = _cutoff_str(days=weeks * 7)
                 params = (name, user, cutoff)
-                where_time = 'stopped_at >= ?'
+                where_time = 'hour_start >= ?'
             c.execute(f'''
-                SELECT strftime('%G-W%V', stopped_at) AS week,
-                       SUM(estimated_upload_bytes) AS total_bytes
-                FROM emby_playback_upload_facts
+                SELECT strftime('%G-W%V', hour_start) AS week,
+                       SUM(uploaded_bytes) AS total_bytes
+                FROM emby_playback_upload_hourly
                 WHERE instance_name = ? AND user_name = ?
                 AND {where_time}
-                GROUP BY strftime('%G-W%V', stopped_at)
+                GROUP BY strftime('%G-W%V', hour_start)
                 ORDER BY week ASC
             ''', params)
             return [{'week': r['week'], 'total_bytes': int(r['total_bytes'] or 0),
@@ -2364,35 +2567,35 @@ def get_playback_upload_yearly_stats(instance_name: str, user_name: str,
             c = conn.cursor()
             if start_year is not None and end_year is not None:
                 c.execute('''
-                    SELECT strftime('%Y', stopped_at) AS year,
-                           SUM(estimated_upload_bytes) AS total_bytes
-                    FROM emby_playback_upload_facts
+                    SELECT strftime('%Y', hour_start) AS year,
+                           SUM(uploaded_bytes) AS total_bytes
+                    FROM emby_playback_upload_hourly
                     WHERE instance_name = ? AND user_name = ?
-                      AND CAST(strftime('%Y', stopped_at) AS INTEGER) >= ?
-                      AND CAST(strftime('%Y', stopped_at) AS INTEGER) <= ?
-                    GROUP BY strftime('%Y', stopped_at)
+                      AND CAST(strftime('%Y', hour_start) AS INTEGER) >= ?
+                      AND CAST(strftime('%Y', hour_start) AS INTEGER) <= ?
+                    GROUP BY strftime('%Y', hour_start)
                     ORDER BY year ASC
                 ''', (name, user, int(start_year), int(end_year)))
             elif start and end:
                 start_s = traffic_db._normalize_range_start(start)
                 end_s = traffic_db._normalize_range_end_exclusive(end, hourly=False)
                 c.execute('''
-                    SELECT strftime('%Y', stopped_at) AS year,
-                           SUM(estimated_upload_bytes) AS total_bytes
-                    FROM emby_playback_upload_facts
+                    SELECT strftime('%Y', hour_start) AS year,
+                           SUM(uploaded_bytes) AS total_bytes
+                    FROM emby_playback_upload_hourly
                     WHERE instance_name = ? AND user_name = ?
-                      AND stopped_at >= ? AND stopped_at < ?
-                    GROUP BY strftime('%Y', stopped_at)
+                      AND hour_start >= ? AND hour_start < ?
+                    GROUP BY strftime('%Y', hour_start)
                     ORDER BY year ASC
                 ''', (name, user, start_s, end_s))
             else:
                 cutoff = _cutoff_str(days=years * 366)
                 c.execute('''
-                    SELECT strftime('%Y', stopped_at) AS year,
-                           SUM(estimated_upload_bytes) AS total_bytes
-                    FROM emby_playback_upload_facts
-                    WHERE instance_name = ? AND user_name = ? AND stopped_at >= ?
-                    GROUP BY strftime('%Y', stopped_at)
+                    SELECT strftime('%Y', hour_start) AS year,
+                           SUM(uploaded_bytes) AS total_bytes
+                    FROM emby_playback_upload_hourly
+                    WHERE instance_name = ? AND user_name = ? AND hour_start >= ?
+                    GROUP BY strftime('%Y', hour_start)
                     ORDER BY year ASC
                 ''', (name, user, cutoff))
             return [{'year': r['year'], 'total_bytes': int(r['total_bytes'] or 0),
@@ -2425,10 +2628,10 @@ def get_playback_upload_cycle_stats(instance_name: str, user_name: str,
                 else:
                     end_s = str(end_dt)[:19]
                 c.execute('''
-                    SELECT COALESCE(SUM(estimated_upload_bytes), 0) AS total
-                    FROM emby_playback_upload_facts
+                    SELECT COALESCE(SUM(uploaded_bytes), 0) AS total
+                    FROM emby_playback_upload_hourly
                     WHERE instance_name = ? AND user_name = ?
-                      AND stopped_at >= ? AND stopped_at < ?
+                      AND hour_start >= ? AND hour_start < ?
                 ''', (name, user, start_s, end_s))
                 row = c.fetchone()
                 cycle_start = p.get('cycle_start')
@@ -2501,22 +2704,22 @@ def get_playback_upload_daily_stats_all_users(instance_name: str,
                 start_s = traffic_db._normalize_range_start(start)
                 end_s = traffic_db._normalize_range_end_exclusive(end, hourly=False)
                 c.execute('''
-                    SELECT date(stopped_at) AS day,
-                           SUM(estimated_upload_bytes) AS total_bytes
-                    FROM emby_playback_upload_facts
+                    SELECT date(hour_start) AS day,
+                           SUM(uploaded_bytes) AS total_bytes
+                    FROM emby_playback_upload_hourly
                     WHERE instance_name = ?
-                      AND stopped_at >= ? AND stopped_at < ?
-                    GROUP BY date(stopped_at)
+                      AND hour_start >= ? AND hour_start < ?
+                    GROUP BY date(hour_start)
                     ORDER BY day
                 ''', (name, start_s, end_s))
             else:
                 cutoff = _cutoff_str(days=days)
                 c.execute('''
-                    SELECT date(stopped_at) AS day,
-                           SUM(estimated_upload_bytes) AS total_bytes
-                    FROM emby_playback_upload_facts
-                    WHERE instance_name = ? AND stopped_at >= ?
-                    GROUP BY date(stopped_at)
+                    SELECT date(hour_start) AS day,
+                           SUM(uploaded_bytes) AS total_bytes
+                    FROM emby_playback_upload_hourly
+                    WHERE instance_name = ? AND hour_start >= ?
+                    GROUP BY date(hour_start)
                     ORDER BY day
                 ''', (name, cutoff))
             return [{'day': r['day'], 'total_bytes': int(r['total_bytes'] or 0)}
@@ -2540,22 +2743,22 @@ def get_playback_upload_monthly_stats_all_users(instance_name: str,
                 start_s = traffic_db._normalize_range_start(start)
                 end_s = traffic_db._normalize_range_end_exclusive(end, hourly=False)
                 c.execute('''
-                    SELECT strftime('%Y-%m', stopped_at) AS month,
-                           SUM(estimated_upload_bytes) AS total_bytes
-                    FROM emby_playback_upload_facts
+                    SELECT strftime('%Y-%m', hour_start) AS month,
+                           SUM(uploaded_bytes) AS total_bytes
+                    FROM emby_playback_upload_hourly
                     WHERE instance_name = ?
-                      AND stopped_at >= ? AND stopped_at < ?
-                    GROUP BY strftime('%Y-%m', stopped_at)
+                      AND hour_start >= ? AND hour_start < ?
+                    GROUP BY strftime('%Y-%m', hour_start)
                     ORDER BY month
                 ''', (name, start_s, end_s))
             else:
                 cutoff = _cutoff_str(days=months * 31)
                 c.execute('''
-                    SELECT strftime('%Y-%m', stopped_at) AS month,
-                           SUM(estimated_upload_bytes) AS total_bytes
-                    FROM emby_playback_upload_facts
-                    WHERE instance_name = ? AND stopped_at >= ?
-                    GROUP BY strftime('%Y-%m', stopped_at)
+                    SELECT strftime('%Y-%m', hour_start) AS month,
+                           SUM(uploaded_bytes) AS total_bytes
+                    FROM emby_playback_upload_hourly
+                    WHERE instance_name = ? AND hour_start >= ?
+                    GROUP BY strftime('%Y-%m', hour_start)
                     ORDER BY month
                 ''', (name, cutoff))
             return [{'month': r['month'], 'total_bytes': int(r['total_bytes'] or 0)}
@@ -2579,18 +2782,18 @@ def get_playback_upload_weekly_stats_all_users(instance_name: str,
                 start_s = traffic_db._normalize_range_start(start)
                 end_s = traffic_db._normalize_range_end_exclusive(end, hourly=False)
                 params = (name, start_s, end_s)
-                where_time = 'stopped_at >= ? AND stopped_at < ?'
+                where_time = 'hour_start >= ? AND hour_start < ?'
             else:
                 cutoff = _cutoff_str(days=weeks * 7)
                 params = (name, cutoff)
-                where_time = 'stopped_at >= ?'
+                where_time = 'hour_start >= ?'
             c.execute(f'''
-                SELECT strftime('%G-W%V', stopped_at) AS week,
-                       SUM(estimated_upload_bytes) AS total_bytes
-                FROM emby_playback_upload_facts
+                SELECT strftime('%G-W%V', hour_start) AS week,
+                       SUM(uploaded_bytes) AS total_bytes
+                FROM emby_playback_upload_hourly
                 WHERE instance_name = ?
                 AND {where_time}
-                GROUP BY strftime('%G-W%V', stopped_at)
+                GROUP BY strftime('%G-W%V', hour_start)
                 ORDER BY week ASC
             ''', params)
             return [{'week': r['week'], 'total_bytes': int(r['total_bytes'] or 0),
@@ -2614,35 +2817,35 @@ def get_playback_upload_yearly_stats_all_users(instance_name: str,
             c = conn.cursor()
             if start_year is not None and end_year is not None:
                 c.execute('''
-                    SELECT strftime('%Y', stopped_at) AS year,
-                           SUM(estimated_upload_bytes) AS total_bytes
-                    FROM emby_playback_upload_facts
+                    SELECT strftime('%Y', hour_start) AS year,
+                           SUM(uploaded_bytes) AS total_bytes
+                    FROM emby_playback_upload_hourly
                     WHERE instance_name = ?
-                      AND CAST(strftime('%Y', stopped_at) AS INTEGER) >= ?
-                      AND CAST(strftime('%Y', stopped_at) AS INTEGER) <= ?
-                    GROUP BY strftime('%Y', stopped_at)
+                      AND CAST(strftime('%Y', hour_start) AS INTEGER) >= ?
+                      AND CAST(strftime('%Y', hour_start) AS INTEGER) <= ?
+                    GROUP BY strftime('%Y', hour_start)
                     ORDER BY year ASC
                 ''', (name, int(start_year), int(end_year)))
             elif start and end:
                 start_s = traffic_db._normalize_range_start(start)
                 end_s = traffic_db._normalize_range_end_exclusive(end, hourly=False)
                 c.execute('''
-                    SELECT strftime('%Y', stopped_at) AS year,
-                           SUM(estimated_upload_bytes) AS total_bytes
-                    FROM emby_playback_upload_facts
+                    SELECT strftime('%Y', hour_start) AS year,
+                           SUM(uploaded_bytes) AS total_bytes
+                    FROM emby_playback_upload_hourly
                     WHERE instance_name = ?
-                      AND stopped_at >= ? AND stopped_at < ?
-                    GROUP BY strftime('%Y', stopped_at)
+                      AND hour_start >= ? AND hour_start < ?
+                    GROUP BY strftime('%Y', hour_start)
                     ORDER BY year ASC
                 ''', (name, start_s, end_s))
             else:
                 cutoff = _cutoff_str(days=years * 366)
                 c.execute('''
-                    SELECT strftime('%Y', stopped_at) AS year,
-                           SUM(estimated_upload_bytes) AS total_bytes
-                    FROM emby_playback_upload_facts
-                    WHERE instance_name = ? AND stopped_at >= ?
-                    GROUP BY strftime('%Y', stopped_at)
+                    SELECT strftime('%Y', hour_start) AS year,
+                           SUM(uploaded_bytes) AS total_bytes
+                    FROM emby_playback_upload_hourly
+                    WHERE instance_name = ? AND hour_start >= ?
+                    GROUP BY strftime('%Y', hour_start)
                     ORDER BY year ASC
                 ''', (name, cutoff))
             return [{'year': r['year'], 'total_bytes': int(r['total_bytes'] or 0),
@@ -2674,10 +2877,10 @@ def get_playback_upload_cycle_stats_all_users(instance_name: str,
                 else:
                     end_s = str(end_dt)[:19]
                 c.execute('''
-                    SELECT COALESCE(SUM(estimated_upload_bytes), 0) AS total
-                    FROM emby_playback_upload_facts
+                    SELECT COALESCE(SUM(uploaded_bytes), 0) AS total
+                    FROM emby_playback_upload_hourly
                     WHERE instance_name = ?
-                      AND stopped_at >= ? AND stopped_at < ?
+                      AND hour_start >= ? AND hour_start < ?
                 ''', (name, start_s, end_s))
                 row = c.fetchone()
                 cycle_start = p.get('cycle_start')
@@ -2851,6 +3054,11 @@ def cleanup_old_data():
                     (hourly_cutoff,),
                 )
                 facts_deleted += c.rowcount
+            c.execute(
+                'DELETE FROM emby_content_plays WHERE started_at < ?',
+                (hourly_cutoff,),
+            )
+            facts_deleted += c.rowcount
 
             conn.commit()
 

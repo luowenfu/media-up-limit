@@ -3,7 +3,9 @@
 from flask import Blueprint
 from flask import jsonify
 from flask import request
+from flask import Response
 from flask import session
+import re
 import core.config_manager as config_manager
 import emby.traffic.db as emby_traffic_db
 import logging
@@ -167,6 +169,32 @@ def api_emby_debug_traffic_config_update():
         return jsonify({'success': False, 'error': GENERIC_API_ERROR}), 500
 
 
+_POSTER_ID_RE = re.compile(r'^[A-Za-z0-9_-]{1,80}$')
+
+
+@bp.route('/api/emby/poster')
+def api_emby_poster():
+    err = emby_required()
+    if err:
+        return err
+    instance_name = request.args.get('instance') or ''
+    item_id = request.args.get('item') or ''
+    tag = request.args.get('tag') or ''
+    if not _POSTER_ID_RE.fullmatch(item_id) or (tag and not _POSTER_ID_RE.fullmatch(tag)):
+        return jsonify({'success': False, 'error': '无效的海报参数'}), 400
+    client, client_err = get_emby_client(instance_name)
+    if client_err:
+        return client_err
+    try:
+        content, mime = client.fetch_primary_image(item_id, tag)
+    except Exception as e:
+        logger.error(f'API /emby/poster 错误: {e}', exc_info=True)
+        return jsonify({'success': False, 'error': GENERIC_API_ERROR}), 500
+    if not content:
+        return '', 404
+    return Response(content, mimetype=mime, headers={'Cache-Control': 'private, max-age=86400'})
+
+
 @bp.route('/api/emby/sessions')
 def api_emby_sessions():
     err = emby_required()
@@ -313,11 +341,14 @@ def api_emby_session_message(instance_name, session_id):
         data = request.get_json() or {}
         text = str(data.get('text') or '').strip()
         header = str(data.get('header') or '').strip() or None
-        timeout_ms = data.get('timeout_ms')
-        if timeout_ms is not None and str(timeout_ms).strip() != '':
-            timeout_ms = int(timeout_ms)
-        else:
+        if 'timeout_ms' not in data:
             timeout_ms = DEFAULT_SESSION_MESSAGE_TIMEOUT_MS
+        else:
+            raw = data.get('timeout_ms')
+            if raw is None or not str(raw).strip():
+                timeout_ms = None
+            else:
+                timeout_ms = int(raw)
         result = client.send_session_message(
             session_id, text, header=header, timeout_ms=timeout_ms,
         )

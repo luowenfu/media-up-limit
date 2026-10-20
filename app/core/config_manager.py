@@ -310,6 +310,80 @@ def resolve_instance_credentials(data: dict, existing: dict = None) -> dict:
     return result
 
 
+def _stored_lucky_rules(name: str) -> list:
+    if not name:
+        return []
+    return secrets_store.get_lucky_rules(name)
+
+
+def _bind_lucky_rules(raw, stored: list) -> list:
+    """把表单里的规则收成带密钥的列表。只带名称的项按已保存规则补回密钥。"""
+    if not isinstance(raw, list):
+        return []
+    bound = []
+    seen = set()
+    unlabeled = [item for item in stored if not item.get('label')]
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        rule_key = str(item.get('rule_key') or '').strip()
+        sub_key = str(item.get('sub_key') or '').strip()
+        label = str(item.get('label') or '').strip()
+        if is_password_mask(rule_key):
+            rule_key = ''
+        if is_password_mask(sub_key):
+            sub_key = ''
+        if not (rule_key and sub_key):
+            match = next(
+                (row for row in stored if label and row.get('label') == label),
+                None,
+            )
+            if not match and label and len(stored) == 1 and unlabeled:
+                match = stored[0]
+            if not match:
+                raise ValueError('请重新进行连通性测试并选择反代规则')
+            rule_key = match['rule_key']
+            sub_key = match['sub_key']
+            label = label or match.get('label') or ''
+        pair = (rule_key, sub_key)
+        if pair in seen:
+            continue
+        seen.add(pair)
+        bound.append({
+            'rule_key': rule_key,
+            'sub_key': sub_key,
+            'label': label,
+        })
+    return bound
+
+
+def request_lucky_rules(data: dict, stored: list = None) -> list:
+    """从保存或测试请求里取出要使用的反代规则。未提供时返回 None。"""
+    stored = list(stored or [])
+    if isinstance(data, dict) and 'lucky_rules' in data:
+        return _bind_lucky_rules(data.get('lucky_rules'), stored)
+    rule_key = str((data or {}).get('lucky_rule_key') or '').strip()
+    sub_key = str((data or {}).get('lucky_sub_key') or '').strip()
+    if is_password_mask(rule_key):
+        rule_key = ''
+    if is_password_mask(sub_key):
+        sub_key = ''
+    label = str((data or {}).get('lucky_rule_label') or '').strip()
+    if rule_key and sub_key:
+        return [{'rule_key': rule_key, 'sub_key': sub_key, 'label': label}]
+    if label and not rule_key and not sub_key:
+        return _bind_lucky_rules([{'label': label, 'keep': True}], stored)
+    return None
+
+
+def lucky_rules_label(rules: list) -> str:
+    return '；'.join(
+        str(item.get('label') or '').strip()
+        for item in (rules or [])
+        if str(item.get('label') or '').strip()
+    )
+
+
 def resolve_emby_credentials(data: dict, existing: dict = None) -> dict:
     """保存时解析凭据：API Key 写入 secrets 文件，不留在 config.yaml"""
     result = copy.deepcopy(data)
@@ -326,20 +400,18 @@ def resolve_emby_credentials(data: dict, existing: dict = None) -> dict:
         lucky_token = ''
     if lucky_token and target_name:
         secrets_store.set_lucky_open_token(target_name, lucky_token)
-    rule_key = str(result.get('lucky_rule_key', '') or '').strip()
-    if is_password_mask(rule_key):
-        rule_key = ''
-    if rule_key and target_name:
-        secrets_store.set_lucky_rule_key(target_name, rule_key)
-    sub_key = str(result.get('lucky_sub_key', '') or '').strip()
-    if is_password_mask(sub_key):
-        sub_key = ''
-    if sub_key and target_name:
-        secrets_store.set_lucky_sub_key(target_name, sub_key)
+    if target_name and (
+        'lucky_rules' in result or result.get('lucky_rule_key') or result.get('lucky_sub_key')
+    ):
+        rules = request_lucky_rules(result, _stored_lucky_rules(target_name))
+        if rules:
+            secrets_store.set_lucky_rules(target_name, rules)
+            result['lucky_rule_label'] = lucky_rules_label(rules)
     result.pop('api_key', None)
     result.pop('lucky_open_token', None)
     result.pop('lucky_rule_key', None)
     result.pop('lucky_sub_key', None)
+    result.pop('lucky_rules', None)
     return result
 
 
@@ -421,8 +493,19 @@ def enrich_emby_instance(inst: dict) -> dict:
     result = copy.deepcopy(inst)
     name = inst.get('name', '')
     result['api_key'] = secrets_store.get_emby_api_key(name)
-    result['lucky_rule_key'] = secrets_store.get_lucky_rule_key(name)
-    result['lucky_sub_key'] = secrets_store.get_lucky_sub_key(name)
+    rules = _stored_lucky_rules(name)
+    if len(rules) == 1 and not rules[0].get('label'):
+        rules[0]['label'] = str(result.get('lucky_rule_label') or '').strip()
+    result['lucky_rules'] = rules
+    if rules:
+        result['lucky_rule_key'] = rules[0]['rule_key']
+        result['lucky_sub_key'] = rules[0]['sub_key']
+        label = lucky_rules_label(rules)
+        if label:
+            result['lucky_rule_label'] = label
+    else:
+        result['lucky_rule_key'] = ''
+        result['lucky_sub_key'] = ''
     return result
 
 
@@ -1341,10 +1424,17 @@ def _validate_emby_instance(inst: dict, existing_names: list = None,
     result['lucky_credit_browse_traffic'] = bool(
         result.get('lucky_credit_browse_traffic', False),
     )
+    stored_rules = _stored_lucky_rules(original_name or result['name'])
+    if not stored_rules and (rule_key and sub_key):
+        stored_rules = [{
+            'rule_key': rule_key,
+            'sub_key': sub_key,
+            'label': result['lucky_rule_label'],
+        }]
     if mode == 'lucky' and require_lucky:
         if not result['lucky_base_url']:
             raise ValueError('请填写 Lucky 管理地址')
-        if not rule_key or not sub_key:
+        if not stored_rules:
             raise ValueError('请选择 Lucky 反代规则')
         token_name = original_name or result['name']
         req_token = str(inst.get('lucky_open_token', '') or '').strip()
@@ -1361,7 +1451,7 @@ def _validate_emby_instance(inst: dict, existing_names: list = None,
     result['wan_traffic_only'] = bool(result.get('wan_traffic_only', True))
     for key in ('reachable', 'attempt_sync', 'apply_rules_now',
                 'lucky_open_token', 'lucky_rule_key', 'lucky_sub_key',
-                'clear_traffic_data'):
+                'lucky_rules', 'clear_traffic_data'):
         result.pop(key, None)
     return result
 
@@ -1396,26 +1486,24 @@ def validate_emby_instance_for_test(inst: dict, test_type: str = 'connectivity')
         if name:
             lucky_token = secrets_store.get_lucky_open_token(name)
     result['lucky_open_token'] = lucky_token
-    rule_key = str(result.get('lucky_rule_key', '') or '').strip()
-    if not rule_key:
-        name = result.get('name', '')
-        if name:
-            rule_key = secrets_store.get_lucky_rule_key(name)
-    sub_key = str(result.get('lucky_sub_key', '') or '').strip()
-    if not sub_key:
-        name = result.get('name', '')
-        if name:
-            sub_key = secrets_store.get_lucky_sub_key(name)
-    result['lucky_rule_key'] = rule_key
-    result['lucky_sub_key'] = sub_key
+    name = result.get('name', '')
+    stored_rules = _stored_lucky_rules(name)
+    requested = request_lucky_rules(inst, stored_rules)
+    rules = stored_rules if requested is None else requested
+    result['lucky_rules'] = rules
+    result['lucky_rule_key'] = rules[0]['rule_key'] if rules else ''
+    result['lucky_sub_key'] = rules[0]['sub_key'] if rules else ''
+    if rules:
+        label = lucky_rules_label(rules)
+        if label:
+            result['lucky_rule_label'] = label
     if test_type in ('lucky', 'lucky_rules'):
         if not result.get('lucky_base_url'):
             raise ValueError('请填写 Lucky 管理地址')
         if not lucky_token:
             raise ValueError('请填写 Lucky OpenToken')
-        if test_type == 'lucky':
-            if not result.get('lucky_rule_key') or not result.get('lucky_sub_key'):
-                raise ValueError('请选择 Lucky 反代规则')
+        if test_type == 'lucky' and not rules:
+            raise ValueError('请选择 Lucky 反代规则')
     if test_type == 'lucky_connect':
         if not result.get('lucky_base_url'):
             raise ValueError('请填写 Lucky 管理地址')
@@ -1437,10 +1525,20 @@ def mask_emby_instance_for_api(inst: dict) -> dict:
         result['has_lucky_open_token'] = True
     else:
         result['has_lucky_open_token'] = False
-    if secrets_store.has_lucky_rule_keys(result.get('name', '')):
-        result['has_lucky_rule_keys'] = True
+    stored_rules = _stored_lucky_rules(result.get('name', ''))
+    result['has_lucky_rule_keys'] = bool(stored_rules)
+    public_rules = []
+    yaml_label = str(result.get('lucky_rule_label') or '').strip()
+    if len(stored_rules) == 1 and not stored_rules[0].get('label') and yaml_label:
+        public_rules = [{'label': yaml_label}]
     else:
-        result['has_lucky_rule_keys'] = False
+        for row in stored_rules:
+            label = str(row.get('label') or '').strip() or yaml_label
+            if label:
+                public_rules.append({'label': label})
+    if not public_rules and yaml_label:
+        public_rules = [{'label': part.strip()} for part in yaml_label.split('；') if part.strip()]
+    result['lucky_rules'] = public_rules
     result.pop('lucky_rule_key', None)
     result.pop('lucky_sub_key', None)
     return result

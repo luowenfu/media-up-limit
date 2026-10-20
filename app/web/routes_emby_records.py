@@ -8,6 +8,7 @@ import emby.records.store as playback_record_store
 import emby.traffic.db as emby_traffic_db
 import emby.user_sync as emby_user_sync
 import logging
+import threading
 import time
 
 from core.cycle import iter_cycle_periods
@@ -21,6 +22,216 @@ from web.common import GENERIC_API_ERROR
 
 logger = logging.getLogger(__name__)
 bp = Blueprint('routes_emby_records', __name__)
+
+_item_meta_cache = {}
+_item_meta_lock = threading.Lock()
+
+
+def _record_in_span(started_at: str, period: str, start: str, end: str) -> bool:
+    text = str(started_at or '')
+    if not text:
+        return False
+    if period == 'hourly':
+        return text[:10] == str(start or '')[:10]
+    start_s = str(start or '')
+    end_s = str(end or '')
+    if not start_s or not end_s:
+        return False
+    return text[:len(start_s)] >= start_s and text[:len(end_s)] <= end_s
+
+
+def _top_counts(counter: dict, limit: int = 10) -> list:
+    rows = sorted(counter.items(), key=lambda item: (-item[1], item[0].casefold()))
+    return [[name, count] for name, count in rows[:limit] if count > 0]
+
+
+_SERIES_ITEM_TYPES = {'Episode', 'Series', 'Season'}
+
+
+def _play_kind(record: dict, series: str) -> str:
+    if series or str(record.get('item_type') or '').strip() in _SERIES_ITEM_TYPES:
+        return 'series'
+    return 'movie'
+
+
+def _top_films(films: dict, limit: int = 10) -> list:
+    rows = sorted(
+        films.items(),
+        key=lambda item: (-item[1]['count'], item[0].casefold()),
+    )
+    return [
+        [name, info['count'], info['kind']]
+        for name, info in rows[:limit]
+        if info['count'] > 0
+    ]
+
+
+def _meta_from_item(item: dict) -> dict:
+    raw = item.get('Genres') or []
+    if isinstance(raw, str):
+        raw = [raw]
+    genres = []
+    for genre in raw:
+        if isinstance(genre, dict):
+            name = str(genre.get('Name') or '').strip()
+        else:
+            name = str(genre or '').strip()
+        if name and name not in genres:
+            genres.append(name)
+    return {
+        'genres': genres,
+        'series_id': str(item.get('SeriesId') or '').strip(),
+        'type': str(item.get('Type') or '').strip(),
+    }
+
+
+def _cached_meta(instance_name: str, item_id: str):
+    with _item_meta_lock:
+        return _item_meta_cache.get((instance_name, item_id))
+
+
+def _store_meta(instance_name: str, item_id: str, meta: dict) -> None:
+    with _item_meta_lock:
+        _item_meta_cache[(instance_name, item_id)] = meta
+
+
+def _ensure_item_meta(client, instance_name: str, item_ids) -> bool:
+    missing = []
+    seen = set()
+    for raw in item_ids:
+        item_id = str(raw or '').strip()
+        if not item_id or item_id in seen:
+            continue
+        seen.add(item_id)
+        if _cached_meta(instance_name, item_id) is None:
+            missing.append(item_id)
+    if not missing:
+        return True
+    items = client.get_items_by_ids(missing)
+    if items is None:
+        return False
+    found = set()
+    for item in items:
+        item_id = str(item.get('Id') or '').strip()
+        if not item_id:
+            continue
+        found.add(item_id)
+        _store_meta(instance_name, item_id, _meta_from_item(item))
+    for item_id in missing:
+        if item_id not in found:
+            _store_meta(instance_name, item_id, {'genres': [], 'series_id': '', 'type': ''})
+    return True
+
+
+def _genres_for_series_name(client, instance_name: str, series_name: str) -> list:
+    """没有条目编号的历史剧集，按剧名向 Emby 查一次类型。"""
+    series = str(series_name or '').strip()
+    if not series:
+        return []
+    cache_key = 'series-name:' + series.casefold()
+    cached = _cached_meta(instance_name, cache_key)
+    if cached is not None:
+        return list(cached.get('genres') or [])
+    if client is None:
+        return []
+    item = client.lookup_series_by_name(series)
+    if item is None:
+        return None
+    meta = _meta_from_item(item) if item else {'genres': [], 'series_id': '', 'type': 'Series'}
+    meta['type'] = meta.get('type') or 'Series'
+    _store_meta(instance_name, cache_key, meta)
+    return list(meta.get('genres') or [])
+
+
+def _genres_for_play(instance_name: str, item_id: str) -> list:
+    meta = _cached_meta(instance_name, item_id)
+    if not meta:
+        return []
+    if meta.get('type') == 'Episode' and meta.get('series_id'):
+        series = _cached_meta(instance_name, meta['series_id'])
+        if series and series.get('genres'):
+            return list(series['genres'])
+    return list(meta.get('genres') or [])
+
+
+def build_content_rank(instance_name: str, records: list, period: str,
+                        start: str, end: str, user_name: str, client) -> dict:
+    all_users = (
+        not user_name
+        or user_name == emby_traffic_db.PLAYBACK_ALL_USERS_TOKEN
+    )
+    plays = []
+    seen_series = set()
+    play_count = 0
+    for rec in records:
+        if not all_users and str(rec.get('user_name') or '') != user_name:
+            continue
+        if not _record_in_span(rec.get('started_at'), period, start, end):
+            continue
+        play_count += 1
+        series = str(rec.get('series_name') or '').strip()
+        item_id = str(rec.get('item_id') or '').strip()
+        if series:
+            # 同一用户在所选时段里看同一部剧的不同集，只算一次点播
+            key = (str(rec.get('user_name') or '').strip(), series)
+            if key in seen_series:
+                continue
+            seen_series.add(key)
+            plays.append((series, item_id, series, 'series'))
+            continue
+        name = str(rec.get('item_title') or '').strip()
+        if not name:
+            continue
+        plays.append((name, item_id, '', _play_kind(rec, '')))
+    films = {}
+    for name, _item_id, _series, kind in plays:
+        info = films.get(name)
+        if info is None:
+            films[name] = {'count': 1, 'kind': kind}
+            continue
+        info['count'] += 1
+        if kind == 'series':
+            info['kind'] = 'series'
+    genre_error = False
+    genres = {}
+    item_ids = [item_id for _name, item_id, _series, _kind in plays if item_id]
+    if item_ids:
+        if client is None or not _ensure_item_meta(client, instance_name, item_ids):
+            genre_error = True
+        else:
+            series_ids = []
+            for item_id in item_ids:
+                meta = _cached_meta(instance_name, item_id) or {}
+                if meta.get('type') == 'Episode' and meta.get('series_id'):
+                    series_ids.append(meta['series_id'])
+            series_ok = (
+                _ensure_item_meta(client, instance_name, series_ids)
+                if series_ids else True
+            )
+            if not series_ok:
+                genre_error = True
+    if not genre_error:
+        for _name, item_id, series, _kind in plays:
+            found = None
+            if item_id:
+                found = _genres_for_play(instance_name, item_id)
+            elif series:
+                if client is None:
+                    genre_error = True
+                    break
+                found = _genres_for_series_name(client, instance_name, series)
+                if found is None:
+                    genre_error = True
+                    break
+            for genre in found or []:
+                genres[genre] = genres.get(genre, 0) + 1
+    return {
+        'films': _top_films(films),
+        'genres': [] if genre_error else _top_counts(genres),
+        'genre_error': genre_error,
+        'truncated': False,
+        'play_count': play_count,
+    }
 
 @bp.route('/api/emby/playback-records')
 def api_emby_playback_records():
@@ -331,4 +542,41 @@ def api_emby_system_logs():
         return jsonify({'success': True, 'data': lines[:limit]})
     except Exception as e:
         logger.error(f'API /emby/system-logs 错误: {e}', exc_info=True)
+        return jsonify({'success': False, 'error': GENERIC_API_ERROR}), 500
+
+
+@bp.route('/api/emby/content-rank')
+def api_emby_content_rank():
+    """所选时段内的影片与类型播放次数。类型向 Emby 查询。"""
+    err = emby_required()
+    if err:
+        return err
+    try:
+        instance_name = (request.args.get('instance') or '').strip()
+        if not instance_name:
+            return jsonify({'success': False, 'error': '缺少 instance 参数'}), 400
+        if not config_manager.get_emby_instance(instance_name, state.emby_monitor.config):
+            return jsonify({'success': False, 'error': '设备不存在'}), 404
+        client, err_resp = get_emby_client(instance_name)
+        if err_resp:
+            client = None
+        records = emby_traffic_db.list_content_plays(
+            instance_name,
+            (request.args.get('period') or '').strip(),
+            request.args.get('start') or '',
+            request.args.get('end') or '',
+            (request.args.get('user') or '').strip(),
+        )
+        data = build_content_rank(
+            instance_name,
+            records,
+            (request.args.get('period') or '').strip(),
+            request.args.get('start') or '',
+            request.args.get('end') or '',
+            (request.args.get('user') or '').strip(),
+            client,
+        )
+        return jsonify({'success': True, 'data': data})
+    except Exception as e:
+        logger.error(f'API /emby/content-rank 错误: {e}', exc_info=True)
         return jsonify({'success': False, 'error': GENERIC_API_ERROR}), 500

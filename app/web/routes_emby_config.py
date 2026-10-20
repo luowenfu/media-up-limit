@@ -167,9 +167,10 @@ def api_emby_config_instances_test():
         if test_type in ('lucky', 'lucky_rules', 'lucky_connect'):
             from emby.lucky.api import (
                 LuckyClient,
-                auto_match_candidate,
                 build_rule_label,
+                choose_selected_candidates,
             )
+            import core.secrets_store as secrets_store
             token = validated.get('lucky_open_token', '')
             lc = LuckyClient(
                 validated.get('lucky_base_url', ''),
@@ -180,25 +181,47 @@ def api_emby_config_instances_test():
                 candidates, err = lc.list_proxy_candidates()
                 if err:
                     return jsonify({'success': False, 'error': err}), 400
-                matched, _all = auto_match_candidate(
+                saved = secrets_store.get_lucky_rules(validated.get('name', ''))
+                selected = choose_selected_candidates(
                     candidates,
+                    saved,
                     emby_host=validated.get('host', ''),
                     emby_port=int(validated.get('port') or 8096),
-                    frontend_host=validated.get('lucky_frontend_host', ''),
                 )
+                matched = selected[0] if len(selected) == 1 else None
                 return jsonify({
                     'success': True,
                     'data': {
                         'candidates': candidates,
+                        'selected': selected,
                         'matched': matched,
                         'matched_label': build_rule_label(matched) if matched else '',
                     },
                 })
-            if test_type == 'lucky' and validated.get('lucky_rule_key') and validated.get('lucky_sub_key'):
-                result = lc.test_access_detail(
-                    validated['lucky_rule_key'],
-                    validated['lucky_sub_key'],
-                )
+            rules = validated.get('lucky_rules') or []
+            if test_type == 'lucky' and rules:
+                ok_count = 0
+                errors = []
+                ip_total = 0
+                for rule in rules:
+                    one = lc.test_access_detail(rule['rule_key'], rule['sub_key'])
+                    label = rule.get('label') or rule['rule_key']
+                    if one.get('ok'):
+                        ok_count += 1
+                        ip_total += int(one.get('ip_total') or 0)
+                    else:
+                        errors.append(f'{label}：{one.get("error") or "读取失败"}')
+                if ok_count == 0:
+                    result = {'ok': False, 'error': '；'.join(errors) or '流量接口读取失败'}
+                else:
+                    message = f'{ok_count} 条反代规则流量接口正常'
+                    if errors:
+                        message += '；' + '；'.join(errors)
+                    result = {
+                        'ok': True,
+                        'ip_total': ip_total,
+                        'message': message,
+                    }
             else:
                 result = lc.test_connection()
             return jsonify({

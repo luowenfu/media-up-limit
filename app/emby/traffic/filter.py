@@ -33,6 +33,29 @@ def parse_endpoint_ip(remote_endpoint: str) -> str:
     return ep
 
 
+def canon_client_ip(value: str) -> str:
+    """收成可比对的 IP。``::ffff:1.2.3.4`` 收成 ``1.2.3.4``。"""
+    raw = str(value or '').strip()
+    if not raw:
+        return ''
+    if raw.startswith('['):
+        ip = parse_endpoint_ip(raw)
+    elif raw.count(':') == 1 and raw.count('.') == 3:
+        ip = raw.rsplit(':', 1)[0]
+    else:
+        ip = raw
+    if not ip:
+        return ''
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return ip
+    mapped = getattr(addr, 'ipv4_mapped', None)
+    if mapped is not None:
+        return str(mapped)
+    return str(addr)
+
+
 def is_lan_ip(ip_str: str) -> bool:
     if not ip_str:
         return True

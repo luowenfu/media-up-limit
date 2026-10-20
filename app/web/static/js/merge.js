@@ -2,6 +2,7 @@
 
 import { GRIP, ico } from './icons.js';
 import { esc, maskIp } from './format.js';
+import { maskedText } from './cards.js';
 import { state, qbList, embyList, savePrefs } from './store.js';
 import {
     $, $$, closeModal, mTop, openSmall, toast,
@@ -19,7 +20,7 @@ export function openMergeEditor() {
             <div class="me-item ${o.on ? 'on' : ''}" data-n="${esc(o.name)}">
                 <span class="box">${ico('check', 12)}</span>
                 <span class="me-ic ${side}">${side === 'qb' ? 'qB' : ico('play', 15)}</span>
-                <div class="me-t"><b>${esc(d.name)}</b><small>${esc(hostText(d))}</small></div>
+                <div class="me-t"><b>${esc(d.name)}</b><small>${maskedText(side, d.name, `${d.raw.host}:${d.raw.port}`, hostText(d))}</small></div>
                 <span class="me-drag" title="拖动调整顺序">${GRIP}</span>
             </div>` : '';
     }).join('')}

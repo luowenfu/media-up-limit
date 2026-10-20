@@ -83,10 +83,22 @@ function embyModeText(d) {
     return '未启用流量采集';
 }
 
+/** 最新开始的播放排最前；没有开始时间的放最后，同刻按会话编号固定 */
+function byNewestPlayback(a, b) {
+    const ta = String(a.playback_started_at || '');
+    const tb = String(b.playback_started_at || '');
+    if (ta !== tb) {
+        if (!ta) return 1;
+        if (!tb) return -1;
+        return ta < tb ? 1 : -1;
+    }
+    return String(a.id || '').localeCompare(String(b.id || ''));
+}
+
 export function embyVM(d, hist) {
     const refresh = d.refresh_interval || 1;
     const collect = d.collect_interval || 5;
-    const sessions = d.sessions || [];
+    const sessions = [...(d.sessions || [])].sort(byNewestPlayback);
     const wan = sessions.filter(s => s.is_remote).length;
     const lan = sessions.length - wan;
     const up = d.api_online ? liveSpeed(d.recent_delta_bytes, refresh, 1000) : ['--', ''];
@@ -98,7 +110,7 @@ export function embyVM(d, hist) {
         online: !!d.api_online,
         mode: embyModeText(d),
         lucky: d.traffic_collect_mode === 'lucky',
-        collect: `${refresh} 秒刷新 · ${collect} 秒采集`,
+        collect: `${refresh > 1 ? `${refresh} 秒刷新` : '实时刷新'} · ${collect} 秒采集`,
         playing: `局域网 ${lan} · 外网 ${wan}`,
         wan, lan,
         sessions,
@@ -114,21 +126,21 @@ export function embyVM(d, hist) {
     };
 }
 
-/** 顶部胶囊统计 */
+/** 顶部栏统计 */
 export function qbPills(list) {
     return [
-        ['', list.length, '设备数'],
-        ['ok', list.filter(d => d.online).length, '在线'],
-        ['warn', list.filter(d => d.triggered || d.raw.is_limited).length, '限速中'],
-        ['info', list.filter(d => d.raw.has_next_cycle_plan).length, '下周期计划'],
+        ['', list.length, '设备数', 'box'],
+        ['ok', list.filter(d => d.online).length, '在线', 'ok'],
+        ['warn', list.filter(d => d.triggered || d.raw.is_limited).length, '限速中', 'warn'],
+        ['info', list.filter(d => d.raw.has_next_cycle_plan).length, '下周期计划', 'info'],
     ];
 }
 
 export function embyPills(list) {
     return [
-        ['', list.length, '设备数'],
-        ['ok', list.filter(d => d.online).length, '在线'],
-        ['warn', list.reduce((n, d) => n + d.lan, 0), '局域网播放'],
-        ['violet', list.reduce((n, d) => n + d.wan, 0), '外网播放'],
+        ['', list.length, '设备数', 'box'],
+        ['ok', list.filter(d => d.online).length, '在线', 'ok'],
+        ['warn', list.reduce((n, d) => n + d.lan, 0), '局域网播放', 'lan'],
+        ['violet', list.reduce((n, d) => n + d.wan, 0), '外网播放', 'wan'],
     ];
 }

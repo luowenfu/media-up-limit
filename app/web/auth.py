@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 from core.paths import WEB_SECRET_PATH as SECRET_PATH  # noqa: E402
 LOGIN_EXEMPT_PREFIXES = ('/static/',)
-LOGIN_EXEMPT_EXACT = ('/login', '/api/auth/login', '/api/auth/check')
+LOGIN_EXEMPT_EXACT = ('/login', '/favicon.ico', '/api/auth/login', '/api/auth/check')
 
 
 def get_secret_key() -> str:
