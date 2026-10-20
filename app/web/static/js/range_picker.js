@@ -76,8 +76,8 @@ function monthCells(ym) {
 function dayPane(ym, side) {
     const [y, m] = ym.split('-').map(Number);
     const nav = side === 'left'
-        ? `<button type="button" data-nav="-12" aria-label="上一年">«</button><button type="button" data-nav="-1" aria-label="上个月">‹</button>`
-        : `<button type="button" data-nav="1" aria-label="下个月">›</button><button type="button" data-nav="12" aria-label="下一年">»</button>`;
+        ? `<button type="button" data-rp="-12" aria-label="上一年">«</button><button type="button" data-rp="-1" aria-label="上个月">‹</button>`
+        : `<button type="button" data-rp="1" aria-label="下个月">›</button><button type="button" data-rp="12" aria-label="下一年">»</button>`;
     const cells = monthCells(ym).map(day => {
         if (!day) return '<span></span>';
         const off = day > max || day < '2000-01-01';
@@ -90,8 +90,8 @@ function dayPane(ym, side) {
 
 function monthPane(year, side) {
     const nav = side === 'left'
-        ? `<button type="button" data-nav="-1" aria-label="上一年">«</button>`
-        : `<button type="button" data-nav="1" aria-label="下一年">»</button>`;
+        ? `<button type="button" data-rp="-1" aria-label="上一年">«</button>`
+        : `<button type="button" data-rp="1" aria-label="下一年">»</button>`;
     const cells = Array.from({ length: 12 }, (_, i) => {
         const value = `${year}-${p2(i + 1)}`;
         const off = value > max || value < '2000-01';
@@ -164,9 +164,9 @@ export function bindRangePicker(done) {
         const openBtn = e.target.closest('[data-range-open]');
         if (openBtn) { openRangePicker(done); return; }
         if (!root) return;
-        const nav = e.target.closest('[data-nav]');
+        const nav = e.target.closest('[data-rp]');
         if (nav) {
-            const step = +nav.dataset.nav;
+            const step = +nav.dataset.rp;
             if (mode === 'day') {
                 const next = addMonths(left, step);
                 if (next < '2000-01' || next > max.slice(0, 7)) return;

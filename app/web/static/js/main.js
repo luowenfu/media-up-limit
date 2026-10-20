@@ -77,7 +77,7 @@ document.addEventListener('click', e => {
     if (t.closest('[data-hidelan]')) { state.eventsHideLan = !state.eventsHideLan; render(); return; }
     if (uiClick(t, e, ctx)) return;
     if (t.dataset.navToggle) { const k = t.dataset.navToggle; setGroupOpen(k, navCollapsed().includes(k)); return; }
-    if (t.dataset.nav) {
+    if (t.dataset.nav && ['qb', 'emby', 'merge', 'syslogs'].includes(t.dataset.nav)) {
         if (matchMedia('(max-width: 992px)').matches && t.dataset.nav === 'merge') return;
         if (matchMedia('(max-width: 992px)').matches && !t.dataset.dev && (t.dataset.nav === 'qb' || t.dataset.nav === 'emby')) {
             setGroupOpen(t.dataset.nav, navCollapsed().includes(t.dataset.nav));
