@@ -67,7 +67,7 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 
 .share-pie { display: flex; flex-direction: column; align-items: center; padding: 4px 0 8px; }
 .share-pie svg { width: 220px; height: 220px; }
-.share-pie .rank { width: 240px; max-width: 100%; margin-top: 18px; }
+.share-pie .rank { width: 300px; max-width: 100%; margin-top: 18px; }
 .donut-track { stroke: #eef2f7; }
 .donut-k { color: var(--text-2); }
 .donut-v { color: var(--text); }
