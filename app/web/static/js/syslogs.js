@@ -198,8 +198,8 @@ export const logListHtml = (lv, query) => {
 
 export function logStatsHtml() {
     const cnt = lv => logState.rows.filter(l => l.lv === lv).length;
-    const stats = [['doc', '#f1f5f9', '#475569', logState.rows.length, '已加载日志'], ['info', '#eff6ff', '#2563eb', cnt('INFO'), '信息'], ['warn', '#fffbeb', '#d97706', cnt('WARN'), '警告'], ['err', '#fef2f2', '#dc2626', cnt('ERROR'), '错误']];
-    return stats.map(s => `<div class="panel log-stat"><span class="kpi-ico" style="background:${s[1]};color:${s[2]}">${I[s[0]]}</span><div><b class="num">${s[3]}</b><small>${s[4]}</small></div></div>`).join('');
+    const stats = [['doc', 'tone-slate', logState.rows.length, '已加载日志'], ['info', 'tone-info', cnt('INFO'), '信息'], ['warn', 'tone-amber', cnt('WARN'), '警告'], ['err', 'tone-red', cnt('ERROR'), '错误']];
+    return stats.map(s => `<div class="panel log-stat"><span class="kpi-ico ${s[1]}">${I[s[0]]}</span><div><b class="num">${s[2]}</b><small>${s[3]}</small></div></div>`).join('');
 }
 
 export function renderSyslogs(src, lv, query) {

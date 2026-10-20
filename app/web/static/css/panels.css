@@ -157,3 +157,15 @@
 .modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px 18px; border-top: 1px solid var(--line-2); }
 .btn { height: 38px; padding: 0 18px; border-radius: 10px; font-weight: 600; border: 1px solid var(--line); background: #fff; }
 .btn.primary { border-color: transparent; color: #fff; background: linear-gradient(140deg, var(--accent-2), var(--accent)); box-shadow: 0 6px 14px -6px color-mix(in srgb, var(--accent) 70%, transparent); }
+
+/* 彩色图标底。浅色写在这里，深色由 scheme.css 覆盖。 */
+.tone-qb { background: #eef4ff; color: #2563eb; }
+.tone-ok { background: #e9f9f2; color: #059669; }
+.tone-mint { background: #ecfdf5; color: #059669; }
+.tone-warn { background: #fff7ed; color: #d97706; }
+.tone-orange { background: #fff7ed; color: #ea580c; }
+.tone-amber { background: #fffbeb; color: #d97706; }
+.tone-info { background: #eff6ff; color: #2563eb; }
+.tone-violet { background: #f5f3ff; color: #7c3aed; }
+.tone-red { background: #fef2f2; color: #dc2626; }
+.tone-slate { background: #f1f5f9; color: #475569; }

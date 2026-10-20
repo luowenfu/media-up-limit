@@ -1,0 +1,259 @@
+/* 深色主题。浅色仍用各文件原样式，这里只在 html[data-scheme="dark"] 下覆盖。 */
+
+html[data-scheme="dark"] {
+    color-scheme: dark;
+    --bg: #0c1220;
+    --card: #151c2c;
+    --text: #f8fafc;
+    --text-1: #e2e8f0;
+    --text-2: #94a3b8;
+    --text-3: #64748b;
+    --line: #2a364c;
+    --line-2: #1e293b;
+    --qb: #60a5fa;
+    --qb-2: #93c5fd;
+    --qb-soft: rgba(37, 99, 235, .22);
+    --emby: #34d399;
+    --emby-2: #6ee7b7;
+    --emby-soft: rgba(16, 185, 129, .18);
+    --merge-soft: #1e293b;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .35);
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 28px -12px rgba(0, 0, 0, .65);
+    --shadow-lg: 0 24px 50px -18px rgba(0, 0, 0, .7);
+}
+html[data-scheme="dark"],
+html[data-scheme="dark"] body { background-color: var(--bg); }
+
+html[data-scheme="dark"] .sidebar,
+html[data-scheme="dark"] .topbar,
+html[data-scheme="dark"] .tb-bar,
+html[data-scheme="dark"] .tb-metrics,
+html[data-scheme="dark"] .detail-tabs,
+html[data-scheme="dark"] .bottom-bar {
+    background: rgba(12, 18, 32, .94);
+}
+html[data-scheme="dark"] .tb-tray,
+html[data-scheme="dark"] .status,
+html[data-scheme="dark"] .login-card {
+    background: #151c2c;
+}
+html[data-scheme="dark"] .nav-item { color: #cbd5e1; }
+html[data-scheme="dark"] .nav-item.active { color: var(--accent); background: var(--accent-soft); }
+html[data-scheme="dark"] .nav-item.active .nav-badge { background: #0c1220; color: var(--accent); }
+html[data-scheme="dark"] .nav-item:hover,
+html[data-scheme="dark"] .nav-caret:hover,
+html[data-scheme="dark"] .icon-btn:hover,
+html[data-scheme="dark"] .x-btn:hover,
+html[data-scheme="dark"] .modal-head button:hover,
+html[data-scheme="dark"] .mini-btn:hover {
+    background: #1e293b;
+    color: var(--text);
+}
+html[data-scheme="dark"] .nav-badge,
+html[data-scheme="dark"] .ver,
+html[data-scheme="dark"] .tabs,
+html[data-scheme="dark"] .toggle,
+html[data-scheme="dark"] .seg-f,
+html[data-scheme="dark"] .tile,
+html[data-scheme="dark"] .sheet-body,
+html[data-scheme="dark"] .me-col,
+html[data-scheme="dark"] .chk,
+html[data-scheme="dark"] .ev-item,
+html[data-scheme="dark"] .live-box,
+html[data-scheme="dark"] .fs-head .ic,
+html[data-scheme="dark"] .rank-no,
+html[data-scheme="dark"] .log-msg code {
+    background: #1e293b;
+    color: var(--text-2);
+}
+html[data-scheme="dark"] .nav-item.active .nav-badge,
+html[data-scheme="dark"] .tabs button.on,
+html[data-scheme="dark"] .toggle span.on,
+html[data-scheme="dark"] .seg-f button.on,
+html[data-scheme="dark"] .field,
+html[data-scheme="dark"] .btn:not(.primary),
+html[data-scheme="dark"] .inp,
+html[data-scheme="dark"] button.opt,
+html[data-scheme="dark"] .preset,
+html[data-scheme="dark"] .act,
+html[data-scheme="dark"] .session,
+html[data-scheme="dark"] .rule,
+html[data-scheme="dark"] .me-item,
+html[data-scheme="dark"] .merge-bar,
+html[data-scheme="dark"] .modal,
+html[data-scheme="dark"] .sheet,
+html[data-scheme="dark"] .sheet-foot,
+html[data-scheme="dark"] .fs {
+    background: #1b2436;
+    color: var(--text-1);
+}
+html[data-scheme="dark"] .dev-col + .dev-col { background: #101826; }
+html[data-scheme="dark"] .rule.hit { background: #2a1518; border-color: #7f1d1d; }
+html[data-scheme="dark"] .rule.cur {
+    background: #2a2110; border-color: #6b4e12;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, .16);
+}
+html[data-scheme="dark"] .rule.cur .rule-bot .st { color: #fbbf24; }
+html[data-scheme="dark"] .session-empty {
+    background: #10241c;
+    border-color: #1f6b4a;
+    color: var(--text-2);
+}
+html[data-scheme="dark"] .session-empty .ico {
+    background: #163528;
+    color: var(--emby-2);
+}
+html[data-scheme="dark"] .inp,
+html[data-scheme="dark"] .field,
+html[data-scheme="dark"] .msg-box { border-color: var(--line); background: #1b2436; color: var(--text-1); }
+html[data-scheme="dark"] select option,
+html[data-scheme="dark"] select optgroup {
+    background-color: #1e293b;
+    color: #e2e8f0;
+}
+html[data-scheme="dark"] .tag.up.warn { background: #3b2414; color: #fdba74; }
+html[data-scheme="dark"] .session-up.warn { color: #fdba74; }
+html[data-scheme="dark"] .rule-x {
+    background: #1b2436;
+    color: var(--text-1);
+    border-color: var(--line);
+}
+html[data-scheme="dark"] .rule-x:hover { color: #fecaca; background: #2a1515; border-color: #7f1d1d; }
+html[data-scheme="dark"] .inp .suf,
+html[data-scheme="dark"] .inp.ro,
+html[data-scheme="dark"] .stepper button {
+    background: #121a2b;
+    border-color: var(--line);
+    color: var(--text-2);
+}
+html[data-scheme="dark"] .stepper button:hover { background: #243044; color: var(--text); }
+html[data-scheme="dark"] .act { color: var(--text-1); }
+html[data-scheme="dark"] .act:hover { background: #243044; border-color: #3b4c66; }
+html[data-scheme="dark"] .add-btn:hover { background: color-mix(in srgb, var(--accent) 24%, #151c2c); }
+html[data-scheme="dark"] .ring .track { stroke: #243044; }
+html[data-scheme="dark"] .tb-metric.hot { background: rgba(234, 88, 12, .16); }
+html[data-scheme="dark"] .prog,
+html[data-scheme="dark"] .ev-prog,
+html[data-scheme="dark"] .rank-bar { background: #243044; }
+html[data-scheme="dark"] .log:hover { background: #1e293b; }
+html[data-scheme="dark"] .logout:hover { background: rgba(239, 68, 68, .14); }
+html[data-scheme="dark"] .notice { background: #172033; border-color: #2a3a5c; color: #bfdbfe; }
+html[data-scheme="dark"] .notice.warn { background: #2a2110; border-color: #6b4e12; color: #fcd34d; }
+html[data-scheme="dark"] .notice.danger { background: #2a1515; border-color: #7f1d1d; color: #fecaca; }
+html[data-scheme="dark"] .notice.ok { background: #06281f; border-color: #065f46; color: #a7f3d0; }
+html[data-scheme="dark"] .block-swap:hover { background: #243044; color: var(--text); }
+html[data-scheme="dark"] .chart-svg .grid { stroke: #243044; }
+html[data-scheme="dark"] .chart-svg .axis { stroke: #334155; }
+html[data-scheme="dark"] .donut-track { stroke: #243044; }
+html[data-scheme="dark"] .chart-ytick,
+html[data-scheme="dark"] .chart-xtick { color: var(--text-2); }
+
+html[data-scheme="dark"] .tone-qb,
+html[data-scheme="dark"] .tone-info { background: rgba(37, 99, 235, .22); color: #93c5fd; }
+html[data-scheme="dark"] .tone-ok,
+html[data-scheme="dark"] .tone-mint { background: rgba(16, 185, 129, .18); color: #6ee7b7; }
+html[data-scheme="dark"] .tone-warn,
+html[data-scheme="dark"] .tone-orange,
+html[data-scheme="dark"] .tone-amber { background: #3b2414; color: #fdba74; }
+html[data-scheme="dark"] .tone-violet { background: rgba(139, 92, 246, .22); color: #c4b5fd; }
+html[data-scheme="dark"] .tone-red { background: #3b1a1a; color: #fca5a5; }
+html[data-scheme="dark"] .tone-slate { background: #1e293b; color: #94a3b8; }
+
+html[data-scheme="dark"] .tag { background: #1e293b; color: var(--text-2); }
+html[data-scheme="dark"] .tag.wan,
+html[data-scheme="dark"] .tag.xc { background: #3b2414; color: #fdba74; }
+html[data-scheme="dark"] .tag.lan,
+html[data-scheme="dark"] .tag.direct { background: #10281f; color: #6ee7b7; }
+html[data-scheme="dark"] .tag.up { background: rgba(37, 99, 235, .22); color: #93c5fd; }
+html[data-scheme="dark"] .tag.sys,
+html[data-scheme="dark"] .lv.DEBUG,
+html[data-scheme="dark"] .ev-ico.gray { background: #1e293b; color: #94a3b8; }
+html[data-scheme="dark"] .lv.INFO,
+html[data-scheme="dark"] .ev-ico.info,
+html[data-scheme="dark"] .act.set .ai,
+html[data-scheme="dark"] .m-ico.blue { background: rgba(37, 99, 235, .22); color: #93c5fd; }
+html[data-scheme="dark"] .lv.WARN,
+html[data-scheme="dark"] .ev-ico.warn,
+html[data-scheme="dark"] .act.rst .ai,
+html[data-scheme="dark"] .m-ico.orange { background: #3b2414; color: #fdba74; }
+html[data-scheme="dark"] .lv.ERROR,
+html[data-scheme="dark"] .ev-ico.danger,
+html[data-scheme="dark"] .act.del .ai,
+html[data-scheme="dark"] .m-ico.red { background: #3b1a1a; color: #fca5a5; }
+html[data-scheme="dark"] .ev-ico.ok,
+html[data-scheme="dark"] .act.web .ai,
+html[data-scheme="dark"] .m-ico.green { background: #10281f; color: #6ee7b7; }
+html[data-scheme="dark"] .ev-ico.violet,
+html[data-scheme="dark"] .act.lim .ai,
+html[data-scheme="dark"] .m-ico.violet,
+html[data-scheme="dark"] .plan-head .tg.next,
+html[data-scheme="dark"] .plan-add .ic { background: rgba(139, 92, 246, .22); color: #c4b5fd; }
+
+html[data-scheme="dark"] .tile.alert { background: #2a1518; }
+html[data-scheme="dark"] .act.del:hover,
+html[data-scheme="dark"] .rule-del:hover { background: #2a1515; border-color: #7f1d1d; color: #fecaca; }
+html[data-scheme="dark"] .log.ERROR { background: #1a1214; }
+html[data-scheme="dark"] .big-toggle,
+html[data-scheme="dark"] .plan,
+html[data-scheme="dark"] .rule-ed,
+html[data-scheme="dark"] .orphan-list,
+html[data-scheme="dark"] .clear-sum div { background: #1b2436; }
+html[data-scheme="dark"] .big-toggle .ic,
+html[data-scheme="dark"] .rule-ed .n,
+html[data-scheme="dark"] .mb-ico { background: #1e293b; color: var(--text-2); }
+html[data-scheme="dark"] .big-toggle.on {
+    background: color-mix(in srgb, var(--sheet-accent, var(--emby)) 16%, #151c2c);
+}
+html[data-scheme="dark"] .big-toggle.on .ic { background: var(--sheet-accent, var(--emby)); color: #fff; }
+html[data-scheme="dark"] .big-toggle .badge { background: #3b2a10; color: #fcd34d; }
+html[data-scheme="dark"] .chk.on .box { background: var(--chk, #2563eb); border-color: var(--chk, #2563eb); color: #fff; }
+html[data-scheme="dark"] .me-item.on .box { background: var(--c); border-color: var(--c); color: #fff; }
+html[data-scheme="dark"] .file-row code,
+html[data-scheme="dark"] .orphan-top code,
+html[data-scheme="dark"] .opt small code { background: #121a2b; color: var(--text-1); }
+html[data-scheme="dark"] .test-res.ok { background: #06281f; color: #a7f3d0; border-color: #065f46; }
+html[data-scheme="dark"] .test-res.err,
+html[data-scheme="dark"] .login-error { background: #2a1515; color: #fecaca; border-color: #7f1d1d; }
+html[data-scheme="dark"] #nextPlan,
+html[data-scheme="dark"] .plan-add { background: #1a1630; border-color: #4c1d95; }
+html[data-scheme="dark"] .plan-add:hover { background: #241c3d; border-color: #7c3aed; }
+html[data-scheme="dark"] .add-rule { border-color: #3b4c66; }
+html[data-scheme="dark"] .add-rule:hover {
+    background: color-mix(in srgb, var(--sheet-accent, var(--qb)) 16%, #151c2c);
+}
+html[data-scheme="dark"] .preset:hover { border-color: #7c3aed; color: #c4b5fd; }
+html[data-scheme="dark"] .preset.on { background: rgba(139, 92, 246, .22); color: #c4b5fd; border-color: #7c3aed; }
+html[data-scheme="dark"] .opt:hover,
+html[data-scheme="dark"] .inp:hover,
+html[data-scheme="dark"] .ev-item:hover { border-color: #3b4c66; }
+html[data-scheme="dark"] .opt .radio,
+html[data-scheme="dark"] .chk .box,
+html[data-scheme="dark"] .me-item .box { background: #121a2b; border-color: #3b4c66; }
+html[data-scheme="dark"] .opt.on { background: #172033; border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(37, 99, 235, .16); }
+html[data-scheme="dark"] .opt.danger.on { background: #2a1515; border-color: #fca5a5; box-shadow: 0 0 0 4px rgba(239, 68, 68, .12); }
+html[data-scheme="dark"] .me-item.on { border-color: color-mix(in srgb, var(--c) 55%, #2a364c); }
+html[data-scheme="dark"] .me-all:hover { background: color-mix(in srgb, var(--c) 18%, #151c2c); }
+html[data-scheme="dark"] .me-drag:hover,
+html[data-scheme="dark"] .me-t .eye-btn:hover,
+html[data-scheme="dark"] .me-t .eye-btn.on { background: #243044; color: var(--text-1); }
+html[data-scheme="dark"] .switch { background: #334155; }
+html[data-scheme="dark"] .btn:not(.primary):not(.danger):not(.warn):hover { background: #243044; border-color: #3b4c66; }
+html[data-scheme="dark"] .nav-dot.off { background: #475569; }
+html[data-scheme="dark"] .lg-btn.off::before { border-bottom-color: #475569; border-top-color: #475569; }
+html[data-scheme="dark"] .modal.sm::before { background: #3b4c66; }
+html[data-scheme="dark"] .login-page {
+    background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(37, 99, 235, .18), transparent 60%),
+        radial-gradient(900px 500px at 110% 110%, rgba(16, 185, 129, .12), transparent 55%),
+        var(--bg);
+}
+html[data-scheme="dark"] .msg-box::placeholder,
+html[data-scheme="dark"] .inp input::placeholder { color: #64748b; }
+html[data-scheme="dark"] input:-webkit-autofill,
+html[data-scheme="dark"] input:-webkit-autofill:hover,
+html[data-scheme="dark"] input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--text);
+    caret-color: var(--text);
+    box-shadow: 0 0 0 1000px #1b2436 inset;
+    transition: background-color 9999s ease-out;
+}
