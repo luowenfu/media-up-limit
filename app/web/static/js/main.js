@@ -14,7 +14,7 @@ import { toggleReveal } from './cards.js';
 import { openSettings } from './settings.js';
 import { toggleScheme } from './theme.js';
 import { openChooser } from './dialogs.js';
-import { defaultAnchor } from './stats_data.js';
+import { defaultAnchor, parseMonth, visibleMonthRange } from './stats_data.js';
 import { chartOrderPref, moveChartBlock } from './stats.js';
 import {
     $, closeDrawer, closeModal, closeSheet, toast,
@@ -27,7 +27,7 @@ const route = () => pageSnapshot();
 
 function resetFilters() {
     Object.assign(state, {
-        statsDevice: '', statsUser: '', statsDate: '', eventsDevice: '', eventsUser: '', eventsType: 'all',
+        statsDevice: '', statsUser: '', statsDate: '', statsFrom: '', eventsDevice: '', eventsUser: '', eventsType: 'all',
     });
 }
 
@@ -69,7 +69,7 @@ function openDevice(kind, dev, focus) {
 
 /* ---------- 点击 ---------- */
 document.addEventListener('click', e => {
-    const t = e.target.closest('button, .switch, .chk, .me-item, [data-lucky], [data-close], [data-lim-mode], [data-hidelan], [data-datef], [data-open-dev]');
+    const t = e.target.closest('button, .switch, .chk, .me-item, [data-lucky], [data-close], [data-lim-mode], [data-hidelan], [data-open-dev]');
     if (!t) return;
     if (t.dataset.reveal) { toggleReveal(t.dataset.reveal); render(); return; }
     const ctx = { render: () => render() };
@@ -119,6 +119,7 @@ document.addEventListener('click', e => {
         if (next === 'day' || next === 'month') {
             state.statsChartRange = next;
             state.statsDate = '';
+            state.statsFrom = '';
         }
         state.statsRange = next;
         render();
@@ -128,7 +129,15 @@ document.addEventListener('click', e => {
     if (t.closest('[data-logsrc]')) { state.logSrc = t.dataset.v; render(); return; }
     if (t.closest('[data-loglv]')) { state.logLv = t.dataset.v; render(); return; }
     if (t.hasAttribute('data-hidelan')) { state.eventsHideLan = !state.eventsHideLan; render(); return; }
-    if (t.hasAttribute('data-datef')) { t.querySelector('input')?.showPicker?.(); return; }
+    if (t.dataset.monthPick) {
+        const native = t.parentElement?.querySelector('.month-native');
+        if (!native) return;
+        try {
+            if (typeof native.showPicker === 'function') native.showPicker();
+            else native.click();
+        } catch (err) { native.click(); }
+        return;
+    }
     if (t.hasAttribute('data-log-export')) { exportLogs(state.logLv, state.logQuery); return; }
     if (t.hasAttribute('data-log-more')) { loadMoreLogs(); return; }
     if (t.hasAttribute('data-close') || t.id === 'modal') closeModal();
@@ -144,12 +153,12 @@ async function logout() {
 document.addEventListener('change', e => {
     const t = e.target;
     if (t.id === 'stUser') { state.statsUser = t.value === '__all_users__' ? '' : t.value; render(); }
-    else if (t.id === 'stDate') {
-        const range = state.statsRange === 'total' ? (state.statsChartRange || 'day') : state.statsRange;
-        state.statsDate = t.value || defaultAnchor(range);
-        render();
+    else if (t.classList.contains('month-native')) {
+        const text = document.getElementById(t.dataset.for);
+        if (text) text.value = t.value;
+        if (t.dataset.for === 'stDate') commitDay(t.value);
+        else commitMonthRange();
     }
-    else if (t.id === 'stSpan') { state.statsSpan = t.value; render(); }
     else if (t.id === 'evUser') { state.eventsUser = t.value; render(); }
     else if (t.id === 'evDays') { state.eventsDays = +t.value; render(); }
 });
@@ -164,7 +173,73 @@ document.addEventListener('input', e => {
     }
 });
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeSheet(); } });
+document.addEventListener('mousedown', e => {
+    if (e.target.closest('[data-month-pick]')) e.preventDefault();
+});
+document.addEventListener('focusout', e => {
+    const id = e.target.id;
+    if (id !== 'stDate' && id !== 'stFrom' && id !== 'stTo') return;
+    setTimeout(() => {
+        const active = document.activeElement;
+        if (id !== 'stDate' && active?.closest?.('.monthf')) return;
+        if (id === 'stDate') commitDay(e.target.value);
+        else commitMonthRange();
+    }, 0);
+});
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeModal(); closeSheet(); return; }
+    if (e.key === 'Enter' && (e.target.id === 'stDate' || e.target.id === 'stFrom' || e.target.id === 'stTo')) {
+        e.preventDefault();
+        e.target.blur();
+    }
+});
+
+function commitDay(raw) {
+    const max = defaultAnchor('month');
+    const cur = /^\d{4}-\d{2}$/.test(state.statsDate || '') ? state.statsDate : max;
+    const next = parseMonth(raw, max);
+    const input = document.getElementById('stDate');
+    if (!next) {
+        if (input) input.value = cur;
+        return;
+    }
+    if (next === cur) return;
+    state.statsDate = next === max ? '' : next;
+    render();
+}
+
+function commitMonthRange() {
+    const max = defaultAnchor('month');
+    const endEl = document.getElementById('stTo');
+    const fromEl = document.getElementById('stFrom');
+    if (!endEl || !fromEl) return;
+    const before = visibleMonthRange(state.statsDate || max);
+    let end = parseMonth(endEl.value, max);
+    if (!end) {
+        endEl.value = before.end;
+        end = before.end;
+    }
+    const fromRaw = fromEl.value.trim();
+    if (!fromRaw) {
+        if (before.all && end === before.end) return;
+        state.statsSpan = 'all';
+        state.statsFrom = '';
+        state.statsDate = end === max ? '' : end;
+        render();
+        return;
+    }
+    let start = parseMonth(fromRaw, max);
+    if (!start) {
+        fromEl.value = before.all ? '' : before.start;
+        return;
+    }
+    if (start > end) [start, end] = [end, start];
+    if (!before.all && start === before.start && end === before.end) return;
+    state.statsFrom = start;
+    state.statsDate = end === max ? '' : end;
+    if (state.statsSpan === 'all') state.statsSpan = '6';
+    render();
+}
 $('#sheetMask').addEventListener('click', closeSheet);
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
 $('#menuBtn').addEventListener('click', () => document.body.classList.add('drawer'));

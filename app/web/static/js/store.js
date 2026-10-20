@@ -15,6 +15,7 @@ export const state = {
     statsRange: 'day',
     statsChartRange: 'day',
     statsSpan: '6',
+    statsFrom: '',
     statsDevice: '',
     statsUser: '',
     statsDate: '',
@@ -154,6 +155,7 @@ export function pageSnapshot() {
         statsRange: state.statsRange || 'day',
         statsChartRange: state.statsChartRange || 'day',
         statsDate: state.statsDate || '',
+        statsFrom: state.statsFrom || '',
         statsSpan: String(state.statsSpan || '6'),
         statsUser: state.statsUser || '',
         eventsType: state.eventsType || 'all',
@@ -177,6 +179,7 @@ function applyPage(saved) {
     if (typeof saved.statsDate === 'string') {
         state.statsDate = /^\d{4}-\d{2}-\d{2}$/.test(saved.statsDate) ? saved.statsDate.slice(0, 7) : saved.statsDate;
     }
+    if (typeof saved.statsFrom === 'string' && /^\d{4}-\d{2}$/.test(saved.statsFrom)) state.statsFrom = saved.statsFrom;
     if (PAGE_SPANS.has(String(saved.statsSpan || ''))) state.statsSpan = String(saved.statsSpan);
     if (typeof saved.statsUser === 'string') state.statsUser = saved.statsUser;
     if (typeof saved.eventsType === 'string') state.eventsType = saved.eventsType;

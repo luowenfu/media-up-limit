@@ -113,6 +113,8 @@
     .field.search { flex: 1 1 100%; }
     .tool-r { margin-left: 0; }
     .tool-r .field { max-width: 100%; }
+    .field.monthf { flex-wrap: wrap; height: auto; min-height: 36px; row-gap: 4px; }
+    .field.monthf .month-text { width: 6.4em; }
     .chart-svg { height: 200px; }
     .kpis { gap: 0; }
     .kpi { padding: 8px 12px; }

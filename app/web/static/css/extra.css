@@ -8,8 +8,14 @@
 .field select { padding-right: 2px; max-width: 220px; text-overflow: ellipsis; }
 .field.search input { flex: 1; cursor: text; color: var(--text-1); }
 .field.search input::placeholder { color: var(--text-3); }
-.field.datef { position: relative; cursor: pointer; }
-.field.datef input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; }
+.field.monthf .month-text { width: 7.4em; cursor: text; color: var(--text); font-variant-numeric: tabular-nums; }
+.field.monthf .month-text::placeholder { color: var(--text-3); }
+.field.monthf .sep { color: var(--text-3); }
+.month-slot { position: relative; display: inline-flex; align-items: center; gap: 2px; }
+.month-pick { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 6px; color: var(--text-3); }
+.month-pick:hover { background: #f1f5f9; color: var(--text-1); }
+.month-pick svg { width: 14px; height: 14px; }
+.month-native { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; }
 
 /* 离线设备 */
 .dev-url .online.off { background: #f87171; box-shadow: 0 0 0 3px rgba(248, 113, 113, .25); }

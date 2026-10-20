@@ -4,7 +4,7 @@ import { I } from './icons.js';
 import { foldHead, foldOpen } from './events.js';
 import { esc, fmtBytes, splitBytes, trimNum } from './format.js';
 import { state } from './store.js';
-import { ALL_USERS, currentDevice, defaultAnchor, loadEmbyStats, loadQbStats } from './stats_data.js';
+import { ALL_USERS, currentDevice, defaultAnchor, loadEmbyStats, loadQbStats, visibleMonthRange } from './stats_data.js';
 
 const SERIES = {
     qb: { nameA: '上传', nameB: '下载', colorA: '#2563eb', colorB: '#f59e0b' },
@@ -363,18 +363,22 @@ function ranksOf(m) {
 }
 
 /* ---------- 页面 ---------- */
+function monthSlot(id, value, max, label) {
+    const shown = value || '';
+    const cal = I.cal.replace(/16/g, '14');
+    return `<span class="month-slot"><input type="text" id="${id}" class="month-text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="${shown ? 'YYYY-MM' : '最早'}" value="${esc(shown)}" maxlength="10" aria-label="${label}"><button type="button" class="month-pick" data-month-pick="${id}" aria-label="选择${label}">${cal}</button><input type="month" class="month-native" tabindex="-1" data-for="${id}" value="${shown || max}" max="${max}"></span>`;
+}
+
 function toolbar(m, kind) {
     const picked = state.statsRange;
     const range = kind === 'qb' || picked !== 'total' ? picked : (state.statsChartRange || 'day');
     const chartRange = range === 'total' ? (state.statsChartRange || 'day') : range;
-    const anchor = state.statsDate || defaultAnchor(chartRange);
-    const dateField = chartRange === 'day'
-        ? `<input type="month" id="stDate" value="${anchor}" max="${defaultAnchor('day')}">` : '';
-    const span = state.statsSpan || '6';
-    const spans = [['6', '近6个月'], ['12', '近12个月'], ['24', '近24个月'], ['all', '全部']];
+    const maxMonth = defaultAnchor('month');
+    const anchor = /^\d{4}-\d{2}$/.test(state.statsDate || '') ? state.statsDate : maxMonth;
+    const win = visibleMonthRange(anchor);
     const periodField = range === 'total' ? '' : chartRange === 'month'
-        ? `<span class="field"><span class="k">时段</span><select id="stSpan">${spans.map(([v, lab]) => `<option value="${v}" ${span === v ? 'selected' : ''}>${lab}</option>`).join('')}</select>${I.chev}</span>`
-        : `<span class="field datef" data-datef>${I.cal.replace(/16/g, '14')}${m.sp.caption}${dateField}</span>`;
+        ? `<span class="field monthf"><span class="k">时段</span>${monthSlot('stFrom', win.all ? '' : win.start, maxMonth, '开始月份')}<span class="sep">~</span>${monthSlot('stTo', win.end, maxMonth, '结束月份')}</span>`
+        : `<span class="field monthf"><span class="k">月份</span>${monthSlot('stDate', anchor, maxMonth, '月份')}</span>`;
     const totalTab = kind === 'qb'
         ? `<button data-r="total" class="${range === 'total' ? 'on' : ''}">按累计</button>`
         : '';
