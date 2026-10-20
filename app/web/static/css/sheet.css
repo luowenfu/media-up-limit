@@ -146,7 +146,7 @@
 
 /* 规则编辑 */
 .plan { padding: 16px; border-radius: 14px; border: 1px solid var(--line); background: #fbfcfe; }
-.plan + .plan, .plan + .plan-add { margin-top: 14px; }
+.plan + .plan, .plan + .plan-add, .plan-add + .plan { margin-top: 14px; }
 .plan-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
 #nextPlan { border-color: #bfdbfe; background: #f5f9ff; }
 .plan-head b { font-size: 13.5px; color: var(--text); }
