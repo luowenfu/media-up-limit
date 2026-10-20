@@ -130,7 +130,7 @@ function torrentNotes(row) {
     const [n, u] = splitBytes(row[2]);
     const ratio = Number(row[3]);
     const share = Number.isFinite(ratio) && ratio >= 0 ? ratio.toFixed(2) : '∞';
-    return [`体积${n}${u}`, `分享率：${share}`];
+    return [`体积${n}${u}`, `分享率${share}`];
 }
 
 function rankToggle(key, label) {
