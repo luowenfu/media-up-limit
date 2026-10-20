@@ -2,11 +2,22 @@
 .modal.sm { width: min(460px, 100%); }
 .m-top { display: flex; gap: 14px; align-items: flex-start; padding: 22px 22px 6px; }
 .m-ico { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; flex-shrink: 0; }
-.m-ico svg { width: 22px; height: 22px; }
+.m-ico svg { width: 30px; height: 30px; }
 .m-ico.violet { background: #f5f3ff; color: #7c3aed; }
 .m-ico.orange { background: #fff7ed; color: #ea580c; }
 .m-ico.red { background: #fef2f2; color: #dc2626; }
 .m-ico.blue { background: #eff6ff; color: #2563eb; }
+.m-ico.green { background: #ecfdf5; color: #047857; }
+.msg-hint { margin: 0 0 12px; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
+.msg-style { margin: 0 0 12px; }
+.msg-style-hint { margin: 6px 0 0; font-size: 12px; color: var(--text-3); }
+.msg-box {
+    display: block; width: 100%; min-height: 88px; padding: 10px 12px;
+    border-radius: 10px; border: 1px solid #dde3ec; background: #fff;
+    color: var(--text); font: inherit; font-size: 13.5px; line-height: 1.5; resize: vertical;
+}
+.msg-box::placeholder { color: #a8b3c2; }
+.msg-box:focus { outline: none; border-color: #10b981; box-shadow: 0 0 0 4px color-mix(in srgb, #10b981 14%, transparent); }
 .m-top h3 { margin: 2px 0 2px; font-size: 17px; color: var(--text); }
 .m-top p { margin: 0; font-size: 13px; color: var(--text-2); line-height: 1.55; }
 .m-top p b { color: var(--text); }
@@ -74,7 +85,8 @@
 .me-ic.emby { background: linear-gradient(140deg, #10b981, #047857); }
 .me-t { flex: 1; min-width: 0; }
 .me-t b { display: block; font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.me-t small { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+.me-t small { display: flex; align-items: center; gap: 4px; min-width: 0; font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+.me-t .eye-btn:hover, .me-t .eye-btn.on { color: var(--text-1); background: #eef2f7; }
 .me-drag { width: 28px; height: 34px; display: grid; place-items: center; border-radius: 8px; color: var(--text-3); cursor: grab; touch-action: none; flex-shrink: 0; }
 .me-drag:hover { background: #f1f5f9; color: var(--text-1); }
 .me-item.dragging { z-index: 2; border-color: var(--c); box-shadow: 0 14px 28px -12px rgba(15, 23, 42, .4); transform: scale(1.02); cursor: grabbing; }
