@@ -226,7 +226,11 @@ export function renderChrome() {
         ? metricGroup(q, 'qb', 'qB') + (embyOn() ? metricGroup(e, 'emby', 'EMBY') : '')
         : metricGroup(view === 'emby' ? e : q);
     $('#pills').innerHTML = `<div class="tb-metrics-in">${groups}</div>`;
-    syncMetricsDrawer();
+    const metrics = document.querySelector('.tb-metrics');
+    if (metrics) {
+        metrics.style.height = '';
+        metrics.style.transition = '';
+    }
 }
 
 /** 统计完全滑进标题栏后，给标题栏补上底边，避免和内容贴在一起 */
@@ -241,135 +245,7 @@ function syncMetricsEdge() {
     document.body.classList.toggle('metrics-gone', gone);
 }
 window.addEventListener('scroll', syncMetricsEdge, { passive: true });
-window.addEventListener('resize', () => { syncMetricsEdge(); syncMetricsDrawer(); });
-
-/** 手机设备详情的四个状态：默认收起，拉过一半高度就弹性展开或收回 */
-let metricsOpen = false;
-let metricsDev = '';
-let metricsSpring = 0;
-let metricsHold = null;
-
-function metricsBox() {
-    return document.getElementById('pills');
-}
-
-function ensureMetricsGrip(box) {
-    let grip = box.querySelector('.tb-grip');
-    if (!grip) {
-        grip = document.createElement('button');
-        grip.type = 'button';
-        grip.className = 'tb-grip';
-        box.appendChild(grip);
-    }
-    grip.setAttribute('aria-expanded', metricsOpen ? 'true' : 'false');
-    grip.setAttribute('aria-label', metricsOpen ? '收起状态' : '展开状态');
-    return grip;
-}
-
-function metricsSizes(box) {
-    const grip = ensureMetricsGrip(box);
-    const prev = box.style.height;
-    box.style.height = 'auto';
-    const full = box.offsetHeight;
-    const collapsed = grip.offsetHeight || 20;
-    box.style.height = prev;
-    return { full, collapsed };
-}
-
-function springMetrics(box, to) {
-    cancelAnimationFrame(metricsSpring);
-    let x = box.getBoundingClientRect().height;
-    let v = 0;
-    let prev = performance.now();
-    const tick = (now) => {
-        const dt = Math.min(0.032, (now - prev) / 1000);
-        prev = now;
-        v += ((to - x) * 240 - v * 18) * dt;
-        x += v * dt;
-        if (Math.abs(to - x) < 0.4 && Math.abs(v) < 10) {
-            box.style.height = `${to}px`;
-            metricsSpring = 0;
-            ensureMetricsGrip(box);
-            return;
-        }
-        box.style.height = `${x}px`;
-        metricsSpring = requestAnimationFrame(tick);
-    };
-    metricsSpring = requestAnimationFrame(tick);
-}
-
-function syncMetricsDrawer() {
-    const box = metricsBox();
-    if (!box) return;
-    bindMetricsDrawer();
-    const on = isMobile() && document.body.dataset.detail === '1';
-    if (!on) {
-        box.style.height = '';
-        metricsDev = '';
-        metricsOpen = false;
-        metricsHold = null;
-        cancelAnimationFrame(metricsSpring);
-        metricsSpring = 0;
-        return;
-    }
-    ensureMetricsGrip(box);
-    if (metricsDev !== state.dev) {
-        metricsDev = state.dev;
-        if (!metricsHold) metricsOpen = false;
-    }
-    if (metricsHold || metricsSpring) return;
-    const { full, collapsed } = metricsSizes(box);
-    box.dataset.full = String(full);
-    box.dataset.collapsed = String(collapsed);
-    box.style.height = `${metricsOpen ? full : collapsed}px`;
-}
-
-function bindMetricsDrawer() {
-    const box = metricsBox();
-    if (!box || box.dataset.pull) return;
-    box.dataset.pull = '1';
-    const end = (e) => {
-        if (!metricsHold) return;
-        const hold = metricsHold;
-        metricsHold = null;
-        if (hold.committed) return;
-        if (!hold.moved && e.target?.closest?.('.tb-grip')) metricsOpen = !hold.wasOpen;
-        else metricsOpen = hold.wasOpen;
-        const { full, collapsed } = metricsSizes(box);
-        springMetrics(box, metricsOpen ? full : collapsed);
-    };
-    box.addEventListener('pointerdown', (e) => {
-        if (!isMobile() || document.body.dataset.detail !== '1' || e.button !== 0) return;
-        cancelAnimationFrame(metricsSpring);
-        metricsSpring = 0;
-        const { full, collapsed } = metricsSizes(box);
-        box.dataset.full = String(full);
-        box.dataset.collapsed = String(collapsed);
-        const h = box.getBoundingClientRect().height;
-        metricsHold = {
-            y: e.clientY, h, full, collapsed, moved: false, committed: false,
-            wasOpen: h > collapsed + (full - collapsed) / 2,
-        };
-        box.setPointerCapture(e.pointerId);
-    });
-    box.addEventListener('pointermove', (e) => {
-        const hold = metricsHold;
-        if (!hold || hold.committed) return;
-        const dy = e.clientY - hold.y;
-        if (Math.abs(dy) > 3) hold.moved = true;
-        const h = Math.min(hold.full, Math.max(hold.collapsed, hold.h + dy));
-        box.style.height = `${h}px`;
-        const mid = hold.collapsed + (hold.full - hold.collapsed) / 2;
-        const open = !hold.wasOpen && h >= mid;
-        const close = hold.wasOpen && h <= mid;
-        if (!open && !close) return;
-        hold.committed = true;
-        metricsOpen = open;
-        springMetrics(box, open ? hold.full : hold.collapsed);
-    });
-    box.addEventListener('pointerup', end);
-    box.addEventListener('pointercancel', end);
-}
+window.addEventListener('resize', syncMetricsEdge);
 
 /* ---------- 页面区块 ---------- */
 const LOADING = '<div class="panel panel-pad" style="text-align:center;color:var(--text-3);padding:48px 16px">加载中…</div>';
