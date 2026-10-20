@@ -1,0 +1,25 @@
+# 固定换行符。容器里是 Linux 环境，脚本带 CRLF 会直接报
+# "no such file or directory"，这个错误非常难查，所以强制 LF。
+
+* text=auto eol=lf
+
+# 这些文件进容器执行，必须是 LF
+*.sh       text eol=lf
+Dockerfile text eol=lf
+*.dockerfile text eol=lf
+entrypoint* text eol=lf
+
+# PowerShell 只在 Windows 本机跑，用 CRLF
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 二进制文件不做转换
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.gz  binary
+*.tar binary
