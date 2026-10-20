@@ -132,7 +132,7 @@ export async function openQbForm(mode, name) {
         saveLabel: mode === 'edit' ? '保存' : '添加设备',
         tabs: [
             { label: '基础与连接', icon: 'link', html: connectionPane(cfg, mode, rank, count) },
-            { label: '周期与规则', icon: 'rules', html: planPane(cfg, mode, live ? live.raw.cycle_uploaded_gb : 0) },
+            { label: '达量规则', icon: 'rules', html: planPane(cfg, mode, live ? live.raw.cycle_uploaded_gb : 0) },
         ],
         onSave: root => save(root, cfg, mode),
         tests: { qbConn: root => runTest(root, cfg, 'connect'), qbLimit: root => runTest(root, cfg, 'limit') },
