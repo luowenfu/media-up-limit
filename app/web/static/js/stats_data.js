@@ -146,7 +146,10 @@ export async function loadQbStats(name, range, anchor) {
         pv ? fetchRows(base, pv, { direction: 'upload' }).catch(() => []) : [],
         pv ? fetchRows(base, pv, { direction: 'download' }).catch(() => []) : [],
         api.get(`/api/events${q({ instance: name, limit: 500 })}`).then(r => r.data || []).catch(() => []),
-        api.get(`/api/qb/torrent-ranks${q({ instance: name })}`).then(r => r.data || {}).catch(() => ({})),
+        api.get(`/api/qb/torrent-ranks${q({
+            instance: name, period: sp.period,
+            start: sp.params.start, end: sp.params.end,
+        })}`).then(r => r.data || {}).catch(() => ({})),
     ]);
     if (sp.all) sp = fitMonths(sp, [up, down]);
     const a = fill(sp, up, 'total_bytes'), b = fill(sp, down, 'total_bytes');

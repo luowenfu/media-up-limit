@@ -131,6 +131,36 @@ def get_conn():
     return conn
 
 
+def _ensure_torrent_rank_tables(cursor):
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS torrent_rank_state (
+            instance_name TEXT NOT NULL,
+            torrent_hash TEXT NOT NULL,
+            name TEXT NOT NULL,
+            size BIGINT NOT NULL DEFAULT 0,
+            tracker TEXT NOT NULL DEFAULT '',
+            last_uploaded BIGINT NOT NULL DEFAULT 0,
+            last_downloaded BIGINT NOT NULL DEFAULT 0,
+            updated_at DATETIME NOT NULL,
+            PRIMARY KEY (instance_name, torrent_hash)
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS torrent_traffic_hourly (
+            instance_name TEXT NOT NULL,
+            torrent_hash TEXT NOT NULL,
+            hour_start DATETIME NOT NULL,
+            uploaded_bytes BIGINT NOT NULL DEFAULT 0,
+            downloaded_bytes BIGINT NOT NULL DEFAULT 0,
+            PRIMARY KEY (instance_name, torrent_hash, hour_start)
+        )
+    ''')
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_torrent_hourly_instance_time
+        ON torrent_traffic_hourly(instance_name, hour_start)
+    ''')
+
+
 def ensure_schema():
     """热更新：运行时补齐数据库结构，无需重启服务"""
     global _schema_ensured
@@ -148,6 +178,7 @@ def ensure_schema():
                         f'ALTER TABLE {table} ADD COLUMN {column} {col_type}')
                 except sqlite3.OperationalError:
                     pass
+            _ensure_torrent_rank_tables(c)
             conn.commit()
             _schema_ensured = True
         finally:
@@ -235,6 +266,7 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_device_events_key
             ON device_events(instance_name, event_type, event_key)
         ''')
+        _ensure_torrent_rank_tables(c)
 
         conn.commit()
         c.execute('PRAGMA journal_mode=WAL').fetchall()  # 读完结果，否则新版 Python 下连接关闭后仍占着锁
@@ -367,6 +399,162 @@ def save_snapshot(instance_name: str, session_uploaded: int,
 
             conn.commit()
             return delta_up, delta_dl, backfill_up, backfill_dl
+        finally:
+            conn.close()
+
+
+def save_torrent_counters(instance_name: str, rows: list) -> None:
+    """按种子累计计数记增量。第一次见到某颗种子只建基线，不把历史累计算进当前小时。"""
+    if not rows:
+        return
+    now = now_local()
+    hour_start = now.replace(minute=0, second=0, microsecond=0)
+    with _lock:
+        conn = get_conn()
+        try:
+            c = conn.cursor()
+            c.execute('''
+                SELECT torrent_hash, name, size, tracker,
+                       last_uploaded, last_downloaded
+                FROM torrent_rank_state
+                WHERE instance_name = ?
+            ''', (instance_name,))
+            prev = {
+                row['torrent_hash']: row for row in c.fetchall()
+            }
+            state_rows = []
+            hour_rows = []
+            for row in rows or []:
+                key = str((row or {}).get('hash') or '').strip().lower()
+                if not key:
+                    continue
+                known = prev.get(key)
+                has_up = 'uploaded' in row
+                has_down = 'downloaded' in row
+                if known is None and not has_up and not has_down:
+                    continue
+                name = row.get('name') or (known['name'] if known else '') or key
+                size = row['size'] if 'size' in row else (
+                    int(known['size']) if known else 0
+                )
+                tracker = row['tracker'] if 'tracker' in row else (
+                    known['tracker'] if known else ''
+                )
+                if known is None:
+                    last_up = int(row['uploaded']) if has_up else 0
+                    last_down = int(row['downloaded']) if has_down else 0
+                    delta_up = delta_down = 0
+                else:
+                    last_up = int(known['last_uploaded'])
+                    last_down = int(known['last_downloaded'])
+                    delta_up = delta_down = 0
+                    if has_up:
+                        current = int(row['uploaded'])
+                        if current >= last_up:
+                            delta_up = current - last_up
+                        last_up = current
+                    if has_down:
+                        current = int(row['downloaded'])
+                        if current >= last_down:
+                            delta_down = current - last_down
+                        last_down = current
+                changed = known is None or (
+                    name != known['name']
+                    or int(size) != int(known['size'])
+                    or tracker != known['tracker']
+                    or last_up != int(known['last_uploaded'])
+                    or last_down != int(known['last_downloaded'])
+                )
+                if not changed and delta_up == 0 and delta_down == 0:
+                    continue
+                if changed:
+                    state_rows.append((
+                        instance_name, key, name, int(size), tracker or '',
+                        last_up, last_down, now,
+                    ))
+                    prev[key] = {
+                        'name': name,
+                        'size': int(size),
+                        'tracker': tracker or '',
+                        'last_uploaded': last_up,
+                        'last_downloaded': last_down,
+                    }
+                if delta_up > 0 or delta_down > 0:
+                    hour_rows.append((
+                        instance_name, key, hour_start, delta_up, delta_down,
+                        delta_up, delta_down,
+                    ))
+            if state_rows:
+                c.executemany('''
+                    INSERT INTO torrent_rank_state (
+                        instance_name, torrent_hash, name, size, tracker,
+                        last_uploaded, last_downloaded, updated_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(instance_name, torrent_hash) DO UPDATE SET
+                        name = excluded.name,
+                        size = excluded.size,
+                        tracker = excluded.tracker,
+                        last_uploaded = excluded.last_uploaded,
+                        last_downloaded = excluded.last_downloaded,
+                        updated_at = excluded.updated_at
+                ''', state_rows)
+            if hour_rows:
+                c.executemany('''
+                    INSERT INTO torrent_traffic_hourly (
+                        instance_name, torrent_hash, hour_start,
+                        uploaded_bytes, downloaded_bytes
+                    )
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(instance_name, torrent_hash, hour_start)
+                    DO UPDATE SET
+                        uploaded_bytes = uploaded_bytes + ?,
+                        downloaded_bytes = downloaded_bytes + ?
+                ''', hour_rows)
+            if state_rows or hour_rows:
+                conn.commit()
+        finally:
+            conn.close()
+
+
+def get_torrent_period_ranks(instance_name: str, start: str, end: str,
+                             hourly: bool = True) -> list:
+    """所选时段内每颗种子的上传、下载，以及最近一次的名称、体积、tracker。"""
+    start_s = _normalize_range_start(start)
+    end_s = _normalize_range_end_exclusive(end, hourly=hourly)
+    if not start_s or not end_s:
+        return []
+    with _lock:
+        conn = get_conn()
+        try:
+            c = conn.cursor()
+            c.execute('''
+                SELECT s.name AS name, s.size AS size, s.tracker AS tracker,
+                       t.uploaded AS uploaded, t.downloaded AS downloaded
+                FROM (
+                    SELECT torrent_hash,
+                           SUM(uploaded_bytes) AS uploaded,
+                           SUM(downloaded_bytes) AS downloaded
+                    FROM torrent_traffic_hourly
+                    WHERE instance_name = ?
+                      AND hour_start >= ?
+                      AND hour_start < ?
+                    GROUP BY torrent_hash
+                ) t
+                JOIN torrent_rank_state s
+                  ON s.instance_name = ?
+                 AND s.torrent_hash = t.torrent_hash
+            ''', (instance_name, start_s, end_s, instance_name))
+            rows = []
+            for row in c.fetchall():
+                rows.append({
+                    'name': row['name'] or '',
+                    'size': int(row['size'] or 0),
+                    'tracker': row['tracker'] or '',
+                    'uploaded': int(row['uploaded'] or 0),
+                    'downloaded': int(row['downloaded'] or 0),
+                })
+            return rows
         finally:
             conn.close()
 
@@ -1672,6 +1860,11 @@ def rename_instance_data(old_name: str, new_name: str):
                     f'WHERE instance_name = ?',
                     (new_name, old_name),
                 )
+            c.execute(
+                'UPDATE torrent_rank_state SET instance_name = ? '
+                'WHERE instance_name = ?',
+                (new_name, old_name),
+            )
             for table in _DATA_INSTANCE_TABLES:
                 c.execute(
                     f'DELETE FROM {table} WHERE instance_name = ?',
@@ -1694,6 +1887,10 @@ def reset_instance_traffic(instance_name: str):
                       (instance_name,))
             c.execute('DELETE FROM traffic_monthly WHERE instance_name = ?',
                       (instance_name,))
+            c.execute(
+                'DELETE FROM torrent_traffic_hourly WHERE instance_name = ?',
+                (instance_name,),
+            )
             c.execute('''
                 UPDATE instance_status SET
                     monthly_uploaded_bytes = 0,
@@ -1719,7 +1916,8 @@ def delete_instance_data(instance_name: str):
         try:
             c = conn.cursor()
             for table in ('traffic_hourly', 'traffic_monthly',
-                          'device_events', 'instance_status'):
+                          'device_events', 'instance_status',
+                          'torrent_rank_state', 'torrent_traffic_hourly'):
                 c.execute(f'DELETE FROM {table} WHERE instance_name = ?',
                           (instance_name,))
             conn.commit()
@@ -1730,10 +1928,12 @@ def delete_instance_data(instance_name: str):
 
 _DATA_INSTANCE_TABLES = (
     'instance_status', 'traffic_hourly', 'traffic_monthly', 'device_events',
+    'torrent_rank_state', 'torrent_traffic_hourly',
 )
 
 _MEANINGFUL_DATA_TABLES = (
     'traffic_hourly', 'traffic_monthly', 'device_events',
+    'torrent_traffic_hourly',
 )
 
 
@@ -1948,6 +2148,12 @@ def cleanup_old_data():
                 DELETE FROM traffic_hourly WHERE hour_start < ?
             ''', (hourly_cutoff,))
             hourly_deleted = c.rowcount
+            c.execute('''
+                DELETE FROM torrent_traffic_hourly WHERE hour_start < ?
+            ''', (hourly_cutoff,))
+            c.execute('''
+                DELETE FROM torrent_rank_state WHERE updated_at < ?
+            ''', (hourly_cutoff,))
 
             month_cutoff_ym = _month_cutoff_ym()
             c.execute('''

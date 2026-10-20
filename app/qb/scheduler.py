@@ -223,6 +223,12 @@ class InstanceWorker:
         except Exception as e:
             logger.debug(f"[{self.name}] 种子事件采集失败: {e}")
             return
+        try:
+            traffic_db.save_torrent_counters(
+                self.name, client.consume_torrent_counters(),
+            )
+        except Exception as e:
+            logger.debug(f"[{self.name}] 种子流量落库失败: {e}")
         traffic_db.add_device_events(self.name, events)
 
     def _mark_offline(self, client: QBittorrentClient):

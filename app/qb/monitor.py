@@ -114,6 +114,46 @@ def _torrent_view(fields: dict, prev: dict = None) -> dict:
     return {'name': name, 'complete': bool(complete)}
 
 
+def _nonneg_int(value):
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def torrent_counter_rows(changed: dict) -> list:
+    """从同步结果里取出有变化的累计上传、下载和展示字段。缺的字段不补 0。"""
+    rows = []
+    for torrent_hash, fields in (changed or {}).items():
+        if not isinstance(fields, dict):
+            continue
+        key = str(torrent_hash).strip().lower()
+        if not key:
+            continue
+        row = {'hash': key}
+        if 'uploaded' in fields:
+            uploaded = _nonneg_int(fields.get('uploaded'))
+            if uploaded is not None:
+                row['uploaded'] = uploaded
+        if 'downloaded' in fields:
+            downloaded = _nonneg_int(fields.get('downloaded'))
+            if downloaded is not None:
+                row['downloaded'] = downloaded
+        if 'name' in fields:
+            name = str(fields.get('name') or '').strip()
+            if name:
+                row['name'] = name
+        if 'size' in fields:
+            size = _nonneg_int(fields.get('size'))
+            if size is not None:
+                row['size'] = size
+        if 'tracker' in fields:
+            row['tracker'] = str(fields.get('tracker') or '').strip()
+        if len(row) > 1:
+            rows.append(row)
+    return rows
+
+
 def diff_torrent_sync(seen: dict, ready: bool, changed: dict,
                       removed: list, full: bool):
     """对比 qB 同步结果。首次全量建立基线，并按添加、完成时间补历史。"""
@@ -270,6 +310,7 @@ class QBittorrentClient:
         self._torrent_sync_rid = 0
         self._torrent_seen = {}
         self._torrent_seen_ready = False
+        self._last_counter_rows = []
 
     def _announce_session(self, message: str) -> None:
         if self._session_announced:
@@ -498,6 +539,7 @@ class QBittorrentClient:
     def poll_torrent_events(self) -> list:
         """对比种子同步结果，返回添加、下载完成、删除。首次全量按种子时间补历史。"""
         with self._api_lock:
+            self._last_counter_rows = []
             if not self._connected or self._client is None:
                 return []
             try:
@@ -518,54 +560,21 @@ class QBittorrentClient:
                     self._torrent_seen, self._torrent_seen_ready,
                     changed, removed, full,
                 )
+                counters = torrent_counter_rows(changed)
             except Exception as e:
                 logger.debug(f"[{self.name}] 解析种子同步结果失败: {e}")
                 return []
             self._torrent_sync_rid = rid
             self._torrent_seen = seen
             self._torrent_seen_ready = ready
+            self._last_counter_rows = counters
             return [event for event in events if event.get('reason')]
 
-    def list_torrent_uploads(self) -> Optional[list]:
-        """当前种子的名称、累计上传、体积、分享率和 tracker。离线或失败时返回 None。"""
-        with self._api_lock:
-            try:
-                if not self._connected:
-                    if not self._connect_unlocked(probe=True):
-                        return None
-                torrents = self._client.torrents_info()
-            except qbittorrentapi.exceptions.APIConnectionError:
-                self._disconnect_unlocked()
-                logger.warning(f"[{self.name}] 连接断开")
-                return None
-            except Exception as e:
-                logger.error(f"[{self.name}] 获取种子列表失败: {e}")
-                return None
-            rows = []
-            for torrent in torrents or []:
-                name = str(torrent.get('name') or '').strip()
-                if not name:
-                    continue
-                try:
-                    uploaded = int(torrent.get('uploaded') or 0)
-                except (TypeError, ValueError):
-                    uploaded = 0
-                try:
-                    size = int(torrent.get('size') or 0)
-                except (TypeError, ValueError):
-                    size = 0
-                try:
-                    ratio = float(torrent.get('ratio'))
-                except (TypeError, ValueError):
-                    ratio = 0.0
-                rows.append({
-                    'name': name,
-                    'uploaded': max(0, uploaded),
-                    'size': max(0, size),
-                    'ratio': ratio,
-                    'tracker': str(torrent.get('tracker') or '').strip(),
-                })
-            return rows
+    def consume_torrent_counters(self) -> list:
+        """取出最近一次同步里变化的种子计数，供按时段累计。"""
+        rows = self._last_counter_rows or []
+        self._last_counter_rows = []
+        return rows
 
     def get_transfer_info(self, probe: bool = False) -> Optional[Dict]:
         """获取传输统计信息（供状态刷新等非采集路径使用）"""

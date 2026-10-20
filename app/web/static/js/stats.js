@@ -113,8 +113,10 @@ function byteNote(label, bytes) {
 
 function torrentNotes(row) {
     if (!row || row.length < 4) return [];
-    const ratio = Number(row[3]);
-    const share = Number.isFinite(ratio) && ratio >= 0 && ratio < 9999 ? ratio.toFixed(2) : '∞';
+    const raw = row[3];
+    const ratio = Number(raw);
+    const share = raw == null || !Number.isFinite(ratio) || ratio < 0 || ratio >= 9999
+        ? '∞' : ratio.toFixed(2);
     return [byteNote('体积', row[2]), `分享率${share}`];
 }
 
@@ -283,9 +285,9 @@ function ranksOf(m) {
         ].join('');
     }
     return [
-        rankCard('分享率排行', '当前', rankBars(m.ratios, ratioText, '当前没有可排行的种子', null, ratioNotes, ratioWidth)),
-        rankCard('种子上传排行', '当前累计', rankBars(m.torrents, v => fmtBytes(v), '当前没有可排行的种子', null, torrentNotes)),
-        rankCard('站点上传排行', '当前累计', rankBars(m.sites, v => fmtBytes(v), '当前没有可排行的站点')),
+        rankCard('分享率排行', m.sp.caption, rankBars(m.ratios, ratioText, '该时段没有可排行的种子', null, ratioNotes, ratioWidth)),
+        rankCard('种子上传排行', m.sp.caption, rankBars(m.torrents, v => fmtBytes(v), '该时段没有可排行的种子', null, torrentNotes)),
+        rankCard('站点上传排行', m.sp.caption, rankBars(m.sites, v => fmtBytes(v), '该时段没有可排行的站点')),
     ].join('');
 }
 

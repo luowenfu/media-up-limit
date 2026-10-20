@@ -133,37 +133,61 @@ def _tracker_host(tracker: str) -> str:
 _RATIO_CAP = 9999
 
 
+def _period_ratio(uploaded: int, downloaded: int):
+    if downloaded <= 0:
+        return None if uploaded > 0 else 0
+    ratio = uploaded / downloaded
+    if ratio < 0 or ratio >= _RATIO_CAP:
+        return None
+    return ratio
+
+
 def _ratio_key(row: dict) -> float:
     ratio = row['ratio']
-    if ratio < 0 or ratio >= _RATIO_CAP:
+    if ratio is None or ratio < 0 or ratio >= _RATIO_CAP:
         return float('inf')
     return ratio
 
 
 def _ratio_value(row: dict):
     ratio = row['ratio']
-    if ratio < 0 or ratio >= _RATIO_CAP:
+    if ratio is None or ratio < 0 or ratio >= _RATIO_CAP:
         return None
     return ratio
 
 
 @bp.route('/api/qb/torrent-ranks')
 def api_qb_torrent_ranks():
-    """当前种子上传、分享率和站点上传，不跟随图表时段。"""
+    """所选时段内的种子上传、分享率和站点上传。"""
     try:
         instance_name = (request.args.get('instance') or '').strip()
         if not instance_name:
             return jsonify({'success': False, 'error': '缺少 instance 参数'}), 400
+        period = (request.args.get('period') or '').strip()
+        start = (request.args.get('start') or '').strip()
+        end = (request.args.get('end') or '').strip()
+        if period not in ('hourly', 'daily', 'monthly') or not start or not end:
+            return jsonify({'success': False, 'error': '缺少时段参数'}), 400
         with state.monitor._config_lock:
             client = state.monitor.clients.get(instance_name)
         if not client:
             return jsonify({'success': False, 'error': '设备不存在'}), 404
-        rows = client.list_torrent_uploads() or []
-        torrents = sorted(
-            (row for row in rows if row['uploaded'] > 0),
-            key=lambda row: row['uploaded'],
-            reverse=True,
-        )[:10]
+        raw = traffic_db.get_torrent_period_ranks(
+            instance_name, start, end, hourly=(period == 'hourly'),
+        )
+        rows = []
+        for row in raw:
+            uploaded = int(row['uploaded'] or 0)
+            if uploaded <= 0:
+                continue
+            rows.append({
+                'name': row['name'],
+                'uploaded': uploaded,
+                'size': int(row['size'] or 0),
+                'ratio': _period_ratio(uploaded, int(row['downloaded'] or 0)),
+                'tracker': row['tracker'],
+            })
+        torrents = sorted(rows, key=lambda row: row['uploaded'], reverse=True)[:10]
         ratios = sorted(
             (row for row in rows if _ratio_key(row) > 0),
             key=_ratio_key,
@@ -171,8 +195,6 @@ def api_qb_torrent_ranks():
         )[:10]
         sites = {}
         for row in rows:
-            if row['uploaded'] <= 0:
-                continue
             host = _tracker_host(row['tracker'])
             if not host:
                 continue
@@ -182,7 +204,7 @@ def api_qb_torrent_ranks():
             'success': True,
             'data': {
                 'torrents': [[
-                    row['name'], row['uploaded'], row['size'], row['ratio'],
+                    row['name'], row['uploaded'], row['size'], _ratio_value(row),
                 ] for row in torrents],
                 'ratios': [[
                     row['name'], _ratio_value(row), row['size'], row['uploaded'],
