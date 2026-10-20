@@ -393,7 +393,7 @@ function toolbar(m, kind) {
         : null;
     const quick = range === 'total' ? '' : `<div class="chart-ctrl range-quick"><span class="cap">快捷</span>${shortcuts.map(([mode, which, label]) => `<button type="button" data-quick="${mode}:${which}" class="${activeQuick && activeQuick[0] === mode && activeQuick[1] === which ? 'on' : ''}">${label}</button>`).join('')}</div>`;
     const totalTab = kind === 'qb'
-        ? `<button data-r="total" class="${range === 'total' ? 'on' : ''}">按累计</button>`
+        ? `<button data-r="total" class="${range === 'total' ? 'on' : ''}">按当前</button>`
         : '';
     const userField = kind === 'emby' ? `<label class="chart-ctrl user-ctrl"><span class="cap">用户</span><select id="stUser"><option value="${ALL_USERS}">全部用户</option>${(m.users || []).map(u => `<option ${u === state.statsUser ? 'selected' : ''} value="${esc(u)}">${esc(u)}</option>`).join('')}</select>${I.chev}</label>` : '';
     return `<div class="toolbar chart-bar">
