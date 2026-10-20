@@ -2,7 +2,7 @@
 .modal.sm { width: min(460px, 100%); }
 .m-top { display: flex; gap: 14px; align-items: flex-start; padding: 22px 22px 6px; }
 .m-ico { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; flex-shrink: 0; }
-.m-ico svg { width: 30px; height: 30px; }
+.m-ico svg { width: 15px; height: 15px; }
 .m-ico.violet { background: #f5f3ff; color: #7c3aed; }
 .m-ico.orange { background: #fff7ed; color: #ea580c; }
 .m-ico.red { background: #fef2f2; color: #dc2626; }

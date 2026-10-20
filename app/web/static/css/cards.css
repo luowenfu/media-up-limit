@@ -178,7 +178,7 @@
     color: var(--text-2); font-size: 13px;
 }
 .session-empty .ico { width: 54px; height: 54px; border-radius: 16px; display: grid; place-items: center; background: #fff; color: var(--emby); box-shadow: 0 6px 16px -6px rgba(5, 150, 105, .35); }
-.session-empty .ico svg { width: 36px; height: 36px; }
+.session-empty .ico svg { width: 15px; height: 15px; }
 .session-empty b { display: block; color: var(--text-1); font-size: 14px; }
 .session {
     display: flex; align-items: stretch; gap: 12px; padding: 12px; border-radius: 14px; background: #fff; border: 1px solid var(--line);
@@ -219,7 +219,7 @@
 }
 .act:active { transform: scale(.98); }
 .act .ai { width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; }
-.act .ai svg { width: 17px; height: 17px; }
+.act .ai svg { width: 15px; height: 15px; }
 .act.web .ai { background: #ecfdf5; color: #059669; }
 .act.set .ai { background: #eff6ff; color: #2563eb; }
 .act.lim .ai { background: #f5f3ff; color: #7c3aed; }

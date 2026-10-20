@@ -69,7 +69,6 @@
     }
     .tb-metric small { white-space: normal; }
     .tb-mi { width: 22px; height: 22px; }
-    .tb-mi svg { width: 16px; height: 16px; }
     .feed-body { max-height: 70vh; padding: 0 8px 8px; }
     body[data-detail="1"] #content { display: block; }
     body[data-detail="1"] .sec-events { position: static; max-height: none; }

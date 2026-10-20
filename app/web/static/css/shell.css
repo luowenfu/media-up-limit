@@ -166,7 +166,7 @@ html[data-scheme="dark"] #themeMark::before { content: "深色"; }
 .tb-metric { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px 0 6px; border-radius: 10px; }
 .tb-metric.hot { background: #fff7ed; }
 .tb-mi { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; }
-.tb-mi svg { width: 20px; height: 20px; }
+.tb-mi svg { width: 15px; height: 15px; }
 .tb-metric b { display: block; font-size: 15px; font-weight: 800; line-height: 1.05; color: var(--text); }
 .tb-metric.zero b { color: var(--text-3); font-weight: 700; }
 .tb-metric small { display: block; margin-top: 1px; font-size: 11px; line-height: 1.1; color: var(--text-2); white-space: nowrap; }
