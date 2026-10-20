@@ -188,7 +188,7 @@ function rankCard(title, caption, body, note) {
     return `<div class="chart-side"><h3 class="panel-title">${title}<small>${esc(caption)}</small>${aside}</h3>${body}</div>`;
 }
 
-const playCount = value => `${value}<small>次</small>`;
+const playCount = value => `${value}<small>人次</small>`;
 function kpisOf(m) {
     const base = baseOf(m.kind);
     const sa = sum(m.a), sb = sum(m.b);

@@ -74,12 +74,13 @@ def _genre_films(bucket: dict, films: dict, limit: int = 10) -> list:
     for name, info in rows[:limit]:
         if info['count'] <= 0:
             continue
-        users = (films.get(name) or {}).get('users') or {}
+        times = (films.get(name) or {}).get('users') or {}
+        watched = info.get('users') or set()
         out.append({
             'name': name,
-            'count': info['count'],
+            'count': len(watched),
             'kind': info['kind'],
-            'users': _sorted_users(users),
+            'users': _sorted_users({user: times.get(user, '') for user in watched}),
         })
     return out
 
@@ -222,7 +223,7 @@ def build_content_rank(instance_name: str, records: list, period: str,
         or user_name == emby_traffic_db.PLAYBACK_ALL_USERS_TOKEN
     )
     plays = []
-    seen_series = set()
+    seen_titles = set()
     films = {}
     play_count = 0
     for rec in records:
@@ -235,29 +236,28 @@ def build_content_rank(instance_name: str, records: list, period: str,
         started = str(rec.get('started_at') or '')
         series = str(rec.get('series_name') or '').strip()
         item_id = str(rec.get('item_id') or '').strip()
+        if not user:
+            continue
         if series:
-            info = _film_bucket(films, series, 'series')
-            _touch_user(info, user, started)
-            # 同一用户在所选时段里看同一部剧的不同集，只算一次点播
-            key = (user, series)
-            if key in seen_series:
+            name, kind, series_key = series, 'series', series
+        else:
+            name = str(rec.get('item_title') or '').strip()
+            if not name:
                 continue
-            seen_series.add(key)
-            info['count'] += 1
-            plays.append((series, item_id, series, 'series'))
-            continue
-        name = str(rec.get('item_title') or '').strip()
-        if not name:
-            continue
-        kind = _play_kind(rec, '')
+            kind, series_key = _play_kind(rec, ''), ''
         info = _film_bucket(films, name, kind)
-        info['count'] += 1
         _touch_user(info, user, started)
-        plays.append((name, item_id, '', kind))
+        # 同一用户看同一部电影或同一部剧的不同集，只算一次人次
+        key = (user, name)
+        if key in seen_titles:
+            continue
+        seen_titles.add(key)
+        info['count'] += 1
+        plays.append((name, item_id, series_key, kind, user))
     genre_error = False
     genres = {}
     genre_films = {}
-    item_ids = [item_id for _name, item_id, _series, _kind in plays if item_id]
+    item_ids = [item_id for _name, item_id, _series, _kind, _user in plays if item_id]
     if item_ids:
         if client is None or not _ensure_item_meta(client, instance_name, item_ids):
             genre_error = True
@@ -274,7 +274,7 @@ def build_content_rank(instance_name: str, records: list, period: str,
             if not series_ok:
                 genre_error = True
     if not genre_error:
-        for _name, item_id, series, _kind in plays:
+        for _name, item_id, series, _kind, _user in plays:
             found = None
             if item_id:
                 found = _genres_for_play(instance_name, item_id)
@@ -291,9 +291,11 @@ def build_content_rank(instance_name: str, records: list, period: str,
                 bucket = genre_films.setdefault(genre, {})
                 info = bucket.get(_name)
                 if info is None:
-                    bucket[_name] = {'count': 1, 'kind': _kind}
-                    continue
-                info['count'] += 1
+                    info = {'count': 0, 'kind': _kind, 'users': set()}
+                    bucket[_name] = info
+                if _user not in info['users']:
+                    info['users'].add(_user)
+                    info['count'] += 1
                 if _kind == 'series':
                     info['kind'] = 'series'
     return {
