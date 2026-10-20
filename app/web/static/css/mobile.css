@@ -108,11 +108,11 @@
 
     .panel-name { padding: 12px 12px 0; }
     .toolbar { min-width: 0; max-width: 100%; padding: 12px; }
-    .chart-bar { gap: 6px; padding: 8px; }
+    .chart-bar { gap: 8px; padding: 8px; }
     .chart-pair { flex: 0 1 auto; width: max-content; max-width: 100%; }
-    .chart-pair > .field { flex: 1 1 auto; min-width: 0; overflow: hidden; }
-    .chart-pair > .field select { width: 100%; max-width: 7.5em; }
-    .chart-pair > .chart-chip { flex: none; }
+    .chart-pair > .chart-ctrl { flex: none; }
+    .chart-pair > .user-ctrl { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+    .chart-pair > .user-ctrl select { width: 100%; max-width: 7.5em; }
     .tabs { flex-wrap: wrap; max-width: 100%; min-width: 0; }
     .chart-bar .tabs { flex-wrap: nowrap; }
     .range-quick { flex-wrap: nowrap; }
@@ -122,8 +122,6 @@
     .tool-r { margin-left: 0; }
     .tool-r .field { max-width: 100%; }
     .range-field, .range-field.is-day, .range-field:not(.is-day) { width: 100%; }
-    .chart-chip:has(.range-field) { display: flex; width: 100%; }
-    .chart-chip .range-field, .chart-chip .range-field.is-day, .chart-chip .range-field:not(.is-day) { width: auto; flex: 1; min-width: 0; }
     .tool-r:has(.range-quick) { width: auto; max-width: 100%; margin-left: 0; justify-content: flex-start; }
     .chart-svg { height: 200px; }
     .kpis { gap: 0; }

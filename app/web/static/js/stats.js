@@ -377,7 +377,7 @@ function toolbar(m, kind) {
     const day = chartRange !== 'month';
     const win = day ? visibleDayRange() : visibleMonthRange();
     const max = defaultAnchor(day ? 'day' : 'month');
-    const periodField = range === 'total' ? '' : `<div class="chart-chip"><span class="cap">时段</span><div class="range-field${day ? ' is-day' : ''}" data-range-field data-mode="${day ? 'day' : 'month'}" data-max="${max}">${rangeInput('stFrom', win.start, day)}<span class="sep">${RANGE_ARROW}</span>${rangeInput('stTo', win.end, day)}<button type="button" class="month-pick" data-range-open aria-label="${day ? '选择日期范围' : '选择月份范围'}">${I.cal.replace(/16/g, '14')}</button></div></div>`;
+    const periodField = range === 'total' ? '' : `<div class="chart-ctrl range-field${day ? ' is-day' : ''}" data-range-field data-mode="${day ? 'day' : 'month'}" data-max="${max}"><span class="cap">时段</span>${rangeInput('stFrom', win.start, day)}<span class="sep">${RANGE_ARROW}</span>${rangeInput('stTo', win.end, day)}<button type="button" class="month-pick" data-range-open aria-label="${day ? '选择日期范围' : '选择月份范围'}">${I.cal.replace(/16/g, '14')}</button></div>`;
     const shortcuts = [
         ['day', 'prev', '上月'],
         ['day', 'cur', '本月'],
@@ -391,21 +391,19 @@ function toolbar(m, kind) {
             return preset.start === win.start && preset.end === win.end;
         })
         : null;
-    const quick = range === 'total' ? '' : `<div class="chart-chip"><span class="cap">快捷</span><div class="tabs range-quick">${shortcuts.map(([mode, which, label]) => `<button type="button" data-quick="${mode}:${which}" class="${activeQuick && activeQuick[0] === mode && activeQuick[1] === which ? 'on' : ''}">${label}</button>`).join('')}</div></div>`;
+    const quick = range === 'total' ? '' : `<div class="chart-ctrl range-quick"><span class="cap">快捷</span>${shortcuts.map(([mode, which, label]) => `<button type="button" data-quick="${mode}:${which}" class="${activeQuick && activeQuick[0] === mode && activeQuick[1] === which ? 'on' : ''}">${label}</button>`).join('')}</div>`;
     const totalTab = kind === 'qb'
         ? `<button data-r="total" class="${range === 'total' ? 'on' : ''}">按累计</button>`
         : '';
-    const userField = kind === 'emby' ? `<span class="field"><span class="k">用户</span><select id="stUser"><option value="${ALL_USERS}">全部用户</option>${(m.users || []).map(u => `<option ${u === state.statsUser ? 'selected' : ''} value="${esc(u)}">${esc(u)}</option>`).join('')}</select>${I.chev}</span>` : '';
+    const userField = kind === 'emby' ? `<label class="chart-ctrl user-ctrl"><span class="cap">用户</span><select id="stUser"><option value="${ALL_USERS}">全部用户</option>${(m.users || []).map(u => `<option ${u === state.statsUser ? 'selected' : ''} value="${esc(u)}">${esc(u)}</option>`).join('')}</select>${I.chev}</label>` : '';
     return `<div class="toolbar chart-bar">
             <div class="chart-pair">
                 ${userField}
-                <div class="chart-chip">
+                <div class="chart-ctrl" data-range>
                     <span class="cap">视图</span>
-                    <div class="tabs" data-range>
-                        ${totalTab}
-                        <button data-r="day" class="${range === 'day' ? 'on' : ''}">按天</button>
-                        <button data-r="month" class="${range === 'month' ? 'on' : ''}">按月</button>
-                    </div>
+                    ${totalTab}
+                    <button data-r="day" class="${range === 'day' ? 'on' : ''}">按天</button>
+                    <button data-r="month" class="${range === 'month' ? 'on' : ''}">按月</button>
                 </div>
             </div>
             ${periodField}
