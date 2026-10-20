@@ -65,15 +65,9 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 .kpi-d .up { color: var(--danger); font-weight: 700; }
 .kpi-d .dn { color: var(--ok); font-weight: 700; }
 
-.pie-wrap { display: flex; align-items: center; gap: 28px; min-height: 200px; padding: 8px 8px 16px; }
-.pie-svg { width: 168px; height: 168px; flex: none; }
-.pie-legend { display: flex; flex-direction: column; gap: 16px; min-width: 220px; }
-.pie-row { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; color: var(--text-2); }
-.pie-row i { width: 12px; height: 12px; border-radius: 3px; flex: none; }
-.pie-k { font-weight: 650; }
-.pie-row b { font-size: 18px; font-weight: 800; color: var(--text); letter-spacing: -.02em; }
-.pie-row b small { margin-left: 3px; font-size: 12px; font-weight: 650; color: var(--text-2); }
-.pie-pct { margin-left: auto; font-weight: 700; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.donut-track { stroke: #eef2f7; }
+.donut-k { color: var(--text-2); }
+.donut-v { color: var(--text); }
 .chart-main > .hint-t { padding: 28px 4px 36px; }
 .chart-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
 .chart-grid.has-kpis { grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); }

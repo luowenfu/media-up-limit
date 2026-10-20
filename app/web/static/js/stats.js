@@ -293,32 +293,33 @@ function cumulativeKpis(m) {
     ];
 }
 
-function pieSlice(cx, cy, r, start, end) {
-    const large = end - start > Math.PI ? 1 : 0;
-    const x1 = cx + r * Math.sin(start);
-    const y1 = cy - r * Math.cos(start);
-    const x2 = cx + r * Math.sin(end);
-    const y2 = cy - r * Math.cos(end);
-    return `M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+const SHARE_PALETTE = ['#3b82f6', '#a5b4fc', '#60a5fa', '#c7d2fe', '#818cf8', '#93c5fd'];
+
+function donut(parts, totalText) {
+    const total = parts.reduce((s, p) => s + p[1], 0) || 1;
+    const r = 54, c = 2 * Math.PI * r;
+    let off = 0;
+    const arcs = parts.map(p => {
+        const len = p[1] / total * c;
+        const s = `<circle cx="70" cy="70" r="${r}" fill="none" stroke="${p[2]}" stroke-width="18" stroke-dasharray="${len} ${c - len}" stroke-dashoffset="${-off}" transform="rotate(-90 70 70)"/>`;
+        off += len;
+        return s;
+    }).join('');
+    return `<div style="display:flex;justify-content:center"><svg width="150" height="150" viewBox="0 0 140 140">
+        <circle class="donut-track" cx="70" cy="70" r="${r}" fill="none" stroke-width="18"/>${arcs}
+        <text class="donut-k" x="70" y="66" text-anchor="middle" font-size="12" fill="currentColor">合计</text>
+        <text class="donut-v" x="70" y="86" text-anchor="middle" font-size="17" font-weight="800" fill="currentColor">${esc(totalText)}</text>
+    </svg></div>`;
 }
 
 function cumulativePie(uploaded, downloaded) {
-    const S = SERIES.qb;
     const up = Math.max(0, Number(uploaded) || 0);
     const down = Math.max(0, Number(downloaded) || 0);
+    const parts = [['上传合计', up, SHARE_PALETTE[0]], ['下载合计', down, SHARE_PALETTE[1]]];
     const total = up + down;
-    const cx = 60, cy = 60, r = 52;
-    let shape;
-    if (total <= 0) shape = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#eef2f7"/>`;
-    else if (down <= 0) shape = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${S.colorA}"/>`;
-    else if (up <= 0) shape = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${S.colorB}"/>`;
-    else {
-        const sweep = up / total * Math.PI * 2;
-        shape = `<path d="${pieSlice(cx, cy, r, 0, sweep)}" fill="${S.colorA}"/><path d="${pieSlice(cx, cy, r, sweep, Math.PI * 2)}" fill="${S.colorB}"/>`;
-    }
-    const pct = bytes => (total > 0 ? `${(bytes / total * 100).toFixed(1)}%` : '0%');
-    const row = (color, name, bytes) => `<div class="pie-row"><i style="background:${color}"></i><span class="pie-k">${name}</span><b class="num">${kbig(bytes, 1024)}</b><span class="pie-pct">${pct(bytes)}</span></div>`;
-    return `<div class="pie-wrap"><svg class="pie-svg" viewBox="0 0 120 120" aria-hidden="true">${shape}</svg><div class="pie-legend">${row(S.colorA, '上传合计', up)}${row(S.colorB, '下载合计', down)}</div></div>`;
+    const rows = parts.map((row, i) => `
+        <div class="rank-row"><span class="rank-no">${i + 1}</span><div><div class="rank-name">${esc(row[0])}</div><div class="rank-bar"><i style="width:${total ? row[1] / total * 100 : 0}%;background:${row[2]}"></i></div></div><span class="rank-v num">${fmtBytes(row[1])}</span></div>`).join('');
+    return `${donut(parts, fmtBytes(total))}<div class="rank" style="margin-top:16px">${rows}</div>`;
 }
 
 function cumulativeTrend(m) {
