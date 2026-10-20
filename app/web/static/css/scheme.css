@@ -181,6 +181,9 @@ html[data-scheme="dark"] .tone-red { background: #3b1a1a; color: #fca5a5; }
 html[data-scheme="dark"] .tone-slate { background: #1e293b; color: #94a3b8; }
 
 html[data-scheme="dark"] .tag { background: #1e293b; color: var(--text-2); }
+html[data-scheme="dark"] .log .src.qb { background: rgba(37, 99, 235, .22); color: #93c5fd; }
+html[data-scheme="dark"] .log .src.emby { background: rgba(16, 185, 129, .18); color: #6ee7b7; }
+html[data-scheme="dark"] .log .src .src-dev { color: var(--dev-dark); }
 html[data-scheme="dark"] .tag.wan,
 html[data-scheme="dark"] .tag.xc { background: #3b2414; color: #fdba74; }
 html[data-scheme="dark"] .tag.lan,

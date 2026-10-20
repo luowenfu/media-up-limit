@@ -206,7 +206,7 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 .log-stat small { font-size: 12px; color: var(--text-2); }
 .logs { font-size: 12.5px; }
 .log {
-    display: grid; grid-template-columns: 150px 64px 64px 1fr; gap: 12px; align-items: center;
+    display: grid; grid-template-columns: 150px 64px max-content minmax(0, 1fr); gap: 12px; align-items: center;
     padding: 9px 16px; border-top: 1px solid var(--line-2);
     transition: background .12s;
 }
@@ -217,6 +217,9 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 .lv.INFO { background: #eff6ff; color: #2563eb; }
 .lv.WARN { background: #fffbeb; color: #b45309; }
 .lv.ERROR { background: #fef2f2; color: #dc2626; }
+.log .src { justify-self: start; white-space: nowrap; gap: 0; }
+.log .src .src-dev::before { content: "•"; margin: 0 5px; color: var(--text-3); font-weight: 700; }
+.log .src .src-dev { color: var(--dev); }
 .log-msg { min-width: 0; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .log-msg code { font-family: var(--mono); font-size: 11.5px; padding: 1px 5px; border-radius: 5px; background: #f1f5f9; color: #334155; }
 .log.ERROR { background: #fffafa; }

@@ -33,6 +33,25 @@ const loggerLabel = name => {
 };
 const msgText = m => MSG_REPLACE.reduce((s, [re, to]) => s.replace(re, to), String(m || ''));
 
+const DEV_TONES = [
+    ['#c2410c', '#fdba74'], ['#7c3aed', '#c4b5fd'], ['#0369a1', '#7dd3fc'], ['#0f766e', '#5eead4'],
+    ['#be185d', '#f9a8d4'], ['#b45309', '#fcd34d'], ['#4338ca', '#a5b4fc'], ['#047857', '#6ee7b7'],
+];
+
+function deviceTone(name) {
+    let hash = 0;
+    for (const ch of String(name || '')) hash = (hash * 33 + ch.codePointAt(0)) >>> 0;
+    return DEV_TONES[hash % DEV_TONES.length];
+}
+
+function splitDevice(src, msg) {
+    const text = String(msg || '');
+    const re = src === 'emby' ? /^\[Emby:([^\]]+)\]\s*/ : src === 'qb' ? /^\[([^\]]+)\]\s*/ : null;
+    const matched = re && re.exec(text);
+    if (!matched || matched[1].includes(':')) return { device: '', msg: text };
+    return { device: matched[1], msg: text.slice(matched[0].length) };
+}
+
 function sourceOf(entry) {
     const name = String(entry.logger || '');
     if (name.startsWith('emby')) return 'emby';
@@ -44,11 +63,15 @@ const PAGE = 200;
 const rawKey = e => `${e.time}\n${e.logger}\n${e.message}`;
 const rowKey = r => `${r.time}\n${r.logger}\n${r.raw}`;
 
-const normalize = e => ({
-    time: e.time, lv: LV[String(e.level || '').toUpperCase()] || 'INFO',
-    src: sourceOf(e), label: loggerLabel(e.logger), msg: msgText(e.message_display || e.message),
-    logger: e.logger, raw: e.message,
-});
+const normalize = e => {
+    const src = sourceOf(e);
+    const split = splitDevice(src, msgText(e.message_display || e.message));
+    return {
+        time: e.time, lv: LV[String(e.level || '').toUpperCase()] || 'INFO',
+        src, device: split.device, label: loggerLabel(e.logger), msg: split.msg,
+        logger: e.logger, raw: e.message,
+    };
+};
 
 export const logState = { rows: [], hasMore: false, offset: 0, anchor: '', cursor: null, loading: false };
 
@@ -75,7 +98,7 @@ function shownOf(rows) {
     const lv = state.logLv;
     const needle = (state.logQuery || '').trim().toLowerCase();
     return rows.filter(l => (lv === 'all' || l.lv === lv)
-        && (!needle || `${l.label} ${l.msg}`.toLowerCase().includes(needle)));
+        && (!needle || `${l.label} ${l.device || ''} ${l.msg}`.toLowerCase().includes(needle)));
 }
 
 function updateLogMeta() {
@@ -178,14 +201,21 @@ export async function syncLogs() {
 export function filterLogs(lv, query) {
     const needle = (query || '').trim().toLowerCase();
     return logState.rows.filter(l => (lv === 'all' || l.lv === lv)
-        && (!needle || `${l.label} ${l.msg}`.toLowerCase().includes(needle)));
+        && (!needle || `${l.label} ${l.device || ''} ${l.msg}`.toLowerCase().includes(needle)));
 }
+
+const srcTag = l => {
+    const kind = SRC_NAME[l.src] || l.src;
+    if (!l.device) return kind;
+    const [light, dark] = deviceTone(l.device);
+    return `${kind}<span class="src-dev" style="--dev:${light};--dev-dark:${dark}">${esc(l.device)}</span>`;
+};
 
 const logRows = list => list.map(l => `
     <div class="log ${l.lv}">
         <time>${esc(l.time)}</time>
         <span class="lv ${l.lv}">${l.lv}</span>
-        <span class="tag ${l.src} src">${SRC_NAME[l.src]}</span>
+        <span class="tag ${l.src} src${l.device ? ' has-dev' : ''}">${srcTag(l)}</span>
         <span class="log-msg" title="${esc(l.msg)}"><b style="color:var(--text-2);font-weight:600">[${esc(l.label)}]</b> ${esc(l.msg)}</span>
     </div>`).join('') || '<div style="padding:40px;text-align:center;color:var(--text-3)">没有匹配的日志</div>';
 
@@ -218,7 +248,10 @@ export function renderSyslogs(src, lv, query) {
 
 /** 导出当前筛选结果为文本文件 */
 export function exportLogs(lv, query) {
-    const text = filterLogs(lv, query).map(l => `${l.time} [${l.lv}] [${SRC_NAME[l.src]}] [${l.label}] ${l.msg}`).join('\n');
+    const text = filterLogs(lv, query).map(l => {
+        const kind = l.device ? `${SRC_NAME[l.src]} • ${l.device}` : SRC_NAME[l.src];
+        return `${l.time} [${l.lv}] [${kind}] [${l.label}] ${l.msg}`;
+    }).join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
     a.download = `qb-up-limit-${ymd(new Date())}.log`;
