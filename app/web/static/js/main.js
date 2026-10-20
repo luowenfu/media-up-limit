@@ -70,6 +70,7 @@ function openDevice(kind, dev, focus) {
 
 /* ---------- 点击 ---------- */
 document.addEventListener('click', e => {
+    if (e.target.closest('.rp-pop, [data-range-open]')) return;
     const t = e.target.closest('button, .switch, .chk, .me-item, [data-lucky], [data-close], [data-lim-mode], [data-hidelan], [data-open-dev]');
     if (!t) return;
     if (t.dataset.reveal) { toggleReveal(t.dataset.reveal); render(); return; }
