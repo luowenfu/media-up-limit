@@ -53,7 +53,7 @@ $firstHeading = [regex]::Match($log, '(?m)^## .+$')
 if (-not $firstHeading.Success -or $firstHeading.Value.Trim() -ne '## 待定') {
     Stop-Early 'CHANGELOG.md 最上面没有 ## 待定，已停止'
 }
-$draft = [regex]::Match($log, '(?ms)^## 待定\s*\r?\n(.*?)(?=^## |\z)')
+$draft = [regex]::Match($log, '(?ms)^## 待定[ \t]*\r?\n(.*?)(?=^## |\z)')
 if ($draft.Groups[1].Value -notmatch '(?m)^- ') {
     Stop-Early '## 待定 下面没有条目，已停止'
 }
@@ -71,7 +71,7 @@ if ($Bump -eq 'Test') {
     $next = '{0}.{1}' -f $major, ($minor + 1)
 }
 
-$log = [regex]::Replace($log, '(?m)^## 待定\s*$', "## $next", 1)
+$log = [regex]::Replace($log, '(?m)^## 待定[ \t]*$', "## $next", 1)
 Write-Text $Changelog $log
 
 $versionText = "ChineseName=$($fields['ChineseName'])`nAppName=$($fields['AppName'])`nVersion=$next`n"
