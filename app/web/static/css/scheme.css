@@ -154,7 +154,6 @@ html[data-scheme="dark"] .notice.ok { background: #06281f; border-color: #065f46
 html[data-scheme="dark"] .block-swap:hover { background: #243044; color: var(--text); }
 html[data-scheme="dark"] .chart-svg .grid { stroke: #243044; }
 html[data-scheme="dark"] .chart-svg .axis { stroke: #334155; }
-html[data-scheme="dark"] .donut-track { stroke: #243044; }
 html[data-scheme="dark"] .chart-ytick,
 html[data-scheme="dark"] .chart-xtick { color: var(--text-2); }
 

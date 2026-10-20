@@ -98,9 +98,6 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 .chart-ytick, .chart-xtick { position: absolute; color: var(--text-2); font-size: 11px; line-height: 1; font-variant-numeric: tabular-nums; }
 .chart-svg .grid { stroke: #e6ebf2; }
 .chart-svg .axis { stroke: #d5dde6; }
-.donut-track { stroke: #eef2f7; }
-.donut-k { color: var(--text-2); }
-.donut-v { color: var(--text); }
 .chart-ytick { transform: translate(-100%, -50%); white-space: nowrap; }
 .chart-xtick { bottom: 2px; transform: translateX(-50%); white-space: nowrap; }
 .chart-svg { width: 100%; height: 240px; overflow: visible; }

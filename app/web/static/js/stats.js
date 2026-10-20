@@ -11,7 +11,6 @@ const SERIES = {
     emby: { nameA: '播放上传', nameB: '选片上传', colorA: '#059669', colorB: '#7c3aed' },
 };
 const UNIT_NAMES = ['KB', 'MB', 'GB', 'TB'];
-const PALETTE = ['#3b82f6', '#a5b4fc', '#60a5fa', '#c7d2fe', '#818cf8', '#93c5fd'];
 
 const sum = arr => arr.reduce((a, b) => a + b, 0);
 const baseOf = kind => (kind === 'emby' ? 1000 : 1024);
@@ -86,24 +85,6 @@ export function barChart(m) {
     <div class="chart-ticks">${yTicks.join('')}${xTicks.join('')}</div>`;
 }
 
-/* ---------- 设备占比环形图 ---------- */
-export function donut(parts, totalText) {
-    const total = parts.reduce((s, p) => s + p[1], 0) || 1;
-    const r = 54, c = 2 * Math.PI * r;
-    let off = 0;
-    const arcs = parts.map(p => {
-        const len = p[1] / total * c;
-        const s = `<circle cx="70" cy="70" r="${r}" fill="none" stroke="${p[2]}" stroke-width="18" stroke-dasharray="${len} ${c - len}" stroke-dashoffset="${-off}" transform="rotate(-90 70 70)"/>`;
-        off += len;
-        return s;
-    }).join('');
-    return `<div style="display:flex;justify-content:center"><svg width="150" height="150" viewBox="0 0 140 140">
-        <circle class="donut-track" cx="70" cy="70" r="${r}" fill="none" stroke-width="18"/>${arcs}
-        <text class="donut-k" x="70" y="66" text-anchor="middle" font-size="12" fill="currentColor">合计</text>
-        <text class="donut-v" x="70" y="86" text-anchor="middle" font-size="17" font-weight="800" fill="currentColor">${esc(totalText)}</text>
-    </svg></div>`;
-}
-
 /* ---------- KPI 与排行 ---------- */
 const RANK_LIMIT = 10;
 const PLAY_LIMIT_NOTE = '仅统计最近 500 条播放记录';
@@ -125,12 +106,39 @@ function rankName(name, kind, extras) {
     return `<div class="rank-name has-kind" title="${esc(title)}"><span>${esc(name)}</span>${bits.join('')}</div>`;
 }
 
+function byteNote(label, bytes) {
+    const [n, u] = splitBytes(bytes);
+    return `${label}${n}${u}`;
+}
+
 function torrentNotes(row) {
     if (!row || row.length < 4) return [];
-    const [n, u] = splitBytes(row[2]);
     const ratio = Number(row[3]);
-    const share = Number.isFinite(ratio) && ratio >= 0 ? ratio.toFixed(2) : '∞';
-    return [`体积${n}${u}`, `分享率${share}`];
+    const share = Number.isFinite(ratio) && ratio >= 0 && ratio < 9999 ? ratio.toFixed(2) : '∞';
+    return [byteNote('体积', row[2]), `分享率${share}`];
+}
+
+function ratioNotes(row) {
+    if (!row || row.length < 4) return [];
+    return [byteNote('体积', row[2]), byteNote('已上传', row[3])];
+}
+
+function ratioText(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 0 || n >= 9999) return '∞';
+    if (n > 0 && n < 0.01) return '<0.01';
+    return n.toFixed(2);
+}
+
+/** 无下载量时 qB 把分享率封顶，条形按有限值拉开，避免其它种子被压成一条线 */
+function ratioWidth(row, list) {
+    const finite = (list || [])
+        .map(item => Number(item[1]))
+        .filter(v => Number.isFinite(v) && v > 0 && v < 9999);
+    const maxFinite = finite.length ? Math.max(...finite) : 1;
+    const n = Number(row[1]);
+    if (!Number.isFinite(n) || n >= 9999) return maxFinite * 1.15;
+    return n;
 }
 
 function rankToggle(key, label) {
@@ -139,15 +147,16 @@ function rankToggle(key, label) {
     return `<button type="button" class="rank-toggle" data-rank-key="${esc(key)}" data-rank-label="${esc(label)}" aria-expanded="${open ? 'true' : 'false'}" aria-label="${action}${esc(label)}">${RANK_CARET}</button>`;
 }
 
-function rankBars(rows, formatValue, emptyText, expand, notesOf) {
+function rankBars(rows, formatValue, emptyText, expand, notesOf, barOf) {
     const list = (rows || []).filter(row => row && row[1] > 0).slice(0, RANK_LIMIT);
-    const top = list[0] ? list[0][1] : 1;
     if (!list.length) return `<div class="hint-t">${emptyText}</div>`;
+    const widthOf = row => (barOf ? barOf(row, list) : row[1]);
+    const top = Math.max(...list.map(widthOf), 0) || 1;
     return `<div class="rank">${list.map((row, i) => {
         const extra = expand ? expand(row) : null;
         const open = !!(extra && rankOpen.has(extra.key));
         const notes = notesOf ? notesOf(row) : null;
-        return `<div class="rank-row${extra ? ' can-open' : ''}${open ? ' open' : ''}"><span class="rank-no">${i + 1}</span><div>${rankName(row[0], row[2], notes)}<div class="rank-bar"><i style="width:${top ? row[1] / top * 100 : 0}%"></i></div></div><span class="rank-v num">${formatValue(row[1])}</span>${extra ? rankToggle(extra.key, row[0]) : ''}${extra ? `<div class="rank-detail">${extra.html}</div>` : ''}</div>`;
+        return `<div class="rank-row${extra ? ' can-open' : ''}${open ? ' open' : ''}"><span class="rank-no">${i + 1}</span><div>${rankName(row[0], row[2], notes)}<div class="rank-bar"><i style="width:${widthOf(row) / top * 100}%"></i></div></div><span class="rank-v num">${formatValue(row[1])}</span>${extra ? rankToggle(extra.key, row[0]) : ''}${extra ? `<div class="rank-detail">${extra.html}</div>` : ''}</div>`;
     }).join('')}</div>`;
 }
 
@@ -255,16 +264,6 @@ function kpisOf(m) {
     ];
 }
 
-function deviceRank(m) {
-    const list = (m.share || []).slice(0, RANK_LIMIT);
-    const total = sum(list.map(x => x[1]));
-    const parts = list.map((x, i) => [x[0], x[1], PALETTE[i % PALETTE.length]]);
-    const rows = list.map((row, i) => `
-        <div class="rank-row"><span class="rank-no">${i + 1}</span><div><div class="rank-name" title="${esc(row[0])}">${esc(row[0])}</div><div class="rank-bar"><i style="width:${total ? row[1] / total * 100 : 0}%;background:${PALETTE[i % PALETTE.length]}"></i></div></div><span class="rank-v num">${fmtBytes(row[1])}</span></div>`).join('');
-    const body = `${donut(parts, fmtBytes(total))}<div class="rank" style="margin-top:16px">${rows}</div>`;
-    return rankCard('设备上传排行', m.sp.caption, body);
-}
-
 function ranksOf(m) {
     if (m.kind === 'emby') {
         const note = m.rankTruncated ? PLAY_LIMIT_NOTE : '';
@@ -284,7 +283,7 @@ function ranksOf(m) {
         ].join('');
     }
     return [
-        deviceRank(m),
+        rankCard('分享率排行', '当前', rankBars(m.ratios, ratioText, '当前没有可排行的种子', null, ratioNotes, ratioWidth)),
         rankCard('种子上传排行', '当前累计', rankBars(m.torrents, v => fmtBytes(v), '当前没有可排行的种子', null, torrentNotes)),
         rankCard('站点上传排行', '当前累计', rankBars(m.sites, v => fmtBytes(v), '当前没有可排行的站点')),
     ].join('');

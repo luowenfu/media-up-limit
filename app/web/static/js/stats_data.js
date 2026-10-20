@@ -140,35 +140,33 @@ export async function loadQbStats(name, range, anchor) {
     let sp = spec(range, anchor);
     const pv = sp.prev ? spec(range, sp.prev) : null;
     const base = `/api/stats/${enc(name)}`;
-    const [up, down, prev, prevDown, events, share, ranks] = await Promise.all([
+    const [up, down, prev, prevDown, events, ranks] = await Promise.all([
         fetchRows(base, sp, { direction: 'upload' }),
         fetchRows(base, sp, { direction: 'download' }),
         pv ? fetchRows(base, pv, { direction: 'upload' }).catch(() => []) : [],
         pv ? fetchRows(base, pv, { direction: 'download' }).catch(() => []) : [],
         api.get(`/api/events${q({ instance: name, limit: 500 })}`).then(r => r.data || []).catch(() => []),
-        loadQbShare(sp),
         api.get(`/api/qb/torrent-ranks${q({ instance: name })}`).then(r => r.data || {}).catch(() => ({})),
     ]);
     if (sp.all) sp = fitMonths(sp, [up, down]);
     const a = fill(sp, up, 'total_bytes'), b = fill(sp, down, 'total_bytes');
     const hits = events.filter(e => e.event_type === 'limit_applied' && inSpan(e.event_time, sp)).length;
     return {
-        kind: 'qb', sp, a, b, name, hits, share,
-        torrents: ranks.torrents || [], sites: ranks.sites || [],
+        kind: 'qb', sp, a, b, name, hits,
+        torrents: ranks.torrents || [],
+        ratios: (ranks.ratios || []).map(asRatioRow),
+        sites: ranks.sites || [],
         change: pv ? delta(sum(a), sum(fill(pv, prev, 'total_bytes'))) : null,
         changeDown: pv ? delta(sum(b), sum(fill(pv, prevDown, 'total_bytes'))) : null,
     };
 }
 
-/** 各设备在所选时段内的上传，用于占比 */
-async function loadQbShare(sp) {
-    const rows = await Promise.all(qbList().map(async d => {
-        try {
-            const data = await fetchRows(`/api/stats/${enc(d.name)}`, sp, { direction: 'upload' });
-            return [d.name, sum(data.map(r => Number(r.total_bytes) || 0))];
-        } catch (e) { return [d.name, 0]; }
-    }));
-    return rows.sort((a, b) => b[1] - a[1]);
+/** qB 把无下载量的分享率封顶为 9999，或在旧版本里记成负数 */
+function asRatioRow(row) {
+    const raw = row && row[1];
+    const n = Number(raw);
+    const infinite = raw == null || !Number.isFinite(n) || n < 0 || n >= 9999;
+    return [row[0], infinite ? Number.POSITIVE_INFINITY : n, Number(row[2]) || 0, Number(row[3]) || 0];
 }
 
 /** Emby：播放 + 选片（按用户或全部用户） */

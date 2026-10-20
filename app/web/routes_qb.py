@@ -129,9 +129,27 @@ def _tracker_host(tracker: str) -> str:
     return (urlparse(raw).hostname or '').strip().lower()
 
 
+# qB 在没有下载量时把分享率封顶为 9999，界面上显示为无限
+_RATIO_CAP = 9999
+
+
+def _ratio_key(row: dict) -> float:
+    ratio = row['ratio']
+    if ratio < 0 or ratio >= _RATIO_CAP:
+        return float('inf')
+    return ratio
+
+
+def _ratio_value(row: dict):
+    ratio = row['ratio']
+    if ratio < 0 or ratio >= _RATIO_CAP:
+        return None
+    return ratio
+
+
 @bp.route('/api/qb/torrent-ranks')
 def api_qb_torrent_ranks():
-    """当前种子与站点的累计上传，不跟随图表时段。"""
+    """当前种子上传、分享率和站点上传，不跟随图表时段。"""
     try:
         instance_name = (request.args.get('instance') or '').strip()
         if not instance_name:
@@ -144,6 +162,11 @@ def api_qb_torrent_ranks():
         torrents = sorted(
             (row for row in rows if row['uploaded'] > 0),
             key=lambda row: row['uploaded'],
+            reverse=True,
+        )[:10]
+        ratios = sorted(
+            (row for row in rows if _ratio_key(row) > 0),
+            key=_ratio_key,
             reverse=True,
         )[:10]
         sites = {}
@@ -161,6 +184,9 @@ def api_qb_torrent_ranks():
                 'torrents': [[
                     row['name'], row['uploaded'], row['size'], row['ratio'],
                 ] for row in torrents],
+                'ratios': [[
+                    row['name'], _ratio_value(row), row['size'], row['uploaded'],
+                ] for row in ratios],
                 'sites': [[name, uploaded] for name, uploaded in site_rows],
             },
         })
