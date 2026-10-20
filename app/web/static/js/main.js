@@ -116,14 +116,17 @@ document.addEventListener('click', e => {
     if (t.id === 'backBtn') { go({ dev: '' }); return; }
     if (t.id === 'metricsBtn') { toggleMetricsBar(); return; }
     if (t.id === 'metricsSplit') { toggleMetricsDock(); return; }
-    if (t.dataset.quick === 'prev' || t.dataset.quick === 'cur') {
-        const month = chartMode() === 'month';
-        const saved = quickPreset(month ? 'month' : 'day', t.dataset.quick);
-        const before = month ? visibleMonthRange() : visibleDayRange();
-        if (saved.start === before.start && saved.end === before.end) return;
+    if (t.dataset.quick) {
+        const [mode, which] = t.dataset.quick.split(':');
+        if ((mode !== 'day' && mode !== 'month') || (which !== 'prev' && which !== 'cur')) return;
+        const saved = quickPreset(mode, which);
+        const before = mode === 'month' ? visibleMonthRange() : visibleDayRange();
+        if (state.statsRange === mode && saved.start === before.start && saved.end === before.end) return;
+        state.statsRange = mode;
+        state.statsChartRange = mode;
         state.statsFrom = saved.start;
         state.statsDate = saved.end;
-        if (month && state.statsSpan === 'all') state.statsSpan = '6';
+        if (mode === 'month' && state.statsSpan === 'all') state.statsSpan = '6';
         render();
         return;
     }

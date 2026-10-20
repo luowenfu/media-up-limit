@@ -106,7 +106,7 @@ export function normalizeMonthRange(start, end) {
 export const visibleDayRange = () => normalizeDayRange(state.statsFrom, state.statsDate);
 export const visibleMonthRange = () => normalizeMonthRange(state.statsFrom, state.statsDate);
 
-/** 快捷范围。按天是上一个整月、本月 1 日到今天；按月是去年全年、今年 1 月到本月 */
+/** 快捷范围。按天是上一个整月、本月 1 日到今天；按月是今年 1 月到本月、去年全年 */
 export function quickPreset(mode, which) {
     const now = new Date();
     const today = ymd(now);

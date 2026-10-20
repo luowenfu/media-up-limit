@@ -109,6 +109,8 @@
     .panel-name { padding: 12px 12px 0; }
     .toolbar { min-width: 0; max-width: 100%; padding: 12px; }
     .tabs { flex-wrap: wrap; max-width: 100%; min-width: 0; }
+    .range-quick { flex-wrap: nowrap; }
+    .range-quick button { padding: 0 8px; }
     .sec-events, .sec-events .panel, .timeline { min-width: 0; max-width: 100%; }
     .field.search { flex: 1 1 100%; }
     .tool-r { margin-left: 0; }

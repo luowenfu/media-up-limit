@@ -378,14 +378,20 @@ function toolbar(m, kind) {
     const win = day ? visibleDayRange() : visibleMonthRange();
     const max = defaultAnchor(day ? 'day' : 'month');
     const periodField = range === 'total' ? '' : `<div class="range-field${day ? ' is-day' : ''}" data-range-field data-mode="${day ? 'day' : 'month'}" data-max="${max}"><span class="cap">时段</span>${rangeInput('stFrom', win.start, day)}<span class="sep">${RANGE_ARROW}</span>${rangeInput('stTo', win.end, day)}<button type="button" class="month-pick" data-range-open aria-label="${day ? '选择日期范围' : '选择月份范围'}">${I.cal.replace(/16/g, '14')}</button></div>`;
-    const shortcuts = day
-        ? [['prev', '上月'], ['cur', '本月']]
-        : [['prev', '去年'], ['cur', '今年']];
-    const activeQuick = shortcuts.find(([id]) => {
-        const preset = quickPreset(day ? 'day' : 'month', id);
-        return preset.start === win.start && preset.end === win.end;
-    })?.[0] || '';
-    const quick = range === 'total' ? '' : `<div class="tabs range-quick"><span class="cap">快捷选择</span>${shortcuts.map(([id, label]) => `<button type="button" data-quick="${id}" class="${activeQuick === id ? 'on' : ''}">${label}</button>`).join('')}</div>`;
+    const shortcuts = [
+        ['day', 'prev', '上月'],
+        ['day', 'cur', '本月'],
+        ['month', 'cur', '今年'],
+        ['month', 'prev', '去年'],
+    ];
+    const activeQuick = range === 'day' || range === 'month'
+        ? shortcuts.find(([mode, which]) => {
+            if (mode !== range) return false;
+            const preset = quickPreset(mode, which);
+            return preset.start === win.start && preset.end === win.end;
+        })
+        : null;
+    const quick = range === 'total' ? '' : `<div class="tabs range-quick"><span class="cap">快捷选择</span>${shortcuts.map(([mode, which, label]) => `<button type="button" data-quick="${mode}:${which}" class="${activeQuick && activeQuick[0] === mode && activeQuick[1] === which ? 'on' : ''}">${label}</button>`).join('')}</div>`;
     const totalTab = kind === 'qb'
         ? `<button data-r="total" class="${range === 'total' ? 'on' : ''}">按累计</button>`
         : '';
