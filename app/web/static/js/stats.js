@@ -278,16 +278,16 @@ function cumulativeKpis(m) {
     const dash = '—';
     if (!m.available) {
         return [
-            ['up', 'tone-info', '', '上传合计', dash, '按设备累计'],
-            ['down', 'tone-mint', '', '下载合计', dash, '按设备累计'],
+            ['up', 'tone-info', '', '上传合计', dash, '当前累计'],
+            ['down', 'tone-mint', '', '下载合计', dash, '当前累计'],
             ['list', 'tone-violet', '', '种子数', dash, '当前种子'],
             ['sum', 'tone-orange', '', '整体分享率', dash, '总上传 / 总下载'],
         ];
     }
     const totals = m.totals || {};
     return [
-        ['up', 'tone-info', '', '上传合计', kbig(totals.uploaded, 1024), '按设备累计'],
-        ['down', 'tone-mint', '', '下载合计', kbig(totals.downloaded, 1024), '按设备累计'],
+        ['up', 'tone-info', '', '上传合计', kbig(totals.uploaded, 1024), '当前累计'],
+        ['down', 'tone-mint', '', '下载合计', kbig(totals.downloaded, 1024), '当前累计'],
         ['list', 'tone-violet', '', '种子数', `${Number(totals.count) || 0}<small>个</small>`, '当前种子'],
         ['sum', 'tone-orange', '', '整体分享率', deviceRatioText(totals), '总上传 / 总下载'],
     ];
@@ -352,7 +352,7 @@ function ranksOf(m) {
             rankCard('类型点播 Top 10', m.sp.caption, genreBody, note, true),
         ].join('');
     }
-    const caption = m.cumulative ? '按设备累计' : m.sp.caption;
+    const caption = m.cumulative ? '当前累计' : m.sp.caption;
     const emptyTorrent = m.cumulative ? '当前没有可排行的种子' : '该时段还没有可排行的种子';
     const emptySite = m.cumulative ? '当前没有可排行的站点' : '该时段还没有可排行的站点';
     return [

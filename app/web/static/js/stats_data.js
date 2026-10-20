@@ -262,7 +262,7 @@ async function loadQbCumulative(name) {
     const totals = ranks.totals || { uploaded: 0, downloaded: 0, count: 0, ratio: 0 };
     return {
         kind: 'qb', cumulative: true, available, totals, name,
-        sp: { caption: '按设备累计', labels: [] },
+        sp: { caption: '当前累计', labels: [] },
         a: [], b: [], hits: 0,
         torrents: available ? (ranks.torrents || []) : [],
         ratios: available ? (ranks.ratios || []).map(asRatioRow) : [],
