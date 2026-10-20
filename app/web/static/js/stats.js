@@ -391,7 +391,7 @@ function toolbar(m, kind) {
             return preset.start === win.start && preset.end === win.end;
         })
         : null;
-    const quick = range === 'total' ? '' : `<div class="chart-chip"><span class="cap">快捷选择</span><div class="tabs range-quick">${shortcuts.map(([mode, which, label]) => `<button type="button" data-quick="${mode}:${which}" class="${activeQuick && activeQuick[0] === mode && activeQuick[1] === which ? 'on' : ''}">${label}</button>`).join('')}</div></div>`;
+    const quick = range === 'total' ? '' : `<div class="chart-chip"><span class="cap">快捷</span><div class="tabs range-quick">${shortcuts.map(([mode, which, label]) => `<button type="button" data-quick="${mode}:${which}" class="${activeQuick && activeQuick[0] === mode && activeQuick[1] === which ? 'on' : ''}">${label}</button>`).join('')}</div></div>`;
     const totalTab = kind === 'qb'
         ? `<button data-r="total" class="${range === 'total' ? 'on' : ''}">按累计</button>`
         : '';
