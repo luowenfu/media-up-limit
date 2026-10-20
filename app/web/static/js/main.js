@@ -14,7 +14,7 @@ import { toggleReveal } from './cards.js';
 import { openSettings } from './settings.js';
 import { toggleScheme } from './theme.js';
 import { openChooser } from './dialogs.js';
-import { normalizeDayRange, normalizeMonthRange, parseDay, parseMonth, visibleDayRange, visibleMonthRange } from './stats_data.js';
+import { normalizeDayRange, normalizeMonthRange, parseDay, parseMonth, quickPreset, visibleDayRange, visibleMonthRange } from './stats_data.js';
 import { bindRangePicker, closeRangePicker } from './range_picker.js';
 import { chartOrderPref, moveChartBlock } from './stats.js';
 import {
@@ -116,6 +116,17 @@ document.addEventListener('click', e => {
     if (t.id === 'backBtn') { go({ dev: '' }); return; }
     if (t.id === 'metricsBtn') { toggleMetricsBar(); return; }
     if (t.id === 'metricsSplit') { toggleMetricsDock(); return; }
+    if (t.dataset.quick === 'prev' || t.dataset.quick === 'cur') {
+        const month = chartMode() === 'month';
+        const saved = quickPreset(month ? 'month' : 'day', t.dataset.quick);
+        const before = month ? visibleMonthRange() : visibleDayRange();
+        if (saved.start === before.start && saved.end === before.end) return;
+        state.statsFrom = saved.start;
+        state.statsDate = saved.end;
+        if (month && state.statsSpan === 'all') state.statsSpan = '6';
+        render();
+        return;
+    }
     if (t.closest('[data-range]') && t.dataset.r) {
         const next = t.dataset.r;
         if (next === 'day' || next === 'month') {

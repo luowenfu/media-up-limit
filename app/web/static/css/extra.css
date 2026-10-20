@@ -10,22 +10,22 @@
 .field.search input::placeholder { color: var(--text-3); }
 .range-field {
     display: inline-flex; align-items: center; max-width: 100%;
-    height: 32px; padding: 0 4px 0 11px; border-radius: 6px;
+    height: 38px; padding: 0 2px 0 6px; border-radius: 6px;
     background: #fff; border: 1px solid #d9d9d9; color: var(--text);
     transition: border-color .15s, box-shadow .15s;
 }
-.range-field.is-day { width: 268px; }
-.range-field:not(.is-day) { width: 228px; }
+.range-field.is-day { width: 236px; }
+.range-field:not(.is-day) { width: 188px; }
 .range-field:hover { border-color: var(--accent); }
 .range-field:focus-within, .range-field.is-open { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent); }
-.range-field .sep { display: grid; place-items: center; flex: none; width: 22px; color: #bfbfbf; }
+.range-field .sep { display: grid; place-items: center; flex: none; width: 16px; color: #bfbfbf; }
 .range-field .month-text {
     flex: 1; width: 0; min-width: 0; border: 0; outline: 0; background: transparent; padding: 0;
     text-align: center; cursor: text; color: var(--text); font: inherit; font-size: 13px;
     font-variant-numeric: tabular-nums;
 }
 .range-field .month-text::placeholder { color: #bfbfbf; }
-.month-pick { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 4px; color: #bfbfbf; flex: none; }
+.month-pick { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 4px; color: #bfbfbf; flex: none; }
 .month-pick:hover, .range-field.is-open .month-pick { color: var(--text-2); }
 .month-pick svg { width: 14px; height: 14px; }
 

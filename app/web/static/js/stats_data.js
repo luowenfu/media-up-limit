@@ -106,6 +106,21 @@ export function normalizeMonthRange(start, end) {
 export const visibleDayRange = () => normalizeDayRange(state.statsFrom, state.statsDate);
 export const visibleMonthRange = () => normalizeMonthRange(state.statsFrom, state.statsDate);
 
+/** 快捷范围。按天是上一个整月、本月 1 日到今天；按月是去年全年、今年 1 月到本月 */
+export function quickPreset(mode, which) {
+    const now = new Date();
+    const today = ymd(now);
+    const thisMonth = ym(now);
+    if (mode !== 'month') {
+        if (which === 'cur') return { start: `${thisMonth}-01`, end: today };
+        const prevEnd = addDays(`${thisMonth}-01`, -1);
+        return { start: `${prevEnd.slice(0, 7)}-01`, end: prevEnd };
+    }
+    const year = now.getFullYear();
+    if (which === 'cur') return { start: `${year}-01`, end: thisMonth };
+    return { start: `${year - 1}-01`, end: `${year - 1}-12` };
+}
+
 function daySpec(start, end) {
     const win = normalizeDayRange(start, end);
     const days = [];

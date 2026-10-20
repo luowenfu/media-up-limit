@@ -114,6 +114,7 @@
     .tool-r { margin-left: 0; }
     .tool-r .field { max-width: 100%; }
     .range-field, .range-field.is-day, .range-field:not(.is-day) { width: 100%; }
+    .tool-r:has(.range-quick) { width: 100%; justify-content: flex-end; }
     .chart-svg { height: 200px; }
     .kpis { gap: 0; }
     .kpi { padding: 8px 12px; }

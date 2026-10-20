@@ -4,7 +4,7 @@ import { I } from './icons.js';
 import { foldHead, foldOpen } from './events.js';
 import { esc, fmtBytes, splitBytes, trimNum } from './format.js';
 import { state } from './store.js';
-import { ALL_USERS, currentDevice, defaultAnchor, loadEmbyStats, loadQbStats, visibleDayRange, visibleMonthRange } from './stats_data.js';
+import { ALL_USERS, currentDevice, defaultAnchor, loadEmbyStats, loadQbStats, quickPreset, visibleDayRange, visibleMonthRange } from './stats_data.js';
 
 const SERIES = {
     qb: { nameA: '上传', nameB: '下载', colorA: '#2563eb', colorB: '#f59e0b' },
@@ -378,6 +378,14 @@ function toolbar(m, kind) {
     const win = day ? visibleDayRange() : visibleMonthRange();
     const max = defaultAnchor(day ? 'day' : 'month');
     const periodField = range === 'total' ? '' : `<div class="range-field${day ? ' is-day' : ''}" data-range-field data-mode="${day ? 'day' : 'month'}" data-max="${max}">${rangeInput('stFrom', win.start, day)}<span class="sep">${RANGE_ARROW}</span>${rangeInput('stTo', win.end, day)}<button type="button" class="month-pick" data-range-open aria-label="${day ? '选择日期范围' : '选择月份范围'}">${I.cal.replace(/16/g, '14')}</button></div>`;
+    const shortcuts = day
+        ? [['prev', '上月'], ['cur', '本月']]
+        : [['prev', '去年'], ['cur', '今年']];
+    const activeQuick = shortcuts.find(([id]) => {
+        const preset = quickPreset(day ? 'day' : 'month', id);
+        return preset.start === win.start && preset.end === win.end;
+    })?.[0] || '';
+    const quick = range === 'total' ? '' : `<div class="tabs range-quick">${shortcuts.map(([id, label]) => `<button type="button" data-quick="${id}" class="${activeQuick === id ? 'on' : ''}">${label}</button>`).join('')}</div>`;
     const totalTab = kind === 'qb'
         ? `<button data-r="total" class="${range === 'total' ? 'on' : ''}">按累计</button>`
         : '';
@@ -388,7 +396,8 @@ function toolbar(m, kind) {
                 <button data-r="day" class="${range === 'day' ? 'on' : ''}">按天</button>
                 <button data-r="month" class="${range === 'month' ? 'on' : ''}">按月</button>
             </div>
-            ${periodField ? `<div class="tool-r">${periodField}</div>` : ''}
+            ${periodField}
+            ${quick ? `<div class="tool-r">${quick}</div>` : ''}
         </div>`;
 }
 
