@@ -181,7 +181,7 @@ function ensureTopbar() {
     ensureTbBar();
 }
 
-const METRICS_ICON = '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 7.5 10 12.5 15 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const METRICS_ICON = '<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M5 7.5 10 12.5 15 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 /** 手机设备详情里，状态栏默认收起，点顶栏右侧图标再展开 */
 let metricsOpen = false;
