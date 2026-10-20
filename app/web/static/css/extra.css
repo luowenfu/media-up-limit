@@ -27,6 +27,14 @@
 .chart-bar .tabs { padding: 2px; }
 .chart-bar .tabs button { height: 32px; padding: 0 8px; }
 .chart-bar .tabs > .cap { margin-right: 2px; padding-left: 5px; }
+.chart-bar .tabs button { transition: background .15s, color .15s; }
+.chart-bar .tabs button.on {
+    background: var(--accent); color: #fff;
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+html[data-scheme="dark"] .chart-bar .tabs button.on {
+    background: var(--accent-2); color: #fff; box-shadow: none;
+}
 .range-field:hover { border-color: var(--accent); }
 .range-field:focus-within, .range-field.is-open { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent); }
 .range-field .sep { display: grid; place-items: center; flex: none; width: 16px; color: #bfbfbf; }
