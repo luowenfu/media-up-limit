@@ -7,7 +7,7 @@ import {
     rememberPage, restorePage, savePrefs, syncMerge,
 } from './store.js';
 import {
-    fitEvents, fixRoute, isListView, rememberPart, render, refreshLogsInPlace, revealSection, syncDetailFold, toggleMetricsBar, toggleNavGroup,
+    fitEvents, fixRoute, isListView, rememberPart, render, refreshLogsInPlace, revealSection, syncDetailFold, toggleMetricsBar, toggleMetricsDock, toggleNavGroup,
 } from './shell.js';
 import { uiClick, uiInput, relockTiles } from './interact.js';
 import { toggleReveal } from './cards.js';
@@ -113,6 +113,7 @@ document.addEventListener('click', e => {
     }
     if (t.id === 'backBtn') { go({ dev: '' }); return; }
     if (t.id === 'metricsBtn') { toggleMetricsBar(); return; }
+    if (t.id === 'metricsSplit') { toggleMetricsDock(); return; }
     if (t.closest('[data-range]') && t.dataset.r) { state.statsRange = t.dataset.r; state.statsDate = ''; render(); return; }
     if (t.closest('[data-evtype]')) { state.eventsType = t.dataset.v; render(); return; }
     if (t.closest('[data-logsrc]')) { state.logSrc = t.dataset.v; render(); return; }

@@ -34,9 +34,12 @@ html[data-scheme="dark"] .bottom-bar {
 }
 html[data-scheme="dark"] .tb-tray,
 html[data-scheme="dark"] .status,
-html[data-scheme="dark"] .login-card {
+html[data-scheme="dark"] .login-card,
+html[data-scheme="dark"] .tb-split-grip {
     background: #151c2c;
 }
+html[data-scheme="dark"] .tb-split-line { background: #4b5d78; }
+html[data-scheme="dark"] .tb-split-grip { border-color: #3d4d68; }
 html[data-scheme="dark"] .nav-item { color: #cbd5e1; }
 html[data-scheme="dark"] .nav-item.active { color: var(--accent); background: var(--accent-soft); }
 html[data-scheme="dark"] .nav-item.active .nav-badge { background: #0c1220; color: var(--accent); }

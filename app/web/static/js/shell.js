@@ -225,14 +225,73 @@ function ensureTbBar() {
     if (!inner || !metrics) return;
     const bar = document.createElement('div');
     bar.className = 'tb-bar';
-    [...inner.children].forEach(child => { if (child !== metrics) bar.appendChild(child); });
-    inner.insertBefore(bar, metrics);
+    const slot = document.getElementById('metricsSlot');
+    [...inner.children].forEach(child => {
+        if (child !== metrics && child !== slot) bar.appendChild(child);
+    });
+    inner.insertBefore(bar, slot || metrics);
+}
+
+const SPLIT_BTN = '<i class="tb-split-line" aria-hidden="true"></i><span class="tb-split-grip" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M6.2 2.2 3.4 5l2.8 2.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+
+/** 电脑端状态图标默认展开，点分割线收进竖线里。只在当次打开里记住 */
+let metricsDocked = false;
+
+function syncMetricsDock() {
+    const slot = document.getElementById('metricsSlot');
+    const btn = document.getElementById('metricsSplit');
+    if (slot) slot.classList.toggle('is-collapsed', metricsDocked);
+    if (!btn) return;
+    const label = metricsDocked ? '展开状态栏' : '收起状态栏';
+    btn.setAttribute('aria-expanded', metricsDocked ? 'false' : 'true');
+    btn.setAttribute('aria-label', label);
+    btn.title = label;
+}
+
+export function toggleMetricsDock() {
+    if (isMobile()) return;
+    metricsDocked = !metricsDocked;
+    syncMetricsDock();
+}
+
+/** 旧页面没有分割线时补上，统计仍留在顶栏里、不进标题行 */
+function ensureMetricsDock() {
+    const metrics = document.getElementById('pills');
+    if (!metrics) return;
+    let slot = document.getElementById('metricsSlot');
+    if (!slot) {
+        slot = document.createElement('div');
+        slot.id = 'metricsSlot';
+        slot.className = 'tb-metrics-slot';
+        metrics.parentNode.insertBefore(slot, metrics);
+    }
+    let clip = slot.querySelector('.tb-metrics-clip');
+    if (!clip) {
+        clip = document.createElement('div');
+        clip.className = 'tb-metrics-clip';
+        slot.appendChild(clip);
+    }
+    if (metrics.parentElement !== clip) clip.appendChild(metrics);
+    if (!document.getElementById('metricsSplit')) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tb-split';
+        btn.id = 'metricsSplit';
+        btn.setAttribute('aria-controls', 'pills');
+        btn.innerHTML = SPLIT_BTN;
+        slot.insertBefore(btn, slot.firstChild);
+    }
+    const bar = document.querySelector('.tb-bar');
+    const inner = document.querySelector('.topbar-in');
+    if (bar && inner && slot.parentElement !== inner) inner.insertBefore(slot, bar.nextSibling);
+    syncMetricsDock();
 }
 
 export function renderChrome() {
     ensureTopbar();
     ensureTbBar();
     ensureMetricsBtn();
+    ensureMetricsDock();
     ensureDetailTabs();
     ensureSidebar();
     const { view, dev } = state;
@@ -269,6 +328,7 @@ export function renderChrome() {
         metrics.style.transition = '';
     }
     syncMetricsToggle();
+    syncMetricsDock();
 }
 
 /** 统计完全滑进标题栏后，给标题栏补上底边，避免和内容贴在一起 */
