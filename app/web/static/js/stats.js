@@ -363,6 +363,8 @@ function bindRankToggles() {
         const fold = event.target.closest('.rank-collapse');
         if (fold && root.contains(fold)) {
             const board = fold.closest('.chart-side');
+            const scroller = board?.querySelector(':scope > .rank');
+            const scrollTop = scroller ? scroller.scrollTop : 0;
             board?.querySelectorAll('.rank-row.open').forEach(row => {
                 const toggle = row.querySelector(':scope > .rank-toggle');
                 const key = toggle?.dataset.rankKey;
@@ -372,6 +374,7 @@ function bindRankToggles() {
                 toggle.setAttribute('aria-expanded', 'false');
                 toggle.setAttribute('aria-label', `展开${toggle.dataset.rankLabel || ''}`);
             });
+            if (scroller) scroller.scrollTop = scrollTop;
             return;
         }
         const btn = event.target.closest('.rank-toggle');
@@ -380,11 +383,14 @@ function bindRankToggles() {
         const row = btn.closest('.rank-row');
         if (!row || !key) return;
         const open = !rankOpen.has(key);
+        const scroller = row.closest('.chart-side')?.querySelector(':scope > .rank');
+        const scrollTop = scroller ? scroller.scrollTop : 0;
         if (open) rankOpen.add(key);
         else rankOpen.delete(key);
         row.classList.toggle('open', open);
         btn.setAttribute('aria-expanded', open ? 'true' : 'false');
         btn.setAttribute('aria-label', `${open ? '收起' : '展开'}${btn.dataset.rankLabel || ''}`);
+        if (scroller) scroller.scrollTop = scrollTop;
     });
 }
 
