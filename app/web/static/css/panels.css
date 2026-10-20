@@ -46,7 +46,7 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 .rank-tools { display: inline-flex; align-items: center; gap: 2px; flex: none; min-width: 0; }
 .rank-grid .chart-side > .panel-title.rank-head {
     display: grid; grid-template-columns: minmax(0, 1fr) 18px; column-gap: 8px;
-    align-items: center; margin-right: 0; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin;
+    align-items: center; margin-right: 0; overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin;
     scrollbar-color: transparent transparent;
 }
 .rank-grid .chart-side > .panel-title.rank-head::-webkit-scrollbar-thumb { background: transparent; }
@@ -117,9 +117,9 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 .chart-tip span { display: flex; align-items: center; gap: 6px; color: rgba(255, 255, 255, .85); }
 .chart-tip i { width: 8px; height: 8px; border-radius: 2px; }
 
-.rank { display: flex; flex-direction: column; gap: 8px; }
+.rank { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .chart-side > .rank {
-    max-height: calc(28px * 10 + 8px * 9); overflow-y: auto; overflow-anchor: none;
+    max-height: calc(28px * 10 + 8px * 9); overflow-x: hidden; overflow-y: auto; overflow-anchor: none;
     scrollbar-gutter: stable; scrollbar-width: thin;
     scrollbar-color: rgba(100, 116, 139, .45) transparent;
 }
@@ -127,7 +127,7 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 .rank-grid .chart-side > .panel-title.rank-head::-webkit-scrollbar { width: 6px; }
 .chart-side > .rank::-webkit-scrollbar-track { background: transparent; }
 .chart-side > .rank::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, .45); border-radius: 999px; }
-.rank-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; overflow-anchor: none; }
+.rank-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-width: 0; overflow-anchor: none; }
 .rank-row.can-open { grid-template-columns: 26px minmax(0, 1fr) auto 18px; }
 .rank-row.can-open > .rank-v { margin-right: -4px; }
 .rank-row > div { min-width: 0; }
