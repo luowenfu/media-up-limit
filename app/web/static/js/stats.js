@@ -395,13 +395,16 @@ function toolbar(m, kind) {
     const totalTab = kind === 'qb'
         ? `<button data-r="total" class="${range === 'total' ? 'on' : ''}">按累计</button>`
         : '';
-    return `<div class="toolbar">
-            ${kind === 'emby' ? `<span class="field"><span class="k">用户</span><select id="stUser"><option value="${ALL_USERS}">全部用户</option>${(m.users || []).map(u => `<option ${u === state.statsUser ? 'selected' : ''} value="${esc(u)}">${esc(u)}</option>`).join('')}</select>${I.chev}</span>` : ''}
-            <div class="tabs" data-range>
-                <span class="cap">视图</span>
-                ${totalTab}
-                <button data-r="day" class="${range === 'day' ? 'on' : ''}">按天</button>
-                <button data-r="month" class="${range === 'month' ? 'on' : ''}">按月</button>
+    const userField = kind === 'emby' ? `<span class="field"><span class="k">用户</span><select id="stUser"><option value="${ALL_USERS}">全部用户</option>${(m.users || []).map(u => `<option ${u === state.statsUser ? 'selected' : ''} value="${esc(u)}">${esc(u)}</option>`).join('')}</select>${I.chev}</span>` : '';
+    return `<div class="toolbar chart-bar">
+            <div class="chart-pair">
+                ${userField}
+                <div class="tabs" data-range>
+                    <span class="cap">视图</span>
+                    ${totalTab}
+                    <button data-r="day" class="${range === 'day' ? 'on' : ''}">按天</button>
+                    <button data-r="month" class="${range === 'month' ? 'on' : ''}">按月</button>
+                </div>
             </div>
             ${periodField}
             ${quick ? `<div class="tool-r">${quick}</div>` : ''}

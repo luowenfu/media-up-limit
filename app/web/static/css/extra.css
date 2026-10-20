@@ -21,6 +21,12 @@
     font-size: 12px; font-weight: 500; line-height: 1; color: var(--text-3); white-space: nowrap; user-select: none;
 }
 .range-field > .cap { padding-left: 4px; }
+.chart-bar { gap: 6px; padding: 10px 12px; }
+.chart-pair { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
+.chart-bar > .field, .chart-pair > .field { gap: 4px; height: 38px; padding: 0 8px; }
+.chart-bar .tabs { padding: 2px; }
+.chart-bar .tabs button { height: 32px; padding: 0 8px; }
+.chart-bar .tabs > .cap { margin-right: 2px; padding-left: 5px; }
 .range-field:hover { border-color: var(--accent); }
 .range-field:focus-within, .range-field.is-open { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent); }
 .range-field .sep { display: grid; place-items: center; flex: none; width: 16px; color: #bfbfbf; }
