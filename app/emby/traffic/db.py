@@ -1945,6 +1945,92 @@ def list_content_plays(instance_name: str, period: str, start: str, end: str,
     return [dict(row) for row in rows]
 
 
+_PLAY_SERIES_TYPES = {'Episode', 'Series', 'Season'}
+
+
+def _playback_film_identity(row) -> tuple:
+    series = str(row['play_series'] or '').strip() or str(row['fact_series'] or '').strip()
+    if series:
+        return series, 'series'
+    title = str(row['item_title'] or '').strip() or str(row['episode_label'] or '').strip()
+    if not title:
+        return '', ''
+    if str(row['item_type'] or '').strip() in _PLAY_SERIES_TYPES:
+        return title, 'series'
+    return title, 'movie'
+
+
+def playback_film_ranks(instance_name: str, period: str, start: str, end: str,
+                        limit: int = 10) -> dict:
+    """所选时段内每个用户的播放上行，按影片汇总前若干名。不含选片。"""
+    name = (instance_name or '').strip()
+    if not name:
+        return {'users': {}}
+    _ensure_emby_schema()
+    sql = '''
+        SELECT f.user_name AS user_name,
+               f.estimated_upload_bytes AS bytes,
+               f.series_name AS fact_series,
+               f.episode_label AS episode_label,
+               p.item_title AS item_title,
+               p.item_type AS item_type,
+               p.series_name AS play_series
+        FROM emby_playback_upload_facts f
+        LEFT JOIN emby_content_plays p
+          ON p.instance_name = f.instance_name
+         AND p.segment_id = f.segment_id
+        WHERE f.instance_name = ?
+          AND f.estimated_upload_bytes > 0
+    '''
+    args = [name]
+    if period == 'hourly':
+        sql += ' AND substr(f.stopped_at, 1, 10) = ?'
+        args.append(str(start or '')[:10])
+    else:
+        start_s = str(start or '')
+        end_s = str(end or '')
+        if start_s:
+            sql += ' AND substr(f.stopped_at, 1, ?) >= ?'
+            args.extend([len(start_s), start_s])
+        if end_s:
+            sql += ' AND substr(f.stopped_at, 1, ?) <= ?'
+            args.extend([len(end_s), end_s])
+    with _lock:
+        conn = get_conn()
+        try:
+            rows = conn.execute(sql, args).fetchall()
+        finally:
+            conn.close()
+    buckets = {}
+    for row in rows:
+        user = str(row['user_name'] or '').strip()
+        if not user:
+            continue
+        film, kind = _playback_film_identity(row)
+        if not film:
+            continue
+        films = buckets.setdefault(user, {})
+        info = films.get(film)
+        if info is None:
+            films[film] = {'bytes': int(row['bytes'] or 0), 'kind': kind}
+            continue
+        info['bytes'] += int(row['bytes'] or 0)
+        if kind == 'series':
+            info['kind'] = 'series'
+    users = {}
+    for user, films in buckets.items():
+        ranked = sorted(
+            films.items(),
+            key=lambda item: (-item[1]['bytes'], item[0].casefold()),
+        )
+        users[user] = [
+            {'name': film, 'bytes': info['bytes'], 'kind': info['kind']}
+            for film, info in ranked[:limit]
+            if info['bytes'] > 0
+        ]
+    return {'users': users}
+
+
 def _backfill_content_plays(cursor) -> None:
     """用仍在的播放记录和历史上行事实补齐点播明细。每次启动跑一次，已有记录不会被空值覆盖。"""
     count = 0

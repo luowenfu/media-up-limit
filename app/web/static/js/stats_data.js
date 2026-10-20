@@ -177,7 +177,7 @@ export async function loadEmbyStats(name, range, anchor, user) {
     const pv = sp.prev ? spec(range, sp.prev) : null;
     const u = user || ALL_USERS;
     const base = `/api/emby/playback-stats/${enc(name)}`;
-    const [cur, prev, monthRank, records, content] = await Promise.all([
+    const [cur, prev, monthRank, records, content, filmRanks] = await Promise.all([
         fetchRows(base, sp, { user: u }),
         pv ? fetchRows(base, pv, { user: u }).catch(() => []) : [],
         loadUserRank(name, sp),
@@ -186,6 +186,10 @@ export async function loadEmbyStats(name, range, anchor, user) {
             instance: name, user: u, period: sp.period,
             start: sp.params.start, end: sp.params.end,
         })}`).then(r => r.data || {}).catch(() => ({ genre_error: true })),
+        api.get(`/api/emby/playback-film-ranks${q({
+            instance: name, period: sp.period,
+            start: sp.params.start, end: sp.params.end,
+        })}`).then(r => r.data || {}).catch(() => ({})),
     ]);
     if (sp.all) sp = fitMonths(sp, [cur]);
     const a = fill(sp, cur, 'playback_bytes'), b = fill(sp, cur, 'browse_bytes');
@@ -199,6 +203,7 @@ export async function loadEmbyStats(name, range, anchor, user) {
         kind: 'emby', sp, a, b, name, user: u,
         change: pv ? delta(sum(a), sum(fill(pv, prev, 'playback_bytes'))) : null,
         users: monthRank.users, rank: monthRank.rank,
+        filmTraffic: filmRanks.users || {},
         films: content.films || [], genres: content.genres || [],
         genreError: !!content.genre_error, rankTruncated: !!content.truncated,
         active: u === ALL_USERS ? monthRank.rank.length : monthRank.rank.some(r => r[0] === u) ? 1 : 0,

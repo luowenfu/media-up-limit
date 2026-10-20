@@ -107,6 +107,9 @@ export function donut(parts, totalText) {
 /* ---------- KPI 与排行 ---------- */
 const RANK_LIMIT = 10;
 const PLAY_LIMIT_NOTE = '仅统计最近 500 条播放记录';
+const RANK_CARET = '<svg class="rank-caret" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const rankOpen = new Set();
+const rankKey = (kind, name) => `${kind}\u001f${name}`;
 
 const filmKindLabel = kind => (kind === 'series' ? '剧集' : kind === 'movie' ? '电影' : '');
 
@@ -116,12 +119,68 @@ function rankName(name, kind) {
     return `<div class="rank-name has-kind" title="${esc(name)}"><span>${esc(name)}</span><span class="rank-kind ${kind}">${label}</span></div>`;
 }
 
-function rankBars(rows, formatValue, emptyText) {
+function rankToggle(key, label) {
+    const open = rankOpen.has(key);
+    const action = open ? '收起' : '展开';
+    return `<button type="button" class="rank-toggle" data-rank-key="${esc(key)}" data-rank-label="${esc(label)}" aria-expanded="${open ? 'true' : 'false'}" aria-label="${action}${esc(label)}">${RANK_CARET}</button>`;
+}
+
+function rankBars(rows, formatValue, emptyText, expand) {
     const list = (rows || []).filter(row => row && row[1] > 0).slice(0, RANK_LIMIT);
     const top = list[0] ? list[0][1] : 1;
     if (!list.length) return `<div class="hint-t">${emptyText}</div>`;
-    return `<div class="rank">${list.map((row, i) => `
-        <div class="rank-row"><span class="rank-no">${i + 1}</span><div>${rankName(row[0], row[2])}<div class="rank-bar"><i style="width:${top ? row[1] / top * 100 : 0}%"></i></div></div><span class="rank-v num">${formatValue(row[1])}</span></div>`).join('')}</div>`;
+    return `<div class="rank">${list.map((row, i) => {
+        const extra = expand ? expand(row) : null;
+        const open = !!(extra && rankOpen.has(extra.key));
+        return `<div class="rank-row${extra ? ' can-open' : ''}${open ? ' open' : ''}"><span class="rank-no">${i + 1}</span><div>${rankName(row[0], row[2])}<div class="rank-bar"><i style="width:${top ? row[1] / top * 100 : 0}%"></i></div></div><span class="rank-v num">${formatValue(row[1])}</span>${extra ? rankToggle(extra.key, row[0]) : ''}${extra ? `<div class="rank-detail">${extra.html}</div>` : ''}</div>`;
+    }).join('')}</div>`;
+}
+
+function asFilm(row) {
+    if (Array.isArray(row)) return { name: row[0], count: row[1], kind: row[2] || '', users: [] };
+    return {
+        name: row && row.name || '',
+        count: Number(row && row.count) || 0,
+        kind: row && row.kind || '',
+        users: row && row.users || [],
+    };
+}
+
+function asGenre(row) {
+    if (Array.isArray(row)) return { name: row[0], count: row[1], films: [] };
+    return {
+        name: row && row.name || '',
+        count: Number(row && row.count) || 0,
+        films: row && row.films || [],
+    };
+}
+
+function userTagDetail(users) {
+    const list = (users || []).filter(Boolean);
+    if (!list.length) return '<div class="hint-t">该时段没有点播用户</div>';
+    return `<div class="rank-tags">${list.map(name => `<span class="tag">${esc(name)}</span>`).join('')}</div>`;
+}
+
+function userFilmDetail(rows) {
+    const note = '<div class="rank-subnote">仅播放流量，不含选片</div>';
+    const list = (rows || []).map(row => [row.name, row.bytes, row.kind]);
+    return note + rankBars(list, v => fmtBytes(v, 1000), '该时段没有可归到影片的播放流量');
+}
+
+function filmPlayBars(films, emptyText, scope) {
+    const rows = (films || []).map(asFilm).map(film => [film.name, film.count, film.kind, film.users]);
+    return rankBars(rows, playCount, emptyText, row => ({
+        key: rankKey(scope || 'film', row[0]),
+        html: userTagDetail(row[3]),
+    }));
+}
+
+function genreBars(genres, emptyText) {
+    const rows = (genres || []).map(asGenre).map(genre => [genre.name, genre.count, '', genre.films]);
+    return rankBars(rows, playCount, emptyText, row => ({
+        key: rankKey('genre', row[0]),
+        html: filmPlayBars(row[3], '该类型暂无影片', rankKey('genre-film', row[0])),
+    }));
 }
 
 function rankCard(title, caption, body, note) {
@@ -168,10 +227,14 @@ function ranksOf(m) {
         const genreEmpty = films.length ? '该时段暂无类型' : '该时段暂无播放';
         const genreBody = m.genreError
             ? '<div class="hint-t">暂时取不到影片类型</div>'
-            : rankBars(m.genres, playCount, genreEmpty);
+            : genreBars(m.genres, genreEmpty);
+        const traffic = m.filmTraffic || {};
         return [
-            rankCard('用户上传排行', m.sp.caption, rankBars(m.rank, v => fmtBytes(v, 1000), '该时段暂无用户流量')),
-            rankCard('影片点播排行', m.sp.caption, rankBars(films, playCount, '该时段暂无播放'), note),
+            rankCard('用户上传排行', m.sp.caption, rankBars(m.rank, v => fmtBytes(v, 1000), '该时段暂无用户流量', row => ({
+                key: rankKey('user', row[0]),
+                html: userFilmDetail(traffic[row[0]]),
+            }))),
+            rankCard('影片点播排行', m.sp.caption, filmPlayBars(films, '该时段暂无播放'), note),
             rankCard('类型点播排行', m.sp.caption, genreBody, note),
         ].join('');
     }
@@ -289,8 +352,28 @@ export async function renderStats(kind) {
     return statsHtml(m, kind, dev);
 }
 
+function bindRankToggles() {
+    const root = document.getElementById('sec-chart');
+    if (!root || root.dataset.rankBound) return;
+    root.dataset.rankBound = '1';
+    root.addEventListener('click', event => {
+        const btn = event.target.closest('.rank-toggle');
+        if (!btn || !root.contains(btn)) return;
+        const key = btn.dataset.rankKey;
+        const row = btn.closest('.rank-row');
+        if (!row || !key) return;
+        const open = !rankOpen.has(key);
+        if (open) rankOpen.add(key);
+        else rankOpen.delete(key);
+        row.classList.toggle('open', open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        btn.setAttribute('aria-label', `${open ? '收起' : '展开'}${btn.dataset.rankLabel || ''}`);
+    });
+}
+
 /** 鼠标悬停提示 */
 export function bindChart(kind) {
+    bindRankToggles();
     const wrap = document.getElementById('chartWrap');
     if (!wrap || wrap.dataset.bound) return;
     wrap.dataset.bound = '1';
