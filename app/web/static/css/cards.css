@@ -23,8 +23,8 @@
     padding: 16px 18px;
     color: #fff;
     background:
-        radial-gradient(420px 140px at 100% 0%, rgba(191, 219, 254, .55), transparent 68%),
-        linear-gradient(135deg, #1e293b 0%, #2f4f7a 42%, #7eb6f6 100%);
+        radial-gradient(420px 140px at 100% 0%, rgba(147, 197, 253, .18), transparent 70%),
+        linear-gradient(135deg, #1e293b 0%, #243e5c 52%, #3d6a9a 100%);
     overflow: hidden;
 }
 .dev-head.emby {
