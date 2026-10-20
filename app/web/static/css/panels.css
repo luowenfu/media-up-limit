@@ -40,13 +40,20 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 .rank-grid .chart-side { border-left: 0; padding-right: 0; }
 .rank-grid .chart-side > :not(.rank) { margin-right: 16px; }
 .rank-grid .chart-side + .chart-side { border-left: 1px solid var(--line); }
-.rank-grid .panel-title { min-width: 0; min-height: 26px; flex-wrap: nowrap; }
+.rank-grid .panel-title { min-width: 0; flex-wrap: nowrap; }
 .rank-grid .panel-title small:not(.rank-limit-note) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rank-limit-note { white-space: nowrap; flex-shrink: 0; }
 .rank-tools { display: inline-flex; align-items: center; gap: 2px; flex: none; min-width: 0; }
-.rank-collapse { display: none; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--text-3); place-items: center; cursor: pointer; flex: none; }
-.chart-side:has(.rank-row.open) .rank-collapse { display: grid; }
-.rank-collapse:hover { background: #f1f5f9; color: var(--text-1); }
+.rank-grid .chart-side > .panel-title.rank-head {
+    display: grid; grid-template-columns: minmax(0, 1fr) 18px; column-gap: 8px;
+    align-items: center; margin-right: 0; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+}
+.rank-grid .chart-side > .panel-title.rank-head::-webkit-scrollbar-thumb { background: transparent; }
+.rank-head-main { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.rank-fold { width: 18px; height: 18px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-3); display: grid; place-items: center; cursor: pointer; }
+.rank-fold:hover { background: #f1f5f9; color: var(--text-1); }
+.rank-fold.open .rank-caret { transform: rotate(90deg); }
 .kpi-k { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--text-2); }
 .kpi-ico { width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; }
 .kpi-ico svg { width: 15px; height: 15px; }
@@ -111,11 +118,12 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 
 .rank { display: flex; flex-direction: column; gap: 8px; }
 .chart-side > .rank {
-    max-height: calc(32px * 10 + 8px * 9); overflow-y: auto; overflow-anchor: none;
+    max-height: calc(28px * 10 + 8px * 9); overflow-y: auto; overflow-anchor: none;
     scrollbar-gutter: stable; scrollbar-width: thin;
     scrollbar-color: rgba(100, 116, 139, .45) transparent;
 }
-.chart-side > .rank::-webkit-scrollbar { width: 6px; }
+.chart-side > .rank::-webkit-scrollbar,
+.rank-grid .chart-side > .panel-title.rank-head::-webkit-scrollbar { width: 6px; }
 .chart-side > .rank::-webkit-scrollbar-track { background: transparent; }
 .chart-side > .rank::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, .45); border-radius: 999px; }
 .rank-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; overflow-anchor: none; }
@@ -126,7 +134,9 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 .rank > .rank-row:nth-child(1) > .rank-no { background: #f6c445; color: #6b4700; }
 .rank > .rank-row:nth-child(2) > .rank-no { background: #d5dee8; color: #334155; }
 .rank > .rank-row:nth-child(3) > .rank-no { background: #e7b08a; color: #6f3d1d; }
-.rank-toggle { width: 18px; height: 32px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-3); display: grid; place-items: center; cursor: pointer; }
+.rank-row.can-open > .rank-v,
+.rank-row.can-open > .rank-toggle { align-self: start; height: 18px; line-height: 18px; }
+.rank-toggle { width: 18px; height: 18px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-3); display: grid; place-items: center; cursor: pointer; }
 .rank-toggle:hover { background: #f1f5f9; color: var(--text-1); }
 .rank-caret { display: block; transition: transform .15s; }
 .rank-row.open > .rank-toggle .rank-caret { transform: rotate(90deg); }
@@ -136,7 +146,7 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 .rank-subnote { margin-bottom: 6px; font-size: 11px; line-height: 1.4; color: var(--text-3); }
 .rank-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .rank-detail .hint-t { margin-top: 0; }
-.rank-name { font-size: 13px; font-weight: 600; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-name { height: 18px; line-height: 18px; font-size: 13px; font-weight: 600; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rank-name.has-kind { display: flex; align-items: center; gap: 6px; }
 .rank-name.has-kind > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .rank-kind { flex: none; font-size: 11px; font-weight: 500; color: var(--text-3); }

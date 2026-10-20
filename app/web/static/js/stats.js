@@ -108,7 +108,6 @@ export function donut(parts, totalText) {
 const RANK_LIMIT = 10;
 const PLAY_LIMIT_NOTE = '仅统计最近 500 条播放记录';
 const RANK_CARET = '<svg class="rank-caret" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const RANK_FOLD = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 9l4-4 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const rankOpen = new Set();
 const rankKey = (kind, name) => `${kind}\u001f${name}`;
 
@@ -186,9 +185,37 @@ function genreBars(genres, emptyText) {
 
 function rankCard(title, caption, body, note, collapsible) {
     const limit = note ? `<small class="rank-limit-note">${esc(note)}</small>` : '';
-    const fold = collapsible ? `<button type="button" class="rank-collapse" aria-label="全部收起" title="全部收起">${RANK_FOLD}</button>` : '';
-    const tools = (limit || fold) ? `<span class="r rank-tools">${limit}${fold}</span>` : '';
+    const hasRows = collapsible && body.includes('rank-toggle');
+    const anyOpen = hasRows && body.includes('aria-expanded="true"');
+    const foldLabel = anyOpen ? '全部收起' : '全部展开';
+    const fold = hasRows ? `<button type="button" class="rank-fold${anyOpen ? ' open' : ''}" aria-expanded="${anyOpen ? 'true' : 'false'}" aria-label="${foldLabel}" title="${foldLabel}">${RANK_CARET}</button>` : '';
+    if (hasRows) {
+        return `<div class="chart-side"><h3 class="panel-title rank-head"><span class="rank-head-main">${title}<small>${esc(caption)}</small>${limit}</span>${fold}</h3>${body}</div>`;
+    }
+    const tools = limit ? `<span class="r rank-tools">${limit}</span>` : '';
     return `<div class="chart-side"><h3 class="panel-title">${title}<small>${esc(caption)}</small>${tools}</h3>${body}</div>`;
+}
+
+function syncRankFold(board) {
+    const fold = board?.querySelector(':scope > .panel-title .rank-fold');
+    if (!fold) return;
+    const anyOpen = [...board.querySelectorAll('.rank-toggle')].some(btn => btn.getAttribute('aria-expanded') === 'true');
+    fold.classList.toggle('open', anyOpen);
+    const label = anyOpen ? '全部收起' : '全部展开';
+    fold.setAttribute('aria-expanded', anyOpen ? 'true' : 'false');
+    fold.setAttribute('aria-label', label);
+    fold.title = label;
+}
+
+function setRankRow(row, open) {
+    const toggle = row.querySelector(':scope > .rank-toggle');
+    const key = toggle?.dataset.rankKey;
+    if (!toggle || !key) return;
+    if (open) rankOpen.add(key);
+    else rankOpen.delete(key);
+    row.classList.toggle('open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.setAttribute('aria-label', `${open ? '收起' : '展开'}${toggle.dataset.rankLabel || ''}`);
 }
 
 const playCount = value => `${value}<small>人次</small>`;
@@ -360,36 +387,25 @@ function bindRankToggles() {
     if (!root || root.dataset.rankBound) return;
     root.dataset.rankBound = '1';
     root.addEventListener('click', event => {
-        const fold = event.target.closest('.rank-collapse');
+        const fold = event.target.closest('.rank-fold');
         if (fold && root.contains(fold)) {
             const board = fold.closest('.chart-side');
             const scroller = board?.querySelector(':scope > .rank');
             const scrollTop = scroller ? scroller.scrollTop : 0;
-            board?.querySelectorAll('.rank-row.open').forEach(row => {
-                const toggle = row.querySelector(':scope > .rank-toggle');
-                const key = toggle?.dataset.rankKey;
-                if (key) rankOpen.delete(key);
-                row.classList.remove('open');
-                if (!toggle) return;
-                toggle.setAttribute('aria-expanded', 'false');
-                toggle.setAttribute('aria-label', `展开${toggle.dataset.rankLabel || ''}`);
-            });
+            const open = fold.getAttribute('aria-expanded') !== 'true';
+            board?.querySelectorAll('.rank-row.can-open').forEach(row => setRankRow(row, open));
+            syncRankFold(board);
             if (scroller) scroller.scrollTop = scrollTop;
             return;
         }
         const btn = event.target.closest('.rank-toggle');
         if (!btn || !root.contains(btn)) return;
-        const key = btn.dataset.rankKey;
         const row = btn.closest('.rank-row');
-        if (!row || !key) return;
-        const open = !rankOpen.has(key);
+        if (!row || !btn.dataset.rankKey) return;
         const scroller = row.closest('.chart-side')?.querySelector(':scope > .rank');
         const scrollTop = scroller ? scroller.scrollTop : 0;
-        if (open) rankOpen.add(key);
-        else rankOpen.delete(key);
-        row.classList.toggle('open', open);
-        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-        btn.setAttribute('aria-label', `${open ? '收起' : '展开'}${btn.dataset.rankLabel || ''}`);
+        setRankRow(row, !rankOpen.has(btn.dataset.rankKey));
+        syncRankFold(row.closest('.chart-side'));
         if (scroller) scroller.scrollTop = scrollTop;
     });
 }
