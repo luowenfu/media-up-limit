@@ -69,6 +69,23 @@
     }
     .tb-metric small { white-space: normal; }
     .tb-mi { width: 22px; height: 22px; }
+    body[data-detail="1"] .tb-metrics {
+        display: flex; flex-direction: column; justify-content: flex-end;
+        overflow: hidden; height: 20px; min-height: 0;
+        padding: 0 12px; touch-action: none; user-select: none;
+    }
+    body[data-detail="1"] .tb-metrics-in { min-height: 0; flex: none; }
+    .tb-grip { display: none; }
+    body[data-detail="1"] .tb-grip {
+        display: flex; flex: none; align-items: center; justify-content: center;
+        width: calc(100% + 24px); height: 20px; margin: 0 -12px;
+        border: 0; padding: 0; background: transparent; color: var(--text-3);
+        touch-action: none; cursor: grab;
+    }
+    body[data-detail="1"] .tb-grip::before {
+        content: ""; width: 36px; height: 4px; border-radius: 3px;
+        background: color-mix(in srgb, var(--text-3) 75%, transparent);
+    }
     .feed-body { max-height: 70vh; padding: 0 8px 8px; }
     body[data-detail="1"] #content { display: block; }
     body[data-detail="1"] .sec-events { position: static; max-height: none; }
