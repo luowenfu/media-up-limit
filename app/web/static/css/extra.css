@@ -14,26 +14,27 @@
     background: #fff; border: 1px solid #d9d9d9; color: var(--text);
     transition: border-color .15s, box-shadow .15s;
 }
-.range-field.is-day { width: 272px; }
-.range-field:not(.is-day) { width: 220px; }
-.tabs > .cap, .range-field > .cap {
-    align-self: center; flex: none; margin-right: 4px; padding-left: 7px;
-    font-size: 12px; font-weight: 500; line-height: 1; color: var(--text-3); white-space: nowrap; user-select: none;
+.range-field.is-day { width: 236px; }
+.range-field:not(.is-day) { width: 188px; }
+.chart-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-width: 0; }
+.chart-chip > .cap {
+    flex: none; font-size: 11px; font-weight: 500; line-height: 1; letter-spacing: .04em;
+    color: var(--text-3); white-space: nowrap; user-select: none; pointer-events: none;
 }
-.range-field > .cap { padding-left: 4px; }
 .chart-bar { gap: 6px; padding: 10px 12px; }
 .chart-pair { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
 .chart-bar > .field, .chart-pair > .field { gap: 4px; height: 38px; padding: 0 8px; }
 .chart-bar .tabs { padding: 2px; }
-.chart-bar .tabs button { height: 32px; padding: 0 8px; }
-.chart-bar .tabs > .cap { margin-right: 2px; padding-left: 5px; }
-.chart-bar .tabs button { transition: background .15s, color .15s; }
+.chart-bar .tabs button { height: 32px; padding: 0 8px; transition: background .15s, color .15s; }
 .chart-bar .tabs button.on {
-    background: var(--accent); color: #fff;
-    box-shadow: 0 1px 2px color-mix(in srgb, var(--accent) 32%, transparent);
+    background: color-mix(in srgb, var(--accent) 16%, #fff);
+    color: var(--accent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 24%, transparent);
 }
 html[data-scheme="dark"] .chart-bar .tabs button.on {
-    background: var(--accent-2); color: #fff; box-shadow: none;
+    background: color-mix(in srgb, var(--accent) 26%, #1b2436);
+    color: color-mix(in srgb, var(--accent-2) 72%, #fff);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent);
 }
 .range-field:hover { border-color: var(--accent); }
 .range-field:focus-within, .range-field.is-open { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent); }
