@@ -3,28 +3,27 @@
 import * as api from './api.js';
 import { exportLogs, loadMoreLogs, logListHtml } from './syslogs.js';
 import {
-    state, embyOn, loadGlobal, loadPrefs, loadStatus, pickPlatform, refreshLive, savePrefs, syncMerge,
+    state, loadGlobal, loadPrefs, loadStatus, navCollapsed, pageSnapshot, pickView, refreshLive,
+    rememberPage, restorePage, savePrefs, syncMerge,
 } from './store.js';
-import { render, refreshLogsInPlace } from './shell.js';
+import {
+    fitEvents, fixRoute, isListView, rememberPart, render, refreshLogsInPlace, revealSection, syncDetailFold, toggleMetricsBar, toggleNavGroup,
+} from './shell.js';
 import { uiClick, uiInput, relockTiles } from './interact.js';
+import { toggleReveal } from './cards.js';
 import { openSettings } from './settings.js';
-import { openMergeEditor } from './merge.js';
+import { toggleScheme } from './theme.js';
 import { openChooser } from './dialogs.js';
 import { defaultAnchor } from './stats_data.js';
+import { chartOrderPref, moveChartBlock } from './stats.js';
 import {
     $, closeDrawer, closeModal, closeSheet, toast,
 } from './ui.js';
 
 const pad = n => String(n).padStart(2, '0');
 
-/* ---------- 导航 ---------- */
-function go(patch, push = true) {
-    Object.assign(state, patch);
-    if (push) history.pushState({ page: state.page, platform: state.platform }, '');
-    closeDrawer();
-    render();
-    window.scrollTo({ top: 0 });
-}
+/* ---------- 导航：视图（合并 / qB / Emby / 日志）+ 设备 ---------- */
+const route = () => pageSnapshot();
 
 function resetFilters() {
     Object.assign(state, {
@@ -32,36 +31,88 @@ function resetFilters() {
     });
 }
 
-function setPlatform(p) {
-    if (p !== 'qb' && !embyOn()) { toast('Emby 监控未开启，可在全局设置中开启', 'info'); return; }
-    if (p === 'merge' && state.platform === 'merge' && state.page === 'devices') { openMergeEditor(); return; }
-    const toDevices = p === 'merge' && state.page !== 'devices';
-    if (p !== state.platform) resetFilters();
-    savePrefs({ device_view_mode: p });
-    if (toDevices) { go({ platform: p, page: 'devices' }); return; }
-    state.platform = p;
+function setGroupOpen(kind, open) {
+    const list = navCollapsed();
+    if (open === !list.includes(kind)) return;
+    savePrefs({ nav_collapsed: open ? list.filter(k => k !== kind) : [...list, kind] });
+    toggleNavGroup(kind, open);
+}
+
+/** 切换页面 */
+function go(patch, { replace = false } = {}) {
+    const before = `${state.view}|${state.dev}`;
+    Object.assign(state, patch);
+    if (`${state.view}|${state.dev}` === before && !replace) { closeDrawer(); return; }
+    if (`${state.view}|${state.dev}` !== before) resetFilters();
+    if (state.view === 'qb' || state.view === 'emby') setGroupOpen(state.view, true);
+    if (isListView(state.view) && !state.dev && state.prefs.device_view_mode !== state.view) savePrefs({ device_view_mode: state.view });
+    history[replace ? 'replaceState' : 'pushState'](route(), '');
+    closeDrawer();
     render();
+    if (!replace) window.scrollTo({ top: 0 });
+}
+
+function openDevice(kind, dev, focus) {
+    if (focus === 'chart' || focus === 'events') state.detailTab = focus;
+    const same = state.view === kind && state.dev === dev;
+    if (same) {
+        closeDrawer();
+        document.body.dataset.detailTab = state.detailTab || 'card';
+        document.querySelectorAll('#detailTabs [data-detail-tab]').forEach(el => el.classList.toggle('active', el.dataset.detailTab === state.detailTab));
+        rememberPage();
+        revealSection(focus);
+        return;
+    }
+    state.focus = focus || '';
+    go({ view: kind, dev });
 }
 
 /* ---------- 点击 ---------- */
 document.addEventListener('click', e => {
-    const t = e.target.closest('button, .switch, .chk, .me-item, [data-lucky], [data-close], [data-lim-mode], [data-hidelan], [data-datef]');
+    const t = e.target.closest('button, .switch, .chk, .me-item, [data-lucky], [data-close], [data-lim-mode], [data-hidelan], [data-datef], [data-open-dev]');
     if (!t) return;
+    if (t.dataset.reveal) { toggleReveal(t.dataset.reveal); render(); return; }
     const ctx = { render: () => render() };
+    if (t.closest('[data-hidelan]')) { state.eventsHideLan = !state.eventsHideLan; render(); return; }
     if (uiClick(t, e, ctx)) return;
-    if (t.matches('[data-seg] button')) { setPlatform(t.dataset.p); return; }
-    if (t.matches('.nav-item[data-page], .bottom-bar button')) { go({ page: t.dataset.page }); return; }
-    if (t.dataset.open === 'add') { closeDrawer(); openChooser(); return; }
-    if (t.dataset.open === 'settings') { closeDrawer(); openSettings(); return; }
-    if (t.dataset.goto) {
-        const patch = { page: t.dataset.goto };
-        if (state.platform === 'merge') patch.platform = t.closest('.merge-col:last-child') ? 'emby' : 'qb';
-        resetFilters();
-        patch.statsDevice = patch.eventsDevice = t.dataset.dev || '';
-        go(patch);
+    if (t.dataset.navToggle) { const k = t.dataset.navToggle; setGroupOpen(k, navCollapsed().includes(k)); return; }
+    if (t.dataset.nav) {
+        if (matchMedia('(max-width: 992px)').matches && t.dataset.nav === 'merge') return;
+        if (matchMedia('(max-width: 992px)').matches && !t.dataset.dev && (t.dataset.nav === 'qb' || t.dataset.nav === 'emby')) {
+            setGroupOpen(t.dataset.nav, navCollapsed().includes(t.dataset.nav));
+            return;
+        }
+        if (t.dataset.dev) openDevice(t.dataset.nav, t.dataset.dev);
+        else go({ view: t.dataset.nav, dev: '' });
         return;
     }
-    if (t.dataset.switch) { resetFilters(); state.platform = t.dataset.switch; render(); return; }
+    if (t.dataset.bar) { go({ view: t.dataset.bar === 'syslogs' ? 'syslogs' : state.lastList, dev: '' }); return; }
+    if (t.dataset.open === 'add') { closeDrawer(); openChooser(); return; }
+    if (t.id === 'themeBtn') { toggleScheme(); return; }
+    if (t.dataset.open === 'settings') { closeDrawer(); openSettings(); return; }
+    if (t.dataset.goto) { openDevice(t.dataset.kind, t.dataset.dev, t.dataset.goto); return; }
+    if (t.hasAttribute('data-open-dev')) { openDevice(t.dataset.kind, t.dataset.dev); return; }
+    if (t.dataset.feed) { state.feedOpen[t.dataset.feed] = !state.feedOpen[t.dataset.feed]; render(); return; }
+    if (t.dataset.fold) { state.detailFold[t.dataset.fold] = !state.detailFold[t.dataset.fold]; syncDetailFold(); return; }
+    if (t.hasAttribute('data-block-swap')) {
+        const order = moveChartBlock(t);
+        if (!order) return;
+        const sec = document.getElementById('sec-chart');
+        if (sec) rememberPart('chart', sec.innerHTML.replace(/\sdata-bound="1"/g, ''));
+        const patch = chartOrderPref(order);
+        if (patch) savePrefs(patch);
+        return;
+    }
+    if (t.dataset.detailTab) {
+        state.detailTab = t.dataset.detailTab;
+        rememberPage();
+        document.body.dataset.detailTab = state.detailTab;
+        document.querySelectorAll('#detailTabs [data-detail-tab]').forEach(el => el.classList.toggle('active', el.dataset.detailTab === state.detailTab));
+        window.scrollTo({ top: 0 });
+        return;
+    }
+    if (t.id === 'backBtn') { go({ dev: '' }); return; }
+    if (t.id === 'metricsBtn') { toggleMetricsBar(); return; }
     if (t.closest('[data-range]') && t.dataset.r) { state.statsRange = t.dataset.r; state.statsDate = ''; render(); return; }
     if (t.closest('[data-evtype]')) { state.eventsType = t.dataset.v; render(); return; }
     if (t.closest('[data-logsrc]')) { state.logSrc = t.dataset.v; render(); return; }
@@ -82,11 +133,9 @@ async function logout() {
 /* ---------- 下拉与输入 ---------- */
 document.addEventListener('change', e => {
     const t = e.target;
-    if (t.id === 'stDev') { state.statsDevice = t.value; state.statsUser = ''; render(); }
-    else if (t.id === 'stUser') { state.statsUser = t.value === '__all_users__' ? '' : t.value; render(); }
+    if (t.id === 'stUser') { state.statsUser = t.value === '__all_users__' ? '' : t.value; render(); }
     else if (t.id === 'stDate') { state.statsDate = t.value || defaultAnchor(state.statsRange); render(); }
     else if (t.id === 'stSpan') { state.statsSpan = t.value; render(); }
-    else if (t.id === 'evDev') { state.eventsDevice = t.value; state.eventsUser = ''; render(); }
     else if (t.id === 'evUser') { state.eventsUser = t.value; render(); }
     else if (t.id === 'evDays') { state.eventsDays = +t.value; render(); }
 });
@@ -106,9 +155,22 @@ $('#sheetMask').addEventListener('click', closeSheet);
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
 $('#menuBtn').addEventListener('click', () => document.body.classList.add('drawer'));
 $('#scrim').addEventListener('click', closeDrawer);
-window.addEventListener('resize', relockTiles);
+let wasMobile = matchMedia('(max-width: 992px)').matches;
+window.addEventListener('resize', () => {
+    relockTiles();
+    fitEvents();
+    const mobile = matchMedia('(max-width: 992px)').matches;
+    const needDevice = mobile && (state.view === 'merge' || ((state.view === 'qb' || state.view === 'emby') && !state.dev));
+    if (needDevice || mobile !== wasMobile) render();
+    wasMobile = mobile;
+});
 window.addEventListener('popstate', e => {
-    if (e.state) { Object.assign(state, e.state); render(); }
+    if (!e.state) return;
+    const before = `${state.view}|${state.dev}`;
+    Object.assign(state, e.state);
+    if (`${state.view}|${state.dev}` !== before) resetFilters();
+    closeDrawer();
+    render();
 });
 
 /* ---------- 刷新 ---------- */
@@ -120,7 +182,6 @@ async function reloadAll(full) {
         if (full) await loadGlobal();
         await loadStatus();
         syncMerge();
-        if (!embyOn() && state.platform !== 'qb') state.platform = 'qb';
         await render({ soft: !full });
     } catch (err) {
         toast(err.message || '刷新失败', 'err');
@@ -139,14 +200,13 @@ async function refreshTick() {
         await refreshLive();
         syncMerge();
         if (editing()) return;
-        if (state.page === 'syslogs') await refreshLogsInPlace();
+        if (state.view === 'syslogs') await refreshLogsInPlace();
         else await render({ soft: true });
     } catch (e) { /* 单次刷新失败不打扰，下个周期再试 */ }
 }
 
 /* ---------- 时钟与倒计时 ---------- */
 let left = 1;
-let slow = 0;
 const period = () => Math.max(1, state.global.refresh_interval || 1);
 document.addEventListener('app:interval', () => { left = period(); });
 
@@ -180,11 +240,7 @@ function tick() {
     } else $('#ringBar').style.strokeDashoffset = '';
     if (left <= 1) {
         left = period();
-        if (state.page === 'stats' || state.page === 'events') {
-            // 图表和事件页每 30 个周期整页刷新一次，其余时间只更新设备数据
-            if (++slow >= 30 && !editing()) { slow = 0; render({ soft: true }); }
-            refreshLive().then(syncMerge).catch(() => {});
-        } else refreshTick();
+        refreshTick();
     } else left -= 1;
 }
 
@@ -198,8 +254,9 @@ async function boot() {
         toast(e.message || '加载失败', 'err');
     }
     syncMerge();
-    state.platform = pickPlatform();
-    history.replaceState({ page: state.page, platform: state.platform }, '');
+    if (!restorePage()) state.view = pickView();
+    fixRoute();
+    history.replaceState(route(), '');
     state.ready = true;
     left = period();
     await render();

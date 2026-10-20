@@ -1,5 +1,5 @@
 /* ============ 手机端 ============ */
-#menuBtn, #backBtn, .bottom-bar, .scrim, .detail-tabs { display: none; }
+#menuBtn, #backBtn, #metricsBtn, .bottom-bar, .scrim, .detail-tabs { display: none; }
 
 @media (max-width: 1180px) {
     .merge { grid-template-columns: 1fr; }
@@ -47,6 +47,12 @@
     .icon-btn { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; color: var(--text); }
     .icon-btn:hover { background: #f1f5f9; }
     .tb-title { flex: 1; min-height: 38px; }
+    body[data-detail="1"] #metricsBtn { display: grid; margin-left: auto; flex: none; }
+    body[data-detail="1"] #metricsBtn svg { transition: transform .2s ease; }
+    body[data-detail="1"].metrics-open #metricsBtn { color: var(--accent); background: var(--accent-soft); }
+    body[data-detail="1"].metrics-open #metricsBtn svg { transform: rotate(180deg); }
+    body[data-detail="1"]:not(.metrics-open) .tb-metrics { display: none; }
+    body[data-detail="1"]:not(.metrics-open) .tb-bar { box-shadow: 0 1px 0 var(--line); }
     .tb-metrics {
         position: relative; z-index: 90;
         width: 100%; height: auto; margin: 0; flex: none;

@@ -181,6 +181,40 @@ function ensureTopbar() {
     ensureTbBar();
 }
 
+const METRICS_ICON = '<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M5 7.5 10 12.5 15 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+/** 手机设备详情里，状态栏默认收起，点顶栏右侧图标再展开 */
+let metricsOpen = false;
+
+function ensureMetricsBtn() {
+    if (document.getElementById('metricsBtn')) return;
+    const bar = document.querySelector('.tb-bar');
+    if (!bar) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'icon-btn';
+    btn.id = 'metricsBtn';
+    btn.setAttribute('aria-label', '展开状态栏');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.innerHTML = METRICS_ICON;
+    bar.appendChild(btn);
+}
+
+function syncMetricsToggle() {
+    const open = metricsOpen && isMobile() && !!state.dev;
+    document.body.classList.toggle('metrics-open', open);
+    const btn = document.getElementById('metricsBtn');
+    if (!btn) return;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.setAttribute('aria-label', open ? '收起状态栏' : '展开状态栏');
+}
+
+export function toggleMetricsBar() {
+    metricsOpen = !metricsOpen;
+    syncMetricsToggle();
+    syncMetricsEdge();
+}
+
 /** 标题行单独吸顶，统计留在文档流里，随滚动匀速滑到标题下面 */
 function ensureTbBar() {
     if (document.querySelector('.tb-bar')) return;
@@ -196,6 +230,7 @@ function ensureTbBar() {
 export function renderChrome() {
     ensureTopbar();
     ensureTbBar();
+    ensureMetricsBtn();
     ensureDetailTabs();
     ensureSidebar();
     const { view, dev } = state;
@@ -231,13 +266,15 @@ export function renderChrome() {
         metrics.style.height = '';
         metrics.style.transition = '';
     }
+    syncMetricsToggle();
 }
 
 /** 统计完全滑进标题栏后，给标题栏补上底边，避免和内容贴在一起 */
 function syncMetricsEdge() {
     const bar = document.querySelector('.tb-bar');
     const metrics = document.querySelector('.tb-metrics');
-    if (!bar || !metrics || !isMobile()) {
+    const hidden = metrics && getComputedStyle(metrics).display === 'none';
+    if (!bar || !metrics || !isMobile() || hidden) {
         document.body.classList.remove('metrics-gone');
         return;
     }
