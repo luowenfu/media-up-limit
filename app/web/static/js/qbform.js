@@ -43,7 +43,7 @@ function planPane(cfg, mode, used) {
     return planHtml({
         sub: mode === 'edit' && live ? live.range : '保存后从今天开始计算',
         cycle: cfg.cycle, rules: toRules(cfg.speed_rules), used,
-    }) + (mode === 'edit' ? `<button type="button" class="plan-add" data-next-add style="margin-top:14px;${next ? 'display:none' : ''}"><span class="ic">+</span><div><b>添加下周期计划</b><small>本周期结束后自动切换为新的周期和规则，不影响当前周期</small></div></button>
+    }) + (mode === 'edit' ? `<button type="button" class="plan-add" data-next-add style="margin-top:14px;${next ? 'display:none' : ''}"><span class="ic">+</span><div><b>添加下周期计划</b><small>本周期结束后自动切换为新计划，不影响当前计划</small></div></button>
         ${planHtml({
         next: true, id: 'nextPlan', hidden: !next, sub: nextSub,
         cycle: next ? next.cycle : cfg.cycle, rules: toRules(next ? next.speed_rules : cfg.speed_rules),
@@ -132,7 +132,7 @@ export async function openQbForm(mode, name) {
         saveLabel: mode === 'edit' ? '保存' : '添加设备',
         tabs: [
             { label: '基础与连接', icon: 'link', html: connectionPane(cfg, mode, rank, count) },
-            { label: '达量规则', icon: 'rules', html: planPane(cfg, mode, live ? live.raw.cycle_uploaded_gb : 0) },
+            { label: '达量限速规则', icon: 'rules', html: planPane(cfg, mode, live ? live.raw.cycle_uploaded_gb : 0) },
         ],
         onSave: root => save(root, cfg, mode),
         tests: { qbConn: root => runTest(root, cfg, 'connect'), qbLimit: root => runTest(root, cfg, 'limit') },

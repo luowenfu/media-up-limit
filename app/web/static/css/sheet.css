@@ -131,7 +131,6 @@
 .plan { padding: 16px; border-radius: 14px; border: 1px solid var(--line); background: #fbfcfe; }
 .plan + .plan, .plan + .plan-add { margin-top: 14px; }
 .plan-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-.plan-head .tg { height: 22px; padding: 0 8px; border-radius: 7px; font-size: 11px; font-weight: 800; line-height: 22px; background: var(--qb-soft); color: var(--qb); }
 #nextPlan { border-color: #bfdbfe; background: #f5f9ff; }
 .plan-head b { font-size: 13.5px; color: var(--text); }
 .plan-head small { font-size: 12px; color: var(--text-2); }

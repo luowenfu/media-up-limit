@@ -186,7 +186,6 @@ html[data-scheme="dark"] .m-ico.green { background: #10281f; color: #6ee7b7; }
 html[data-scheme="dark"] .ev-ico.violet,
 html[data-scheme="dark"] .act.lim .ai,
 html[data-scheme="dark"] .m-ico.violet { background: rgba(139, 92, 246, .22); color: #c4b5fd; }
-html[data-scheme="dark"] .plan-head .tg.next,
 html[data-scheme="dark"] .plan-add .ic { background: rgba(37, 99, 235, .22); color: #93c5fd; }
 
 html[data-scheme="dark"] .tile.alert { background: #2a1518; }
