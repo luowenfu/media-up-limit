@@ -261,12 +261,12 @@ function ranksOf(m) {
             : genreBars(m.genres, genreEmpty);
         const traffic = m.filmTraffic || {};
         return [
-            rankCard('用户上传排行', m.sp.caption, rankBars(m.rank, v => fmtBytes(v, 1000), '该时段暂无用户流量', row => ({
+            rankCard('用户上传 Top 10', m.sp.caption, rankBars(m.rank, v => fmtBytes(v, 1000), '该时段暂无用户流量', row => ({
                 key: rankKey('user', row[0]),
                 html: userFilmDetail(traffic[row[0]]),
             })), '', true),
-            rankCard('影片点播排行', m.sp.caption, filmPlayBars(films, '该时段暂无播放'), note, true),
-            rankCard('类型点播排行', m.sp.caption, genreBody, note, true),
+            rankCard('影片点播 Top 10', m.sp.caption, filmPlayBars(films, '该时段暂无播放'), note, true),
+            rankCard('类型点播 Top 10', m.sp.caption, genreBody, note, true),
         ].join('');
     }
     return [
