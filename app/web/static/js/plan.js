@@ -47,7 +47,7 @@ export const planHtml = o => {
     const label = CYC_LABEL[c.type] || '按月';
     const rules = o.rules && o.rules.length ? o.rules : [{ th: '', sp: '' }];
     return `<div class="plan" ${o.id ? `id="${o.id}"` : ''} ${o.hidden ? 'style="display:none"' : ''}>
-    <div class="plan-head"><span class="tg">${o.next ? '下周期计划' : '当前周期计划'}</span><small>${o.sub}</small>
+    <div class="plan-head"><b>${o.next ? '下周期计划' : '当前周期计划'}</b><small>${o.sub}</small>
         ${o.next ? '<span class="r"><button type="button" class="link-danger" data-next-del>移除</button></span>' : ''}</div>
     <div class="f-grid">
         ${fld('周期类型', segF(['按月', '按周', '按天'], label, 'data-cyc'), { full: true })}

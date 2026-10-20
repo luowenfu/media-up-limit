@@ -55,7 +55,7 @@
 .fs-head small { font-size: 12px; color: var(--text-2); }
 .fs-head .r { margin-left: auto; }
 .f-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 16px; }
-.f-grid .full { grid-column: 1 / -1; }
+.f-grid .full { grid-column: 1 / -1; min-width: 0; }
 .f-grid.c3 { grid-template-columns: 1.2fr 1fr 1fr; }
 .fl { display: flex; align-items: center; gap: 4px; margin-bottom: 7px; font-size: 12.5px; font-weight: 650; color: var(--text-1); }
 .fl .req { color: var(--danger); }
@@ -86,6 +86,23 @@
 .stepper button:hover { color: var(--text); background: #eef2f7; }
 .stepper input { text-align: center; }
 .hint-t { margin-top: 6px; font-size: 12px; line-height: 1.55; color: var(--text-3); }
+.rule-add {
+    width: 22px; height: 22px; margin-left: 4px; border-radius: 7px;
+    display: grid; place-items: center; color: var(--emby); background: var(--emby-soft);
+}
+.rule-add:hover { filter: brightness(1.08); }
+.rule-add svg { width: 14px; height: 14px; }
+.rule-rows { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.rule-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.rule-row .inp { flex: 1 1 0; min-width: 0; }
+.rule-row select { width: 100%; text-overflow: ellipsis; }
+.rule-x {
+    flex: none; width: 36px; height: 40px; border-radius: 10px;
+    display: grid; place-items: center; color: var(--text-3);
+    background: #fff; border: 1px solid var(--line);
+}
+.rule-x:hover { color: var(--danger); border-color: #fecaca; background: #fef2f2; }
+.rule-x svg { width: 14px; height: 14px; }
 .notice { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; margin-bottom: 14px; border-radius: 12px; font-size: 12.5px; line-height: 1.6; background: #f4f7ff; border: 1px solid #dde7fb; color: #1e3a8a; }
 .notice svg { width: 17px; height: 17px; margin-top: 1px; }
 .notice.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
@@ -131,7 +148,6 @@
 .plan { padding: 16px; border-radius: 14px; border: 1px solid var(--line); background: #fbfcfe; }
 .plan + .plan, .plan + .plan-add { margin-top: 14px; }
 .plan-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-.plan-head .tg { height: 22px; padding: 0 8px; border-radius: 7px; font-size: 11px; font-weight: 800; line-height: 22px; background: var(--qb-soft); color: var(--qb); white-space: nowrap; }
 #nextPlan { border-color: #bfdbfe; background: #f5f9ff; }
 .plan-head b { font-size: 13.5px; color: var(--text); }
 .plan-head small { font-size: 12px; color: var(--text-2); }
