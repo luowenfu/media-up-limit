@@ -114,10 +114,23 @@ const rankKey = (kind, name) => `${kind}\u001f${name}`;
 
 const filmKindLabel = kind => (kind === 'series' ? '剧集' : kind === 'movie' ? '电影' : '');
 
-function rankName(name, kind) {
+function rankName(name, kind, extras) {
     const label = filmKindLabel(kind);
-    if (!label) return `<div class="rank-name" title="${esc(name)}">${esc(name)}</div>`;
-    return `<div class="rank-name has-kind" title="${esc(name)}"><span>${esc(name)}</span><span class="rank-kind ${kind}">${label}</span></div>`;
+    const notes = (extras || []).filter(Boolean);
+    const bits = [];
+    if (label) bits.push(`<span class="rank-kind ${kind}">${label}</span>`);
+    notes.forEach(text => bits.push(`<span class="rank-kind">${esc(text)}</span>`));
+    if (!bits.length) return `<div class="rank-name" title="${esc(name)}">${esc(name)}</div>`;
+    const title = notes.length ? `${name} ${notes.join(' ')}` : name;
+    return `<div class="rank-name has-kind" title="${esc(title)}"><span>${esc(name)}</span>${bits.join('')}</div>`;
+}
+
+function torrentNotes(row) {
+    if (!row || row.length < 4) return [];
+    const [n, u] = splitBytes(row[2]);
+    const ratio = Number(row[3]);
+    const share = Number.isFinite(ratio) && ratio >= 0 ? ratio.toFixed(2) : '∞';
+    return [`体积${n}${u}`, `分享率：${share}`];
 }
 
 function rankToggle(key, label) {
@@ -126,14 +139,15 @@ function rankToggle(key, label) {
     return `<button type="button" class="rank-toggle" data-rank-key="${esc(key)}" data-rank-label="${esc(label)}" aria-expanded="${open ? 'true' : 'false'}" aria-label="${action}${esc(label)}">${RANK_CARET}</button>`;
 }
 
-function rankBars(rows, formatValue, emptyText, expand) {
+function rankBars(rows, formatValue, emptyText, expand, notesOf) {
     const list = (rows || []).filter(row => row && row[1] > 0).slice(0, RANK_LIMIT);
     const top = list[0] ? list[0][1] : 1;
     if (!list.length) return `<div class="hint-t">${emptyText}</div>`;
     return `<div class="rank">${list.map((row, i) => {
         const extra = expand ? expand(row) : null;
         const open = !!(extra && rankOpen.has(extra.key));
-        return `<div class="rank-row${extra ? ' can-open' : ''}${open ? ' open' : ''}"><span class="rank-no">${i + 1}</span><div>${rankName(row[0], row[2])}<div class="rank-bar"><i style="width:${top ? row[1] / top * 100 : 0}%"></i></div></div><span class="rank-v num">${formatValue(row[1])}</span>${extra ? rankToggle(extra.key, row[0]) : ''}${extra ? `<div class="rank-detail">${extra.html}</div>` : ''}</div>`;
+        const notes = notesOf ? notesOf(row) : null;
+        return `<div class="rank-row${extra ? ' can-open' : ''}${open ? ' open' : ''}"><span class="rank-no">${i + 1}</span><div>${rankName(row[0], row[2], notes)}<div class="rank-bar"><i style="width:${top ? row[1] / top * 100 : 0}%"></i></div></div><span class="rank-v num">${formatValue(row[1])}</span>${extra ? rankToggle(extra.key, row[0]) : ''}${extra ? `<div class="rank-detail">${extra.html}</div>` : ''}</div>`;
     }).join('')}</div>`;
 }
 
@@ -271,7 +285,7 @@ function ranksOf(m) {
     }
     return [
         deviceRank(m),
-        rankCard('种子上传排行', '当前累计', rankBars(m.torrents, v => fmtBytes(v), '当前没有可排行的种子')),
+        rankCard('种子上传排行', '当前累计', rankBars(m.torrents, v => fmtBytes(v), '当前没有可排行的种子', null, torrentNotes)),
         rankCard('站点上传排行', '当前累计', rankBars(m.sites, v => fmtBytes(v), '当前没有可排行的站点')),
     ].join('');
 }

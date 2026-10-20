@@ -166,6 +166,8 @@
     .toasts { top: auto; bottom: calc(16px + env(safe-area-inset-bottom)); }
 }
 @media (max-width: 560px) {
+    .rank-name.has-kind { gap: 4px; }
+    .rank-kind { font-size: 10px; }
     .rank-row.can-open { gap: 6px; grid-template-columns: 22px minmax(0, 1fr) auto 18px; }
     .rank-row.can-open > .rank-v { margin-right: 0; }
     .rank-detail, .rank-detail .rank-detail { padding-left: 0; }

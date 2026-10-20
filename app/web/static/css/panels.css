@@ -145,7 +145,7 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 .rank-name { height: 18px; line-height: 18px; font-size: 13px; font-weight: 600; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rank-name.has-kind { display: flex; align-items: center; gap: 6px; }
 .rank-name.has-kind > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.rank-kind { flex: none; font-size: 11px; font-weight: 500; color: var(--text-3); }
+.rank-kind { flex: none; font-size: 11px; font-weight: 500; color: var(--text-3); white-space: nowrap; }
 .rank-bar { height: 5px; margin-top: 5px; border-radius: 3px; background: #eef2f7; overflow: hidden; }
 .rank-bar i { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
 .rank-v { font-size: 13px; font-weight: 750; color: var(--text); }

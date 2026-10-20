@@ -158,7 +158,9 @@ def api_qb_torrent_ranks():
         return jsonify({
             'success': True,
             'data': {
-                'torrents': [[row['name'], row['uploaded']] for row in torrents],
+                'torrents': [[
+                    row['name'], row['uploaded'], row['size'], row['ratio'],
+                ] for row in torrents],
                 'sites': [[name, uploaded] for name, uploaded in site_rows],
             },
         })
