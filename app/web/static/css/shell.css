@@ -256,7 +256,7 @@ body[data-detail="1"] .sec-chart { grid-area: chart; }
     body[data-detail="1"] .sec-events > .panel > .toolbar { flex: none; }
     body[data-detail="1"] .sec-events .timeline {
         flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto;
-        padding-right: 0;
+        padding-left: 8px; padding-right: 8px;
     }
 }
 
