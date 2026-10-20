@@ -141,15 +141,13 @@ function groupSites(rows) {
         .sort((a, b) => b.uploaded - a.uploaded)
         .map(group => {
             const hosts = group.hosts.sort((a, b) => b.uploaded - a.uploaded).map(item => item.host);
-            if (hosts.length === 1) return [hosts[0], group.uploaded];
+            if (!group.nick) return [hosts[0], group.uploaded];
             return [group.nick, group.uploaded, hosts.join('、')];
         });
 }
 
 function siteNotes(row) {
-    if (row && row[2]) return [row[2]];
-    const name = siteName(row && row[0]);
-    return name ? [name] : [];
+    return row && row[2] ? [row[2]] : [];
 }
 
 function ratioNotes(row) {
