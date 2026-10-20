@@ -108,6 +108,7 @@ export function donut(parts, totalText) {
 const RANK_LIMIT = 10;
 const PLAY_LIMIT_NOTE = '仅统计最近 500 条播放记录';
 const RANK_CARET = '<svg class="rank-caret" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const RANK_FOLD = '<svg class="rank-caret" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3.2 3.4 6.4 7 3.2 10.6M7.6 3.4 10.8 7 7.6 10.6" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const rankOpen = new Set();
 const rankKey = (kind, name) => `${kind}\u001f${name}`;
 
@@ -188,7 +189,7 @@ function rankCard(title, caption, body, note, collapsible) {
     const hasRows = collapsible && body.includes('rank-toggle');
     const anyOpen = hasRows && body.includes('aria-expanded="true"');
     const foldLabel = anyOpen ? '全部收起' : '全部展开';
-    const fold = hasRows ? `<button type="button" class="rank-fold${anyOpen ? ' open' : ''}" aria-expanded="${anyOpen ? 'true' : 'false'}" aria-label="${foldLabel}" title="${foldLabel}">${RANK_CARET}</button>` : '';
+    const fold = hasRows ? `<button type="button" class="rank-fold${anyOpen ? ' open' : ''}" aria-expanded="${anyOpen ? 'true' : 'false'}" aria-label="${foldLabel}" title="${foldLabel}">${RANK_FOLD}</button>` : '';
     if (hasRows) {
         return `<div class="chart-side"><h3 class="panel-title rank-head"><span class="rank-head-main">${title}<small>${esc(caption)}</small>${limit}</span>${fold}</h3>${body}</div>`;
     }
