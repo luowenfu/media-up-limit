@@ -365,7 +365,7 @@ function slowPart(id, soft, key, load) {
     }
     return {
         id,
-        cached: soft && c ? c.html : '',
+        cached: c ? c.html : '',
         load: async () => {
             let html;
             try { html = await load(); } catch (e) { html = ERROR(e.message || '加载失败'); }
@@ -458,17 +458,27 @@ function paint(list) {
     });
 }
 
+function holdScroll(y) {
+    if (y == null) return;
+    const back = () => window.scrollTo(0, y);
+    back();
+    requestAnimationFrame(() => { back(); requestAnimationFrame(back); });
+}
+
 export async function render({ soft = false } = {}) {
     const mine = ++seq;
+    const y = layoutKey() === lastLayout ? window.scrollY : null;
     fixRoute();
     renderChrome();
     const list = parts(soft);
     paint(list);
+    holdScroll(y);
     const pending = list.filter(p => p.load);
     if (pending.length) {
         const done = await Promise.all(pending.map(p => p.load()));
         if (mine !== seq) return;
         paint(list.map(p => (p.load ? { id: p.id, html: done[pending.indexOf(p)] } : { id: p.id })));
+        holdScroll(y);
     }
     if (mine !== seq) return;
     bindChart(state.view === 'emby' ? 'emby' : 'qb');
