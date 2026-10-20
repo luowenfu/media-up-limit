@@ -54,7 +54,7 @@ export const planHtml = o => {
         <div class="anchor">${anchorHtml(label, c.reset_anchor)}</div>
         ${fld('周期恢复后限速至', inp({ val: c.reset_limit_kbps || 0, type: 'number', suf: 'KB/s', attr: 'data-reset' }), { hint: '0 表示无限速' })}
     </div>
-    <div class="rules-head"><b>达量限速规则</b><small>周期内上传达到阈值后，按对应速度限速</small></div>
+    <div class="rules-head"><b>规则</b><small>周期内上传达到阈值后，按对应速度限速</small></div>
     ${o.next ? '' : `<div class="scale" data-used="${o.used || 0}">${scaleHtml(rules.map(r => +r.th || 0), o.used)}</div>`}
     <div class="rules-list">${rules.map((r, n) => ruleRow(r, n + 1)).join('')}</div>
     <button type="button" class="add-rule" data-rule-add>${ico('plus', 15)}添加规则</button>
