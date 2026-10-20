@@ -105,6 +105,7 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 .chart-tip i { width: 8px; height: 8px; border-radius: 2px; }
 
 .rank { display: flex; flex-direction: column; gap: 8px; }
+.chart-side > .rank { max-height: calc(32px * 10 + 8px * 9); overflow-y: auto; }
 .rank-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
 .rank-row.can-open { grid-template-columns: 26px minmax(0, 1fr) auto 32px; }
 .rank-row > div { min-width: 0; }
