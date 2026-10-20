@@ -14,8 +14,13 @@
     background: #fff; border: 1px solid #d9d9d9; color: var(--text);
     transition: border-color .15s, box-shadow .15s;
 }
-.range-field.is-day { width: 236px; }
-.range-field:not(.is-day) { width: 188px; }
+.range-field.is-day { width: 272px; }
+.range-field:not(.is-day) { width: 220px; }
+.tabs > .cap, .range-field > .cap {
+    align-self: center; flex: none; margin-right: 4px; padding-left: 7px;
+    font-size: 12px; font-weight: 500; line-height: 1; color: var(--text-3); white-space: nowrap; user-select: none;
+}
+.range-field > .cap { padding-left: 4px; }
 .range-field:hover { border-color: var(--accent); }
 .range-field:focus-within, .range-field.is-open { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 16%, transparent); }
 .range-field .sep { display: grid; place-items: center; flex: none; width: 16px; color: #bfbfbf; }
