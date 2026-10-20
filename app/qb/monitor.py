@@ -577,7 +577,7 @@ class QBittorrentClient:
         return rows
 
     def list_torrent_uploads(self) -> Optional[list]:
-        """当前种子的名称、累计上传、体积、分享率和 tracker。离线或失败时返回 None。"""
+        """当前种子的名称、累计上传下载、体积、分享率和 tracker。离线或失败时返回 None。"""
         with self._api_lock:
             try:
                 if not self._connected:
@@ -601,6 +601,10 @@ class QBittorrentClient:
                 except (TypeError, ValueError):
                     uploaded = 0
                 try:
+                    downloaded = int(torrent.get('downloaded') or 0)
+                except (TypeError, ValueError):
+                    downloaded = 0
+                try:
                     size = int(torrent.get('size') or 0)
                 except (TypeError, ValueError):
                     size = 0
@@ -611,6 +615,7 @@ class QBittorrentClient:
                 rows.append({
                     'name': name,
                     'uploaded': max(0, uploaded),
+                    'downloaded': max(0, downloaded),
                     'size': max(0, size),
                     'ratio': ratio,
                     'tracker': str(torrent.get('tracker') or '').strip(),

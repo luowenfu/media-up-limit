@@ -135,17 +135,15 @@ async function fetchRows(url, sp, extra) {
     return res.data || [];
 }
 
-/** qB：上传 + 下载，外加上一周期上传用于对比。按累计时图表仍用上次的小时/天/月 */
+/** qB：按累计只读当前种子快照；按小时、按天、按月查本项目库 */
 export async function loadQbStats(name, range, anchor) {
-    const total = range === 'total';
-    const chartRange = total ? (state.statsChartRange || 'day') : range;
-    const chartAnchor = total ? (state.statsDate || defaultAnchor(chartRange)) : anchor;
-    let sp = spec(chartRange, chartAnchor);
-    const pv = sp.prev ? spec(chartRange, sp.prev) : null;
+    if (range === 'total') return loadQbCumulative(name);
+    let sp = spec(range, anchor);
+    const pv = sp.prev ? spec(range, sp.prev) : null;
     const base = `/api/stats/${enc(name)}`;
-    const rankQuery = total
-        ? { instance: name, period: 'total' }
-        : { instance: name, period: sp.period, start: sp.params.start, end: sp.params.end };
+    const rankQuery = {
+        instance: name, period: sp.period, start: sp.params.start, end: sp.params.end,
+    };
     const [up, down, prev, prevDown, events, ranks] = await Promise.all([
         fetchRows(base, sp, { direction: 'upload' }),
         fetchRows(base, sp, { direction: 'download' }),
@@ -158,12 +156,31 @@ export async function loadQbStats(name, range, anchor) {
     const a = fill(sp, up, 'total_bytes'), b = fill(sp, down, 'total_bytes');
     const hits = events.filter(e => e.event_type === 'limit_applied' && inSpan(e.event_time, sp)).length;
     return {
-        kind: 'qb', sp, a, b, name, hits, cumulative: total,
+        kind: 'qb', sp, a, b, name, hits, cumulative: false,
         torrents: ranks.torrents || [],
         ratios: (ranks.ratios || []).map(asRatioRow),
         sites: ranks.sites || [],
         change: pv ? delta(sum(a), sum(fill(pv, prev, 'total_bytes'))) : null,
         changeDown: pv ? delta(sum(b), sum(fill(pv, prevDown, 'total_bytes'))) : null,
+    };
+}
+
+/** 按累计：一次 qB 种子列表，给出设备合计和三列排行 */
+async function loadQbCumulative(name) {
+    let ranks = {};
+    try {
+        ranks = (await api.get(`/api/qb/torrent-ranks${q({ instance: name, period: 'total' })}`)).data || {};
+    } catch (e) { ranks = {}; }
+    const available = ranks.available === true;
+    const totals = ranks.totals || { uploaded: 0, downloaded: 0, count: 0, ratio: 0 };
+    return {
+        kind: 'qb', cumulative: true, available, totals, name,
+        sp: { caption: '按设备累计', labels: [] },
+        a: [], b: [], hits: 0,
+        torrents: available ? (ranks.torrents || []) : [],
+        ratios: available ? (ranks.ratios || []).map(asRatioRow) : [],
+        sites: available ? (ranks.sites || []) : [],
+        change: null, changeDown: null,
     };
 }
 

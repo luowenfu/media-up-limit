@@ -133,6 +133,11 @@ def _tracker_host(tracker: str) -> str:
 _RATIO_CAP = 9999
 
 
+def _device_ratio(uploaded: int, downloaded: int):
+    """设备当前种子的整体分享率。没有下载且有上传时为无限。"""
+    return _period_ratio(uploaded, downloaded)
+
+
 def _period_ratio(uploaded: int, downloaded: int):
     if downloaded <= 0:
         return None if uploaded > 0 else 0
@@ -173,8 +178,21 @@ def api_qb_torrent_ranks():
         if not client:
             return jsonify({'success': False, 'error': '设备不存在'}), 404
         rows = []
+        totals = None
+        available = True
         if period == 'total':
-            for row in client.list_torrent_uploads() or []:
+            live = client.list_torrent_uploads()
+            available = live is not None
+            live = live or []
+            uploaded_sum = sum(int(row.get('uploaded') or 0) for row in live)
+            downloaded_sum = sum(int(row.get('downloaded') or 0) for row in live)
+            totals = {
+                'uploaded': uploaded_sum,
+                'downloaded': downloaded_sum,
+                'count': len(live),
+                'ratio': _device_ratio(uploaded_sum, downloaded_sum),
+            }
+            for row in live:
                 uploaded = int(row.get('uploaded') or 0)
                 if uploaded <= 0:
                     continue
@@ -220,18 +238,19 @@ def api_qb_torrent_ranks():
                 continue
             sites[host] = sites.get(host, 0) + row['uploaded']
         site_rows = sorted(sites.items(), key=lambda item: item[1], reverse=True)[:10]
-        return jsonify({
-            'success': True,
-            'data': {
-                'torrents': [[
-                    row['name'], row['uploaded'], row['size'], _ratio_value(row),
-                ] for row in torrents],
-                'ratios': [[
-                    row['name'], _ratio_value(row), row['size'], row['uploaded'],
-                ] for row in ratios],
-                'sites': [[name, uploaded] for name, uploaded in site_rows],
-            },
-        })
+        data = {
+            'torrents': [[
+                row['name'], row['uploaded'], row['size'], _ratio_value(row),
+            ] for row in torrents],
+            'ratios': [[
+                row['name'], _ratio_value(row), row['size'], row['uploaded'],
+            ] for row in ratios],
+            'sites': [[name, uploaded] for name, uploaded in site_rows],
+        }
+        if period == 'total':
+            data['available'] = available
+            data['totals'] = totals
+        return jsonify({'success': True, 'data': data})
     except Exception as e:
         logger.error(f'API /qb/torrent-ranks 错误: {e}', exc_info=True)
         return jsonify({'success': False, 'error': GENERIC_API_ERROR}), 500

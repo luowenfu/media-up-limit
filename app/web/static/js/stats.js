@@ -246,6 +246,7 @@ function setRankRow(row, open) {
 
 const playCount = value => `${value}<small>人次</small>`;
 function kpisOf(m) {
+    if (m.cumulative) return cumulativeKpis(m);
     const base = baseOf(m.kind);
     const sa = sum(m.a), sb = sum(m.b);
     const peak = Math.max(...m.a, 0), idx = m.a.indexOf(peak);
@@ -264,6 +265,47 @@ function kpisOf(m) {
         ['peak', 'tone-orange', '', '上传峰值', kbig(peak, base), peakLab],
         ['shield', 'tone-red', '', '限速触发', `${m.hits}<small>次</small>`, esc(m.sp.caption)],
     ];
+}
+
+function deviceRatioText(totals) {
+    const uploaded = Number(totals && totals.uploaded) || 0;
+    const downloaded = Number(totals && totals.downloaded) || 0;
+    if (downloaded <= 0) return uploaded > 0 ? '∞' : '0.00';
+    return ratioText(totals.ratio);
+}
+
+function cumulativeKpis(m) {
+    const dash = '—';
+    if (!m.available) {
+        return [
+            ['up', 'tone-info', '', '上传合计', dash, '按设备累计'],
+            ['down', 'tone-mint', '', '下载合计', dash, '按设备累计'],
+            ['list', 'tone-violet', '', '种子数', dash, '当前种子'],
+            ['sum', 'tone-orange', '', '整体分享率', dash, '总上传 / 总下载'],
+        ];
+    }
+    const totals = m.totals || {};
+    return [
+        ['up', 'tone-info', '', '上传合计', kbig(totals.uploaded, 1024), '按设备累计'],
+        ['down', 'tone-mint', '', '下载合计', kbig(totals.downloaded, 1024), '按设备累计'],
+        ['list', 'tone-violet', '', '种子数', `${Number(totals.count) || 0}<small>个</small>`, '当前种子'],
+        ['sum', 'tone-orange', '', '整体分享率', deviceRatioText(totals), '总上传 / 总下载'],
+    ];
+}
+
+function cumulativeTrend(m, dev) {
+    const empty = !m.available;
+    const totals = m.totals || {};
+    const body = empty
+        ? '<div class="hint-t">当前读不到这台设备的种子</div>'
+        : `<div class="cumul-totals"><div><div class="k">上传合计</div><div class="v num">${kbig(totals.uploaded, 1024)}</div></div><div><div class="k">下载合计</div><div class="v num">${kbig(totals.downloaded, 1024)}</div></div></div>`;
+    return `<div class="chart-grid has-kpis">
+        <div class="chart-main">
+            <h3 class="panel-title">设备累计<small>${esc(dev.name)}</small></h3>
+            ${body}
+        </div>
+        <div class="chart-kpis">${kpiHtml(cumulativeKpis(m))}</div>
+    </div>`;
 }
 
 function ranksOf(m) {
@@ -305,7 +347,7 @@ function toolbar(m, kind) {
         : chartRange === 'day' ? `<input type="month" id="stDate" value="${anchor}" max="${defaultAnchor('day')}">` : '';
     const span = state.statsSpan || '6';
     const spans = [['6', '近6个月'], ['12', '近12个月'], ['24', '近24个月'], ['all', '全部']];
-    const periodField = chartRange === 'month'
+    const periodField = range === 'total' ? '' : chartRange === 'month'
         ? `<span class="field"><span class="k">时段</span><select id="stSpan">${spans.map(([v, lab]) => `<option value="${v}" ${span === v ? 'selected' : ''}>${lab}</option>`).join('')}</select>${I.chev}</span>`
         : `<span class="field datef" data-datef>${I.cal.replace(/16/g, '14')}${m.sp.caption}${dateField}</span>`;
     const totalTab = kind === 'qb'
@@ -319,9 +361,7 @@ function toolbar(m, kind) {
                 <button data-r="day" class="${range === 'day' ? 'on' : ''}">按天</button>
                 <button data-r="month" class="${range === 'month' ? 'on' : ''}">按月</button>
             </div>
-            <div class="tool-r">
-                ${periodField}
-            </div>
+            ${periodField ? `<div class="tool-r">${periodField}</div>` : ''}
         </div>`;
 }
 
@@ -373,7 +413,7 @@ export function statsHtml(m, kind, dev) {
     const S = SERIES[kind];
     const kpis = kpisOf(m);
     const bodies = {
-        trend: `<div class="chart-grid has-kpis">
+        trend: m.cumulative ? cumulativeTrend(m, dev) : `<div class="chart-grid has-kpis">
         <div class="chart-main">
             <h3 class="panel-title">${kind === 'emby' ? '播放流量趋势' : '上传流量趋势'}<small>${esc(dev.name)}</small>
                 <span class="r chart-legend"><span><i style="background:${S.colorA}"></i>${S.nameA}</span>${kind === 'emby' ? `<span><i style="background:${S.colorB}"></i>${S.nameB}</span>` : ''}</span>

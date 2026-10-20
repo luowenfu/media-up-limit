@@ -65,6 +65,11 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 .kpi-d .up { color: var(--danger); font-weight: 700; }
 .kpi-d .dn { color: var(--ok); font-weight: 700; }
 
+.cumul-totals { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; min-height: 168px; align-content: center; padding: 12px 4px 20px; }
+.cumul-totals .k { font-size: 13px; font-weight: 650; color: var(--text-2); }
+.cumul-totals .v { margin-top: 8px; font-size: 32px; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; color: var(--text); }
+.cumul-totals .v small { margin-left: 4px; font-size: 15px; font-weight: 650; color: var(--text-2); }
+.chart-main > .hint-t { padding: 28px 4px 36px; }
 .chart-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
 .chart-grid.has-kpis { grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); }
 .chart-kpis { display: grid; grid-template-columns: 1fr 1fr; min-width: 0; border-left: 1px solid var(--line); }
