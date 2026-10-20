@@ -34,6 +34,7 @@
 .chart-ctrl > svg { width: 14px; height: 14px; margin-right: 6px; color: var(--text-3); flex: none; }
 .chart-bar { gap: 8px; padding: 10px 12px; }
 .chart-pair { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.view-note { flex: none; font-size: 11px; font-weight: 500; line-height: 1.4; color: var(--text-3); white-space: nowrap; }
 .range-field.is-day { width: 262px; }
 .range-field:not(.is-day) { width: 214px; }
 .range-field:focus-within, .range-field.is-open {

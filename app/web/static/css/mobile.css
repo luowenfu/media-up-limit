@@ -109,10 +109,11 @@
     .panel-name { padding: 12px 12px 0; }
     .toolbar { min-width: 0; max-width: 100%; padding: 12px; }
     .chart-bar { gap: 8px; padding: 8px; }
-    .chart-pair { flex: 0 1 auto; width: max-content; max-width: 100%; }
+    .chart-pair { flex: 1 1 100%; flex-wrap: wrap; width: 100%; max-width: 100%; }
     .chart-pair > .chart-ctrl { flex: none; }
-    .chart-pair > .user-ctrl { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+    .chart-pair > .user-ctrl { flex: 0 1 auto; min-width: 0; overflow: hidden; }
     .chart-pair > .user-ctrl select { width: 100%; max-width: 7.5em; }
+    .view-note { flex: 1 0 100%; white-space: normal; }
     .tabs { flex-wrap: wrap; max-width: 100%; min-width: 0; }
     .chart-bar .tabs { flex-wrap: nowrap; }
     .range-quick { flex-wrap: nowrap; }
