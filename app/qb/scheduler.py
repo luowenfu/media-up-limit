@@ -10,6 +10,7 @@ import emby.traffic.db as emby_traffic_db
 import qb.speed_limiter as speed_limiter
 import core.config_manager as config_manager
 from core.cycle import get_cycle_start, cycle_info, cycle_start_key, format_next_cycle_switch_label
+from qb.collect_log import format_collect_summary
 from qb.monitor import QBittorrentClient
 
 logger = logging.getLogger(__name__)
@@ -780,7 +781,7 @@ class TrafficMonitor:
         delta_up: int, delta_dl: int,
         backfill_up: int, backfill_dl: int, is_backfill: bool,
     ):
-        cycle_upload, cycle_download, _, cyc = self._get_cycle_traffic(name, client)
+        cycle_upload, cycle_download, _, _ = self._get_cycle_traffic(name, client)
 
         limit_status = self._read_limit_status(client)
         if limit_status['current_limit_kbps'] >= 0:
@@ -825,7 +826,7 @@ class TrafficMonitor:
         self._bump_state_generation(name)
 
         self._maybe_log_collect_summary(
-            name, info, cycle_upload, cycle_download, cyc,
+            name, cycle_upload,
             is_quota_limited, limit_kbps,
             delta_up, delta_dl, backfill_up, backfill_dl, is_backfill,
         )
@@ -845,8 +846,7 @@ class TrafficMonitor:
         return state
 
     def _maybe_log_collect_summary(
-        self, name: str, info: dict,
-        cycle_upload: int, cycle_download: int, cyc: dict,
+        self, name: str, cycle_upload: int,
         is_quota_limited: bool, limit_kbps: int,
         delta_up: int, delta_dl: int,
         backfill_up: int, backfill_dl: int, is_backfill: bool,
@@ -861,32 +861,17 @@ class TrafficMonitor:
 
         now_mono = time.monotonic()
         elapsed = now_mono - float(state['window_start'])
-        has_backfill = is_backfill and (backfill_up > 0 or backfill_dl > 0)
-        if not has_backfill and elapsed < _COLLECT_LOG_INTERVAL:
+        if elapsed < _COLLECT_LOG_INTERVAL:
             return
 
-        window_label = (
-            f'{elapsed:.0f}s' if elapsed < 60 else f'{elapsed / 60:.0f}min'
-        )
-        backfill_note = ''
-        if state['backfill_up'] > 0 or state['backfill_dl'] > 0:
-            backfill_note = (
-                f", 补录上行={state['backfill_up'] / 1024 / 1024:.2f}MB"
-                f"/下行={state['backfill_dl'] / 1024 / 1024:.2f}MB"
-            )
-        logger.info(
-            f"[{name}] 采集摘要({window_label}): "
-            f"采样={state['ticks']}次, "
-            f"上传增量合计={state['delta_up'] / 1024 / 1024:.2f}MB, "
-            f"下载增量合计={state['delta_dl'] / 1024 / 1024:.2f}MB, "
-            f"上传会话={info['session_uploaded'] / 1024 / 1024:.2f}MB, "
-            f"周期总上传={cycle_upload / 1024 / 1024 / 1024:.2f}GB "
-            f"({cyc['range_label']}), "
-            f"周期下载={cycle_download / 1024 / 1024 / 1024:.2f}GB, "
-            f"达量限速={'是' if is_quota_limited else '否'}"
-            f"{f' ({limit_kbps} KB/s)' if is_quota_limited else ''}"
-            f"{backfill_note}"
-        )
+        collect = max(1, int(self.collect_interval or 1))
+        expected = max(1, _COLLECT_LOG_INTERVAL // collect)
+        logger.info(format_collect_summary(
+            name, elapsed, state['ticks'], expected,
+            state['delta_up'], state['delta_dl'], cycle_upload,
+            is_quota_limited, limit_kbps,
+            state['backfill_up'], state['backfill_dl'],
+        ))
         state['window_start'] = now_mono
         state['ticks'] = 0
         state['delta_up'] = 0
