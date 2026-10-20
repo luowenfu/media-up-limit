@@ -395,7 +395,7 @@ function toolbar(m, kind) {
     const totalTab = kind === 'qb'
         ? `<button data-r="total" class="${range === 'total' ? 'on' : ''}">当前累计</button>`
         : '';
-    const viewNote = kind === 'qb' ? '<span class="view-note">当前累计直读 qB，按天和按月读本程序的记录</span>' : '';
+    const viewNote = kind === 'qb' && range === 'total' ? '<span class="view-note">当前累计直读 qB，按天和按月读本程序的记录</span>' : '';
     const userField = kind === 'emby' ? `<label class="chart-ctrl user-ctrl"><span class="cap">用户</span><select id="stUser"><option value="${ALL_USERS}">全部用户</option>${(m.users || []).map(u => `<option ${u === state.statsUser ? 'selected' : ''} value="${esc(u)}">${esc(u)}</option>`).join('')}</select>${I.chev}</label>` : '';
     return `<div class="toolbar chart-bar">
             <div class="chart-pair">
