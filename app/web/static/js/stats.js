@@ -121,7 +121,33 @@ function torrentNotes(row) {
     return [byteNote('体积', row[2]), `分享率${share}`];
 }
 
+function groupSites(rows) {
+    const groups = new Map();
+    for (const row of rows || []) {
+        const host = row && row[0];
+        const uploaded = Number(row && row[1]) || 0;
+        if (!host || uploaded <= 0) continue;
+        const nick = siteName(host);
+        const key = nick || host;
+        let group = groups.get(key);
+        if (!group) {
+            group = { nick, hosts: [], uploaded: 0 };
+            groups.set(key, group);
+        }
+        group.hosts.push({ host, uploaded });
+        group.uploaded += uploaded;
+    }
+    return [...groups.values()]
+        .sort((a, b) => b.uploaded - a.uploaded)
+        .map(group => {
+            const hosts = group.hosts.sort((a, b) => b.uploaded - a.uploaded).map(item => item.host);
+            if (hosts.length === 1) return [hosts[0], group.uploaded];
+            return [group.nick, group.uploaded, hosts.join('、')];
+        });
+}
+
 function siteNotes(row) {
+    if (row && row[2]) return [row[2]];
     const name = siteName(row && row[0]);
     return name ? [name] : [];
 }
@@ -364,7 +390,7 @@ function ranksOf(m) {
     return [
         rankCard('分享率 Top 10', caption, rankBars(m.ratios, ratioText, emptyTorrent, null, ratioNotes, ratioWidth)),
         rankCard('种子上传 Top 10', caption, rankBars(m.torrents, v => fmtBytes(v), emptyTorrent, null, torrentNotes)),
-        rankCard('站点上传 Top 10', caption, rankBars(m.sites, v => fmtBytes(v), emptySite, null, siteNotes)),
+        rankCard('站点上传 Top 10', caption, rankBars(groupSites(m.sites), v => fmtBytes(v), emptySite, null, siteNotes)),
     ].join('');
 }
 

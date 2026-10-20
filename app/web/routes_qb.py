@@ -237,7 +237,7 @@ def api_qb_torrent_ranks():
             if not host:
                 continue
             sites[host] = sites.get(host, 0) + row['uploaded']
-        site_rows = sorted(sites.items(), key=lambda item: item[1], reverse=True)[:10]
+        site_rows = sorted(sites.items(), key=lambda item: item[1], reverse=True)
         data = {
             'torrents': [[
                 row['name'], row['uploaded'], row['size'], _ratio_value(row),
