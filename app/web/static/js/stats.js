@@ -108,6 +108,7 @@ export function donut(parts, totalText) {
 const RANK_LIMIT = 10;
 const PLAY_LIMIT_NOTE = '仅统计最近 500 条播放记录';
 const RANK_CARET = '<svg class="rank-caret" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 3l4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const RANK_FOLD = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 9l4-4 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const rankOpen = new Set();
 const rankKey = (kind, name) => `${kind}\u001f${name}`;
 
@@ -183,9 +184,11 @@ function genreBars(genres, emptyText) {
     }));
 }
 
-function rankCard(title, caption, body, note) {
-    const aside = note ? `<small class="r rank-limit-note">${esc(note)}</small>` : '';
-    return `<div class="chart-side"><h3 class="panel-title">${title}<small>${esc(caption)}</small>${aside}</h3>${body}</div>`;
+function rankCard(title, caption, body, note, collapsible) {
+    const limit = note ? `<small class="rank-limit-note">${esc(note)}</small>` : '';
+    const fold = collapsible ? `<button type="button" class="rank-collapse" aria-label="全部收起" title="全部收起">${RANK_FOLD}</button>` : '';
+    const tools = (limit || fold) ? `<span class="r rank-tools">${limit}${fold}</span>` : '';
+    return `<div class="chart-side"><h3 class="panel-title">${title}<small>${esc(caption)}</small>${tools}</h3>${body}</div>`;
 }
 
 const playCount = value => `${value}<small>人次</small>`;
@@ -233,9 +236,9 @@ function ranksOf(m) {
             rankCard('用户上传排行', m.sp.caption, rankBars(m.rank, v => fmtBytes(v, 1000), '该时段暂无用户流量', row => ({
                 key: rankKey('user', row[0]),
                 html: userFilmDetail(traffic[row[0]]),
-            }))),
-            rankCard('影片点播排行', m.sp.caption, filmPlayBars(films, '该时段暂无播放'), note),
-            rankCard('类型点播排行', m.sp.caption, genreBody, note),
+            })), '', true),
+            rankCard('影片点播排行', m.sp.caption, filmPlayBars(films, '该时段暂无播放'), note, true),
+            rankCard('类型点播排行', m.sp.caption, genreBody, note, true),
         ].join('');
     }
     return [
@@ -357,6 +360,20 @@ function bindRankToggles() {
     if (!root || root.dataset.rankBound) return;
     root.dataset.rankBound = '1';
     root.addEventListener('click', event => {
+        const fold = event.target.closest('.rank-collapse');
+        if (fold && root.contains(fold)) {
+            const board = fold.closest('.chart-side');
+            board?.querySelectorAll('.rank-row.open').forEach(row => {
+                const toggle = row.querySelector(':scope > .rank-toggle');
+                const key = toggle?.dataset.rankKey;
+                if (key) rankOpen.delete(key);
+                row.classList.remove('open');
+                if (!toggle) return;
+                toggle.setAttribute('aria-expanded', 'false');
+                toggle.setAttribute('aria-label', `展开${toggle.dataset.rankLabel || ''}`);
+            });
+            return;
+        }
         const btn = event.target.closest('.rank-toggle');
         if (!btn || !root.contains(btn)) return;
         const key = btn.dataset.rankKey;
