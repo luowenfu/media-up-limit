@@ -181,6 +181,15 @@ html[data-scheme="dark"] #themeMark::before { content: "深色"; }
 .kind.qb { background: var(--qb-soft); color: var(--qb); }
 .kind.emby { background: var(--emby-soft); color: var(--emby); }
 .tb-metrics { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; max-width: 100%; flex: 0 0 auto; }
+/* 状态条换行后，用和手机一样的按钮收起、展开 */
+body.metrics-fold #metricsBtn {
+    display: grid; margin-left: auto; flex: none;
+    width: 30px; height: 30px; border-radius: 9px;
+}
+body.metrics-fold.metrics-open #metricsBtn { color: var(--accent); background: var(--accent-soft); }
+body.metrics-fold.metrics-open #metricsBtn svg { transform: rotate(180deg); transition: transform .2s ease; }
+body.metrics-fold:not(.metrics-open) .tb-metrics { display: none; }
+body.metrics-fold .tb-split { display: none; }
 /* 电脑端：状态图标挨着类型标签，点中间竖线收进分割线。默认展开 */
 @media (min-width: 1200px) {
     .tb-metrics-slot {

@@ -225,8 +225,52 @@ function ensureTopbar() {
 
 const METRICS_ICON = '<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M5 7.5 10 12.5 15 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
-/** 手机设备详情里，状态栏默认收起，点顶栏右侧图标再展开 */
+/** 手机设备详情默认收起。其它视图在状态条换行后默认展开，用同一个按钮收起。 */
 let metricsOpen = false;
+let metricsUserSet = false;
+let metricsFoldKey = '';
+
+function metricsWrapped() {
+    if (isPhone()) return true;
+    const title = document.querySelector('.tb-title');
+    const metrics = document.querySelector('.tb-metrics');
+    const slot = document.querySelector('.tb-metrics-slot') || metrics;
+    if (!title || !metrics || !slot) return false;
+    const hidden = getComputedStyle(metrics).display === 'none';
+    if (hidden) metrics.style.setProperty('display', 'flex', 'important');
+    const wrapped = slot.getBoundingClientRect().top > title.getBoundingClientRect().top + 8
+        || metrics.getBoundingClientRect().height > 64;
+    if (hidden) metrics.style.removeProperty('display');
+    return wrapped;
+}
+
+function syncMetricsToggle() {
+    const phoneDetail = isPhone() && !!state.dev;
+    const key = phoneDetail ? 'detail' : 'bar';
+    if (key !== metricsFoldKey) {
+        metricsFoldKey = key;
+        metricsUserSet = false;
+    }
+    const wrapped = metricsWrapped();
+    if (!metricsUserSet) metricsOpen = !phoneDetail;
+    const showBtn = wrapped;
+    const open = showBtn && metricsOpen;
+    document.body.classList.toggle('metrics-fold', showBtn);
+    document.body.classList.toggle('metrics-open', open);
+    const bar = document.querySelector('.tb-bar');
+    if (bar && isPhone()) document.documentElement.style.setProperty('--tb-bar-h', bar.getBoundingClientRect().height + 'px');
+    const btn = document.getElementById('metricsBtn');
+    if (!btn) return;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.setAttribute('aria-label', open ? '收起状态栏' : '展开状态栏');
+}
+
+export function toggleMetricsBar() {
+    metricsUserSet = true;
+    metricsOpen = !document.body.classList.contains('metrics-open');
+    syncMetricsToggle();
+    syncMetricsEdge();
+}
 
 function ensureMetricsBtn() {
     if (document.getElementById('metricsBtn')) return;
@@ -240,23 +284,6 @@ function ensureMetricsBtn() {
     btn.setAttribute('aria-expanded', 'false');
     btn.innerHTML = METRICS_ICON;
     bar.appendChild(btn);
-}
-
-function syncMetricsToggle() {
-    const open = metricsOpen && isMobile() && !!state.dev;
-    document.body.classList.toggle('metrics-open', open);
-    const bar = document.querySelector('.tb-bar');
-    if (bar && isMobile()) document.documentElement.style.setProperty('--tb-bar-h', bar.getBoundingClientRect().height + 'px');
-    const btn = document.getElementById('metricsBtn');
-    if (!btn) return;
-    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    btn.setAttribute('aria-label', open ? '收起状态栏' : '展开状态栏');
-}
-
-export function toggleMetricsBar() {
-    metricsOpen = !metricsOpen;
-    syncMetricsToggle();
-    syncMetricsEdge();
 }
 
 /** 标题行单独吸顶，统计留在文档流里，随滚动匀速滑到标题下面 */
@@ -372,6 +399,7 @@ export function renderChrome() {
     }
     syncMetricsToggle();
     syncMetricsDock();
+    requestAnimationFrame(syncMetricsToggle);
 }
 
 /** 统计完全滑进标题栏后，给标题栏补上底边，避免和内容贴在一起 */
@@ -388,7 +416,7 @@ function syncMetricsEdge() {
     document.body.classList.toggle('metrics-gone', gone);
 }
 window.addEventListener('scroll', syncMetricsEdge, { passive: true });
-window.addEventListener('resize', syncMetricsEdge);
+window.addEventListener('resize', () => { syncMetricsToggle(); syncMetricsEdge(); });
 
 /* ---------- 页面区块 ---------- */
 const LOADING = '<div class="panel panel-pad" style="text-align:center;color:var(--text-3);padding:48px 16px">加载中…</div>';
