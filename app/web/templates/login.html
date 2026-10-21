@@ -35,7 +35,7 @@ try { if (localStorage.getItem('qb-scheme') === 'dark') document.documentElement
             <div class="fl">密码</div>
             <div class="inp"><input id="pass" name="password" type="password" autocomplete="current-password"></div>
         </div>
-        <label class="login-remember"><input type="checkbox" id="remember" checked>保持登录</label>
+        <label class="login-remember"><input type="checkbox" id="remember" checked>保持登录（30 天）</label>
         <p class="login-error" id="err" hidden></p>
         <button class="btn primary" id="go" type="submit">登录</button>
     </form>
@@ -61,7 +61,7 @@ function startCountdown(seconds) {
             $('err').hidden = true;
             return;
         }
-        showError(`请 ${left} 秒后再试`);
+        showError(`密码错误，锁定${left}秒…`);
         btn.disabled = true;
         left -= 1;
     };
