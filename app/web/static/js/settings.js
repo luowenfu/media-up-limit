@@ -25,12 +25,21 @@ function setDeviceSelect(select, names, current, allowType) {
     names.forEach(name => opts.push([name, name]));
     if (!opts.length) opts.push(['', '暂无设备']);
     const known = new Set(names);
-    let cur = current;
+    let cur = current || '';
     if (allowType) {
         if (cur && !known.has(cur)) cur = '';
     } else if (!known.has(cur)) cur = names[0] || '';
-    select.innerHTML = opts.map(([value, label]) => `<option value="${esc(value)}"${value === cur ? ' selected' : ''}>${esc(label)}</option>`).join('');
+    select.disabled = false;
+    select.innerHTML = opts.map(([value, label]) => `<option value="${esc(value)}">${esc(label)}</option>`).join('');
+    select.value = cur;
     select.disabled = !allowType && !names.length;
+}
+
+function showMergePick(select) {
+    select.disabled = false;
+    select.innerHTML = '<option value="">合并视图</option>';
+    select.value = '';
+    select.disabled = true;
 }
 
 function chosenView(root, attr) {
@@ -41,20 +50,25 @@ function chosenView(root, attr) {
 function syncTargets(root, { resetPc = false, resetMobile = false, pcDevice, mobileDevice } = {}) {
     const pc = chosenView(root, 'data-pc-view');
     const mobile = chosenView(root, 'data-mobile-view');
-    const pcWrap = root.querySelector('[data-pc-device]');
     const pcSelect = root.querySelector('#sPcDev');
     const mobileSelect = root.querySelector('#sMobileDev');
-    if (pcWrap) pcWrap.hidden = pc === 'merge';
-    if (pcSelect && pc !== 'merge') {
-        const prefer = resetPc ? '' : (pcDevice !== undefined ? pcDevice : pcSelect.value);
-        setDeviceSelect(pcSelect, namesOf(pc), prefer, true);
+    const pcPick = root.querySelector('[data-pc-device]');
+    if (pcPick) pcPick.classList.toggle('is-off', pc === 'merge');
+    if (pcSelect) {
+        if (pc === 'merge') showMergePick(pcSelect);
+        else {
+            const prefer = resetPc ? '' : (pcDevice !== undefined ? pcDevice : pcSelect.value);
+            setDeviceSelect(pcSelect, namesOf(pc), prefer, true);
+        }
     }
     if (mobileSelect) {
         const prefer = resetMobile ? '' : (mobileDevice !== undefined ? mobileDevice : mobileSelect.value);
         const names = namesOf(mobile);
         setDeviceSelect(mobileSelect, names, prefer, false);
-        const hint = root.querySelector('[data-mobile-hint]');
-        if (hint) hint.textContent = names.length ? '进入这台设备的详情' : '该类型还没有设备';
+        const hint = root.querySelector('[data-def-hint]');
+        if (hint) hint.textContent = names.length
+            ? '电脑可选类型页、某台设备或合并视图。手机进入该类型下的一台设备'
+            : '电脑可选类型页、某台设备或合并视图。该类型还没有设备';
     }
 }
 
@@ -109,18 +123,19 @@ function viewDefaults(g) {
     const pcView = ['qb', 'emby', 'merge'].includes(g.default_pc_view) ? g.default_pc_view : (g.emby_default_device_view || 'qb');
     const pcLabel = !emby && pcView !== 'qb' ? 'qB' : (VIEW_LABEL[pcView] || 'qB');
     const mobileLabel = g.default_mobile_view === 'emby' && emby ? 'Emby' : 'qB';
-    return fs('eye', '默认显示', '新开页面时进入这里。刷新仍留在当前页', `<div class="def-grid">
-        <div class="def-card">
+    return fs('eye', '默认显示', '新开页面进入这里。刷新仍留在当前页', `<div class="def-rows">
+        <div class="def-row">
             <b>电脑</b>
-            ${fld('进入', segF(['qB', 'Emby', '合并'], pcLabel, 'data-pc-view'))}
-            <div data-pc-device style="margin-top:12px">${fld('页面', '<div class="inp"><select id="sPcDev"></select></div>', { hint: '类型页打开列表，选设备进入详情' })}</div>
+            ${segF(['qB', 'Emby', '合并'], pcLabel, 'data-pc-view')}
+            <div class="def-pick" data-pc-device><div class="inp"><select id="sPcDev"></select></div></div>
         </div>
-        <div class="def-card">
+        <div class="def-row">
             <b>手机</b>
-            ${fld('类型', segF(['qB', 'Emby'], mobileLabel, 'data-mobile-view'))}
-            <div style="margin-top:12px">${fld('设备', '<div class="inp"><select id="sMobileDev"></select></div>')}<div class="hint-t" data-mobile-hint>进入这台设备的详情</div></div>
+            ${segF(['qB', 'Emby'], mobileLabel, 'data-mobile-view')}
+            <div class="def-pick"><div class="inp"><select id="sMobileDev"></select></div></div>
         </div>
-    </div>`);
+    </div>
+    <div class="hint-t" data-def-hint>电脑可选类型页、某台设备或合并视图。手机进入该类型下的一台设备</div>`);
 }
 
 function dataPane(g, info) {

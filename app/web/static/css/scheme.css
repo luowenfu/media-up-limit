@@ -91,7 +91,7 @@ html[data-scheme="dark"] .fs {
     background: #1b2436;
     color: var(--text-1);
 }
-html[data-scheme="dark"] .def-card { background: #151c2c; }
+html[data-scheme="dark"] .def-row .seg-f button.on { background: #334155; color: #f8fafc; }
 html[data-scheme="dark"] .dev-col + .dev-col { background: #101826; }
 html[data-scheme="dark"] .rule.hit { background: #2a1518; border-color: #7f1d1d; }
 html[data-scheme="dark"] .rule.cur {
