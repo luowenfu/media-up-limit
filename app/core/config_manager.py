@@ -541,8 +541,9 @@ def migrate_plaintext_secrets(config: dict) -> tuple:
     if web_pass and web_pass != '******':
         user = web_user or secrets_store.DEFAULT_WEB_USER
         if web_pass == secrets_store.DEFAULT_WEB_PASS:
-            secrets_store.set_web_credentials(user)
-            logger.info('config.yaml 中的 Web 密码仍是默认值，已去掉明文，登录后需修改')
+            if secrets_store.needs_setup():
+                secrets_store.set_web_credentials(user)
+            logger.info('config.yaml 中的 Web 密码是旧的默认密码，已忽略，请在首次打开时重新设置')
         else:
             secrets_store.set_web_credentials(user, web_pass)
             logger.info('已从 config.yaml 迁移 Web 凭据到 secrets 文件')

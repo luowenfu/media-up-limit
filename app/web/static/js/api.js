@@ -26,9 +26,9 @@ async function request(method, url, body) {
         window.location.replace('/login');
         throw new ApiError('未登录', 401, data);
     }
-    if (data && data.password_change_required) {
-        window.location.replace('/change-password');
-        throw new ApiError((data && data.error) || '请先修改默认密码', res.status, data);
+    if (data && data.setup_required) {
+        window.location.replace('/setup');
+        throw new ApiError((data && data.error) || '请先设置账号密码', res.status, data);
     }
     if (!res.ok || (data && data.success === false)) {
         throw new ApiError((data && data.error) || `请求失败 (${res.status})`, res.status, data);

@@ -83,22 +83,14 @@ def decrypt_value(token: str) -> str:
 
 
 def ensure_web_auth() -> dict:
+    """读取已有 Web 凭据。没有文件时不创建默认账号。"""
     with _lock:
         auth = _read_json(WEB_AUTH_PATH, {})
-        if auth.get('username') and auth.get('password_hash'):
-            return auth
-        auth = {
-            'username': DEFAULT_WEB_USER,
-            'password_hash': generate_password_hash(DEFAULT_WEB_PASS),
-            'pw_ver': 0,
-        }
-        _write_json(WEB_AUTH_PATH, auth)
-        logger.info(f"已创建默认 Web 登录凭据: {WEB_AUTH_PATH}")
-        return auth
+        return auth if isinstance(auth, dict) else {}
 
 
 def get_web_username() -> str:
-    return ensure_web_auth().get('username', DEFAULT_WEB_USER)
+    return str(ensure_web_auth().get('username') or '').strip()
 
 
 def verify_web_password(password: str) -> bool:
@@ -124,9 +116,11 @@ def password_state_generation() -> int:
 
 
 def is_default_password(username: str = None) -> bool:
-    """当前 Web 密码是否仍为出厂默认密码。结果按用户名缓存。"""
+    """当前密码是否仍是旧版默认密码。结果按用户名缓存，供升级迁移判断。"""
     auth = ensure_web_auth()
-    stored_user = str(auth.get('username') or DEFAULT_WEB_USER)
+    stored_user = str(auth.get('username') or '').strip()
+    if not stored_user:
+        return False
     asked = str(username or stored_user).strip() or stored_user
     if asked != stored_user:
         return False
@@ -143,6 +137,14 @@ def is_default_password(username: str = None) -> bool:
     return result
 
 
+def needs_setup() -> bool:
+    """没有可用凭据，或仍是旧版默认密码时，需要先完成首次设置。"""
+    auth = ensure_web_auth()
+    if not str(auth.get('username') or '').strip() or not auth.get('password_hash'):
+        return True
+    return is_default_password()
+
+
 def has_web_password() -> bool:
     auth = _read_json(WEB_AUTH_PATH, {})
     return bool(auth.get('password_hash'))
@@ -152,7 +154,10 @@ def set_web_credentials(username: str, password: str = None) -> None:
     global _password_state_gen
     with _lock:
         auth = ensure_web_auth()
-        auth['username'] = str(username or '').strip() or DEFAULT_WEB_USER
+        cleaned = str(username or '').strip()
+        if not cleaned:
+            raise ValueError('请填写账号')
+        auth['username'] = cleaned
         if password:
             if len(password) < 6:
                 raise ValueError('密码至少 6 位')
