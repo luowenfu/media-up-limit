@@ -74,8 +74,9 @@ const urlLine = (d, kind) => {
 const dot = d => `<span class="online ${d.online ? '' : 'off'}"></span>`;
 
 /* ---------- qB 卡片 ---------- */
-export function qbCard(d, i) {
-    return `<article class="dev ${d.online ? '' : 'is-off'}${foldOpen('card') ? ' open' : ''}">
+export function qbCard(d, i, ord) {
+    const at = ord == null ? '' : ` style="--i:${ord}"`;
+    return `<article${at} class="dev ${d.online ? '' : 'is-off'}${foldOpen('card') ? ' open' : ''}">
         ${foldHead('card', `${I.server}设备详情`)}
         <header class="dev-head">
             <div class="dev-icon" title="qBittorrent"><img src="/static/img/qbittorrent-logo.svg" alt=""></div>
@@ -184,10 +185,11 @@ function sessionHtml(s, d) {
 const emptySession = `<div class="session-empty"><div><div class="ico">${I.tv}</div></div><div><b>暂无活跃播放</b></div></div>`;
 
 /* ---------- Emby 卡片 ---------- */
-export function embyCard(d, i) {
+export function embyCard(d, i, ord) {
     const has = d.sessions.length > 0;
     const key = 'e' + i;
-    return `<article class="dev ${d.online ? '' : 'is-off'}${foldOpen('card') ? ' open' : ''}">
+    const at = ord == null ? '' : ` style="--i:${ord}"`;
+    return `<article${at} class="dev ${d.online ? '' : 'is-off'}${foldOpen('card') ? ' open' : ''}">
         ${foldHead('card', `${I.server}设备详情`)}
         <header class="dev-head emby">
             <div class="dev-icon" title="Emby"><img src="/static/img/emby-icon.svg" alt=""></div>
@@ -249,7 +251,7 @@ export function renderDevices(p) {
         <button type="button" class="btn sm" data-merge-edit>${ico('rules', 15)}选择与排序</button>
     </div>
     <div class="merge">
-        <div class="merge-col"><div class="col-head"><span class="dot" style="background:var(--qb)"></span>qBittorrent<small>${qbOn.length} 台</small></div>${qbOn.map(o => qbCard(qb[qi(o.name)], qi(o.name))).join('')}</div>
-        <div class="merge-col"><div class="col-head"><span class="dot" style="background:var(--emby)"></span>Emby<small>${embyOnList.length} 台</small></div>${embyOnList.map(o => embyCard(em[ei(o.name)], ei(o.name))).join('')}</div>
+        <div class="merge-col"><div class="col-head"><span class="dot" style="background:var(--qb)"></span>qBittorrent<small>${qbOn.length} 台</small></div>${qbOn.map((o, n) => qbCard(qb[qi(o.name)], qi(o.name), n)).join('')}</div>
+        <div class="merge-col"><div class="col-head"><span class="dot" style="background:var(--emby)"></span>Emby<small>${embyOnList.length} 台</small></div>${embyOnList.map((o, n) => embyCard(em[ei(o.name)], ei(o.name), n)).join('')}</div>
     </div>`;
 }

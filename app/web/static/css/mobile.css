@@ -3,6 +3,12 @@
 
 @media (max-width: 1199px) {
     .merge { grid-template-columns: 1fr; }
+    /* 排不下一行两台时，按 qB、Emby 交叉往下排 */
+    .merge-col { display: contents; }
+    .merge-col:first-child > .col-head { order: 0; }
+    .merge-col:last-child > .col-head { order: 1; }
+    .merge-col:first-child > .dev { order: calc(var(--i) * 2 + 2); }
+    .merge-col:last-child > .dev { order: calc(var(--i) * 2 + 3); }
     .chart-grid, .chart-grid.has-kpis, .rank-grid { grid-template-columns: 1fr; }
     .chart-kpis { border-left: 0; border-top: 1px solid var(--line); }
     .chart-side, .rank-grid .chart-side, .rank-grid .chart-side + .chart-side {
