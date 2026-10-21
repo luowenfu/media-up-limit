@@ -66,7 +66,7 @@ function syncTargets(root, seed) {
             const names = namesOf(pc);
             const value = resolveDevice(names, box.pc[pc], true);
             box.pc[pc] = value;
-            mountSelect(pcSelect, [['', '类型页'], ...names.map(name => [name, name])], value, false);
+            mountSelect(pcSelect, [['', `${VIEW_LABEL[pc]}类型页`], ...names.map(name => [name, name])], value, false);
         }
     }
     if (mobileSelect) {
@@ -122,12 +122,12 @@ function viewDefaults(g) {
     const mobileLabel = g.default_mobile_view === 'emby' && emby ? 'Emby' : 'qB';
     return fs('eye', '默认显示', '每次打开时默认进入的页面', `<div class="def-rows">
         <div class="def-row">
-            <b>PC端</b>
+            <b>电脑</b>
             ${segF(['qB', 'Emby', '合并'], pcLabel, 'data-pc-view')}
             <div class="def-pick" data-pc-device><div class="inp"><select id="sPcDev"></select></div></div>
         </div>
         <div class="def-row">
-            <b>移动端</b>
+            <b>手机</b>
             ${segF(['qB', 'Emby'], mobileLabel, 'data-mobile-view')}
             <div class="def-pick"><div class="inp"><select id="sMobileDev"></select></div></div>
         </div>
