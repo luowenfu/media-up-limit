@@ -464,6 +464,22 @@ export function rememberPart(id, html) {
     if (cached) cached.html = html;
 }
 
+/** 上下排列时，事件面板最高跟左侧设备卡片齐平 */
+function syncDetailEvents() {
+    const panel = document.querySelector('#sec-events > .panel');
+    if (!panel) return;
+    const card = document.getElementById('sec-card');
+    const page = document.querySelector('.page');
+    const pad = page ? parseFloat(getComputedStyle(page).paddingLeft) + parseFloat(getComputedStyle(page).paddingRight) : 0;
+    const wide = page && (page.clientWidth - pad) >= 980;
+    if (!card || isPhone() || wide) {
+        panel.style.maxHeight = '';
+        return;
+    }
+    panel.style.maxHeight = `${Math.round(card.getBoundingClientRect().height)}px`;
+}
+window.addEventListener('resize', syncDetailEvents);
+
 /** 写入各区块：布局没变时只更新内容有变化的区块，避免闪烁和打断悬停 */
 function paint(list) {
     const same = layoutKey() === lastLayout && list.every(p => document.getElementById('sec-' + p.id))
@@ -509,6 +525,7 @@ export async function render({ soft = false } = {}) {
     syncPlayProgress();
     relockTiles();
     syncDetailFold();
+    syncDetailEvents();
     if (state.focus) {
         const focus = state.focus;
         state.focus = '';

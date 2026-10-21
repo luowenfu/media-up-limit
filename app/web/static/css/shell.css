@@ -268,14 +268,24 @@ body[data-detail="1"] #content {
     align-items: start;
 }
 body[data-detail="1"] #content > .sec { margin-top: 0; min-width: 0; }
-body[data-detail="1"] .sec-card { grid-area: card; max-width: 680px; }
+body[data-detail="1"] .sec-card { grid-area: card; }
 body[data-detail="1"] .sec-events { grid-area: events; }
 body[data-detail="1"] .sec-chart { grid-area: chart; }
+/* 上下排列时卡片与下面同宽。事件面板最高跟卡片齐平，多的在里面滚。 */
+body[data-detail="1"] .sec-events > .panel {
+    display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+}
+body[data-detail="1"] .sec-events > .panel > .panel-name,
+body[data-detail="1"] .sec-events > .panel > .toolbar { flex: none; }
+body[data-detail="1"] .sec-events .timeline {
+    flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto;
+}
 @container (min-width: 980px) {
     body[data-detail="1"] #content {
         grid-template-columns: minmax(0, 680px) minmax(280px, 1fr);
         grid-template-areas: "card events" "chart chart";
     }
+    body[data-detail="1"] .sec-card { max-width: 680px; }
     /* 行高由左侧卡片决定。事件区高度先记为 0，再拉到这一行，
        记录再多也不会先把页面撑开。面板按内容收缩，最高跟卡片齐平。 */
     body[data-detail="1"] .sec-events {

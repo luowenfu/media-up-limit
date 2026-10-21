@@ -217,7 +217,7 @@ export function embyCard(d, i) {
                 <h4 class="sec-title">${I.play}当前播放会话
                     <span class="more"><button class="mini-btn" data-goto="chart" data-kind="emby" data-dev="${esc(d.name)}">${I.chart}图表</button><button class="mini-btn" data-goto="events" data-kind="emby" data-dev="${esc(d.name)}">${I.list}记录</button></span>
                 </h4>
-                <div style="flex:1;display:flex;flex-direction:column;justify-content:${has ? 'flex-start' : 'stretch'}">${has ? d.sessions.map(s => sessionHtml(s, d)).join('') : emptySession}</div>
+                <div class="sessions">${has ? d.sessions.map(s => sessionHtml(s, d)).join('') : emptySession}</div>
             </div>
         </div>
         <footer class="dev-foot" data-kind="emby" data-name="${esc(d.name)}">

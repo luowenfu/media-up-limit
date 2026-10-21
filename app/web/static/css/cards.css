@@ -1,7 +1,16 @@
 /* ============ 设备卡片 ============ */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 600px), 1fr)); gap: 20px; }
-.merge { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.merge { display: grid; grid-template-columns: 1fr 1fr; column-gap: 20px; row-gap: 16px; align-items: stretch; grid-auto-flow: dense; }
 .merge-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+/* 并排时同一行的两张卡片一样高，多出来的高度进播放会话 */
+@media (min-width: 1200px) {
+    .merge-col { display: contents; }
+    .merge-col:first-child > * { grid-column: 1; }
+    .merge-col:last-child > * { grid-column: 2; }
+    .merge .col-head { align-self: end; }
+    .merge .dev { min-width: 0; }
+    .merge .dev-col:last-child { display: flex; flex-direction: column; min-height: 0; }
+}
 .col-head { display: flex; align-items: center; gap: 8px; padding: 0 4px; font-size: 13px; font-weight: 700; color: var(--text-1); }
 .col-head .dot { width: 9px; height: 9px; border-radius: 3px; }
 .col-head small { font-weight: 600; color: var(--text-3); }
@@ -72,6 +81,7 @@
 .dev-col + .dev-col { border-left: 1px solid var(--line-2); background: #fbfcfe; }
 @container (max-width: 620px) {
     .dev-body { grid-template-columns: 1fr; }
+    .merge .dev-body { grid-template-rows: auto minmax(0, 1fr); }
     .dev-col + .dev-col { border-left: 0; border-top: 1px solid var(--line-2); }
 }
 
@@ -171,9 +181,10 @@
 .rule-bot .st { font-weight: 700; color: var(--danger); }
 .rule.cur .rule-bot .st { color: #b45309; }
 
+.sessions { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .session-empty {
     display: grid; place-items: center; gap: 8px; text-align: center;
-    min-height: 210px; padding: 20px; border-radius: 14px;
+    flex: 1; min-height: 210px; padding: 20px; border-radius: 14px;
     border: 1px dashed #c9eadb; background: linear-gradient(180deg, #f6fdf9, #effaf5);
     color: var(--text-2); font-size: 13px;
 }
