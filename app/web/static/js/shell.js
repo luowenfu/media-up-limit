@@ -13,7 +13,7 @@ import { relockTiles } from './interact.js';
 import {
     state, qbList, embyList, embyOn, navCollapsed, rememberPage,
 } from './store.js';
-import { $, $$ } from './ui.js';
+import { $, $$, isPhone } from './ui.js';
 import { ensureSidebar } from './theme.js';
 
 export const NAMES = { qb: 'qBittorrent', emby: 'Emby', merge: '合并视图' };
@@ -26,7 +26,7 @@ const SLOW_EVERY = 30;
 export const listOf = kind => (kind === 'emby' ? embyList() : qbList());
 export const isListView = v => LIST_VIEWS.includes(v);
 
-const isMobile = () => matchMedia('(max-width: 992px)').matches;
+const isMobile = isPhone;
 
 /** 把兜底后的页面写回地址历史，保留已有的筛选 */
 function rememberRoute() {
@@ -37,7 +37,7 @@ function rememberRoute() {
     history.replaceState(next, '');
 }
 
-/** 路由兜底：Emby 关闭时回到 qB，设备被删时回到所在分组。手机上不使用合并视图，并进入一台设备 */
+/** 路由兜底：Emby 关闭时回到 qB，设备被删时回到所在分组。手机上不使用合并视图，并进入一台设备。平板跟电脑一样 */
 export function fixRoute() {
     const before = `${state.view}|${state.dev || ''}`;
     if (!embyOn() && (state.view === 'emby' || state.view === 'merge')) Object.assign(state, { view: 'qb', dev: '' });

@@ -219,7 +219,3 @@
 .orphan-time { margin-top: 4px; font-size: 12px; color: var(--text-3); line-height: 1.4; }
 .orphan-row .mini-btn { flex-shrink: 0; }
 .orphan-empty { padding: 14px 0 2px; text-align: center; }
-@media (max-width: 720px) {
-    .orphan-row { align-items: flex-start; }
-    .orphan-top { flex-wrap: wrap; }
-}

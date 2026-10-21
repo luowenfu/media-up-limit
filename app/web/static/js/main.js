@@ -18,7 +18,7 @@ import { normalizeDayRange, normalizeMonthRange, parseDay, parseMonth, quickPres
 import { bindRangePicker, closeRangePicker } from './range_picker.js';
 import { chartOrderPref, moveChartBlock } from './stats.js';
 import {
-    $, closeDrawer, closeModal, closeSheet, toast,
+    $, closeDrawer, closeModal, closeSheet, isPhone, toast,
 } from './ui.js';
 
 const pad = n => String(n).padStart(2, '0');
@@ -78,8 +78,8 @@ document.addEventListener('click', e => {
     if (uiClick(t, e, ctx)) return;
     if (t.dataset.navToggle) { const k = t.dataset.navToggle; setGroupOpen(k, navCollapsed().includes(k)); return; }
     if (t.dataset.nav && ['qb', 'emby', 'merge', 'syslogs'].includes(t.dataset.nav)) {
-        if (matchMedia('(max-width: 992px)').matches && t.dataset.nav === 'merge') return;
-        if (matchMedia('(max-width: 992px)').matches && !t.dataset.dev && (t.dataset.nav === 'qb' || t.dataset.nav === 'emby')) {
+        if (isPhone() && t.dataset.nav === 'merge') return;
+        if (isPhone() && !t.dataset.dev && (t.dataset.nav === 'qb' || t.dataset.nav === 'emby')) {
             setGroupOpen(t.dataset.nav, navCollapsed().includes(t.dataset.nav));
             return;
         }
@@ -230,10 +230,10 @@ $('#sheetMask').addEventListener('click', closeSheet);
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
 $('#menuBtn').addEventListener('click', () => document.body.classList.add('drawer'));
 $('#scrim').addEventListener('click', closeDrawer);
-let wasMobile = matchMedia('(max-width: 992px)').matches;
+let wasMobile = isPhone();
 window.addEventListener('resize', () => {
     relockTiles();
-    const mobile = matchMedia('(max-width: 992px)').matches;
+    const mobile = isPhone();
     const needDevice = mobile && (state.view === 'merge' || ((state.view === 'qb' || state.view === 'emby') && !state.dev));
     if (needDevice || mobile !== wasMobile) render();
     wasMobile = mobile;

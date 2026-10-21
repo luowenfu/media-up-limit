@@ -182,7 +182,7 @@ html[data-scheme="dark"] #themeMark::before { content: "深色"; }
 .kind.emby { background: var(--emby-soft); color: var(--emby); }
 .tb-metrics { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; max-width: 100%; flex: 0 0 auto; }
 /* 电脑端：状态图标挨着类型标签，点中间竖线收进分割线。默认展开 */
-@media (min-width: 993px) {
+@media (min-width: 1200px) {
     .tb-metrics-slot {
         display: flex; align-items: center; gap: 2px; flex: none;
         min-width: 0; margin-left: -8px;
@@ -223,7 +223,7 @@ html[data-scheme="dark"] #themeMark::before { content: "深色"; }
     }
     .tb-metrics-slot.is-collapsed .tb-split:hover .tb-split-grip { transform: scale(1) rotate(180deg); }
 }
-@media (min-width: 993px) and (prefers-reduced-motion: reduce) {
+@media (min-width: 1200px) and (prefers-reduced-motion: reduce) {
     .tb-metrics-clip,
     .tb-metrics-clip > .tb-metrics,
     .tb-split-line,
@@ -294,7 +294,7 @@ body[data-detail="1"] .sec-chart { grid-area: chart; }
     }
 }
 
-@media (min-width: 993px) {
+@media (min-width: 768px) and (min-height: 501px) {
     .ev-fold { pointer-events: none; }
 }
 .dev > .ev-fold { display: none; }

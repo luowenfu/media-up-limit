@@ -1,7 +1,7 @@
-/* ============ 手机端 ============ */
+/* 电脑 ≥1200 用默认样式。这里只写平板和手机。横屏手机仍按手机。 */
 #menuBtn, #backBtn, #metricsBtn, .bottom-bar, .scrim, .detail-tabs { display: none; }
 
-@media (max-width: 1180px) {
+@media (max-width: 1199px) {
     .merge { grid-template-columns: 1fr; }
     .chart-grid, .chart-grid.has-kpis, .rank-grid { grid-template-columns: 1fr; }
     .chart-kpis { border-left: 0; border-top: 1px solid var(--line); }
@@ -14,7 +14,19 @@
     .kpis .kpi:nth-child(n + 3) { border-top: 1px solid var(--line); }
     .kpis, .log-stats { grid-template-columns: repeat(2, 1fr); }
 }
-@media (max-width: 992px) {
+@media (min-width: 768px) and (max-width: 1199px) and (min-height: 501px) {
+    .page { padding: 18px 18px 32px; }
+    .topbar-in { padding-left: 18px; padding-right: 18px; }
+    .tb-split { display: none; }
+    .log { grid-template-columns: 1fr auto; gap: 4px 10px; padding: 9px 12px; }
+    .log time { grid-column: 1; }
+    .log .lv { grid-column: 2; grid-row: 1; justify-self: end; }
+    .log .src { display: none; }
+    .log .src.has-dev { display: inline-flex; grid-column: 1 / -1; grid-row: 2; justify-self: start; }
+    .log:has(.src.has-dev) .log-msg { grid-row: 3; }
+    .log-msg { grid-column: 1 / -1; white-space: normal; }
+}
+@media (max-width: 767px), (max-width: 1199px) and (orientation: landscape) and (max-height: 500px) {
     .shell { display: block; }
     [data-nav="merge"] { display: none; }
     .sidebar {
@@ -176,8 +188,8 @@
     .me-err { width: 100%; order: -1; justify-content: center; }
     .clear-sum { grid-template-columns: 1fr 1fr 1fr; }
     .toasts { top: auto; bottom: calc(16px + env(safe-area-inset-bottom)); }
-}
-@media (max-width: 560px) {
+    .orphan-row { align-items: flex-start; }
+    .orphan-top { flex-wrap: wrap; }
     .rp-pop { flex-direction: column; max-width: calc(100vw - 16px); }
     .rp-pane + .rp-pane { border-left: 0; margin-left: 0; padding-left: 0; border-top: 1px solid #f0f0f0; margin-top: 8px; padding-top: 8px; }
     .rp-pane, .rp-pop.is-month .rp-pane { width: min(280px, calc(100vw - 40px)); }

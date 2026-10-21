@@ -6,6 +6,10 @@ import { esc } from './format.js';
 export const $ = s => document.querySelector(s);
 export const $$ = s => [...document.querySelectorAll(s)];
 
+/** 手机。平板和电脑不走这套；横屏后仍然很矮的也算手机。 */
+const PHONE_MQ = '(max-width: 767px), (max-width: 1199px) and (orientation: landscape) and (max-height: 500px)';
+export const isPhone = () => matchMedia(PHONE_MQ).matches;
+
 export const COL = { qb: ['#2563eb', '#3b82f6'], emby: ['#059669', '#10b981'], sys: ['#334155', '#64748b'] };
 
 /* ---------- 表单构件 ---------- */

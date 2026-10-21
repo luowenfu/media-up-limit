@@ -2,6 +2,7 @@
 
 import * as api from './api.js';
 import { embyVM, qbVM } from './adapt.js';
+import { isPhone } from './ui.js';
 
 export const state = {
     view: 'qb',
@@ -210,10 +211,10 @@ export function restorePage() {
     return ok;
 }
 
-/** 新开页面时进入的位置。电脑可以是类型页、某台设备或合并视图，手机是某台设备 */
+/** 新开页面时进入的位置。电脑和平板可以是类型页、某台设备或合并视图，手机是某台设备 */
 export function pickLanding() {
     const g = state.global || {};
-    const mobile = matchMedia('(max-width: 992px)').matches;
+    const mobile = isPhone();
     let view = mobile
         ? (g.default_mobile_view === 'emby' ? 'emby' : 'qb')
         : (['qb', 'emby', 'merge'].includes(g.default_pc_view) ? g.default_pc_view : (g.emby_default_device_view || 'qb'));
