@@ -471,7 +471,7 @@ function syncDetailEvents() {
     const card = document.getElementById('sec-card');
     const page = document.querySelector('.page');
     const pad = page ? parseFloat(getComputedStyle(page).paddingLeft) + parseFloat(getComputedStyle(page).paddingRight) : 0;
-    const wide = page && (page.clientWidth - pad) >= 1260;
+    const wide = page && (page.clientWidth - pad) >= 980;
     if (!card || isPhone() || wide) {
         panel.style.maxHeight = '';
         return;

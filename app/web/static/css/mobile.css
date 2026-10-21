@@ -152,6 +152,8 @@
     body[data-detail="1"] .toasts { bottom: calc(76px + env(safe-area-inset-bottom)); }
 
     .page { overflow-x: clip; padding: 16px 12px calc(16px + env(safe-area-inset-bottom)); }
+    .dev-body { grid-template-columns: 1fr; }
+    .dev-col + .dev-col { border-left: 0; border-top: 1px solid var(--line-2); }
 
     .panel-name { padding: 12px 12px 0; }
     .toolbar { min-width: 0; max-width: 100%; padding: 12px; }
