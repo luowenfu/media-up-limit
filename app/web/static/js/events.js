@@ -43,7 +43,7 @@ function qbEvent(e) {
     if (e.speed_limit_kbps !== null && e.speed_limit_kbps !== undefined && cat === 'limit') {
         meta.push(['限速', e.speed_limit_kbps > 0 ? `${e.speed_limit_kbps} KB/s` : '不限速']);
     }
-    return { t: parseTime(e.event_time), cls, icon, title, tag: e.instance_name, desc: e.reason || '', meta, cat, device: e.instance_name };
+    return { t: parseTime(e.event_time), cls, icon, title, tag: e.instance_name, descParts: e.reason ? [esc(e.reason)] : [], meta, cat, device: e.instance_name };
 }
 
 async function loadQb() {
@@ -152,7 +152,7 @@ function playbackEvent(r) {
         title: interrupted ? '播放中断' : playing ? (r.is_paused ? '暂停播放' : '正在播放') : '播放结束',
         sid: playing ? (r.emby_session_id || '') : '',
         place: place(r.is_remote),
-        descHtml: `${filmLine(r)}${client(r) ? ' · ' + esc(client(r)) : ''}${interrupted ? ' · ' + esc(r.interrupt_reason) : ''}`,
+        descParts: [filmLine(r), client(r) ? esc(client(r)) : '', interrupted ? esc(r.interrupt_reason) : ''].filter(Boolean),
         meta: [], prog: run > 0 ? Math.min(100, Math.max(0, pos) / run * 100) : null,
         pos, run, played: playedText(r.played_seconds),
         cat: interrupted ? 'alert' : 'play', device: r.instance_name, user: r.user_name, lan: !r.is_remote,
@@ -167,11 +167,10 @@ function playbackEvent(r) {
 function browseEvent(r) {
     const lan = isLanIp(r.client_ip);
     const title = r.series_name || r.viewing_title || r.episode_title;
-    const what = title ? `《${title}》` : '影片';
     return {
         t: parseTime(r.stopped_at), cls: 'violet', icon: 'eye', title: '选片记录',
         place: place(!lan),
-        desc: `浏览${what}${client(r) ? ' · ' + client(r) : ''}`,
+        descParts: [`浏览${title ? filmName(title) : '影片'}`, client(r) ? esc(client(r)) : ''].filter(Boolean),
         meta: [['选片流量', fmtBytes(r.estimated_upload_bytes, 1000)]],
         cat: 'browse', device: r.instance_name, user: r.user_name, lan,
         ipTip: [['IP 地址', r.client_ip || '未记录']],
@@ -268,7 +267,7 @@ function eventCard(e, kind) {
             ${whoTag}${modeTag}${upTag}${devTag}
             <time class="num${dur ? ' has-tip' : ''}">${timeLabel(e)}${dur}</time>
         </div>
-        ${e.descHtml ? `<div class="ev-desc">${e.descHtml}</div>` : (e.desc ? `<div class="ev-desc">${esc(e.desc)}</div>` : '')}
+        ${(e.descParts || []).length ? `<div class="ev-desc">${e.descParts.map(part => `<span>${part}</span>`).join('')}</div>` : ''}
         ${e.meta.length ? `<div class="ev-meta">${e.meta.map(m => `<span>${esc(m[0])} <b>${esc(m[1])}</b></span>`).join('')}</div>` : ''}
         ${prog}
     </article>`;

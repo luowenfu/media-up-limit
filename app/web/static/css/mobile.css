@@ -131,11 +131,7 @@
     .kpi-v { font-size: 18px; }
     .timeline { padding: 8px; }
     .ev-item { padding: 8px 10px; }
-    .ev-item-top { flex-wrap: wrap; row-gap: 2px; column-gap: 6px; }
-    .ev-item time {
-        order: -1; flex: 1 0 100%; width: 100%; margin: 0;
-        text-align: left;
-    }
+    .ev-item-top { column-gap: 6px; row-gap: 2px; }
     .ev-desc { margin-top: 2px; line-height: 1.35; }
     .ev-meta { margin-top: 2px; line-height: 1.35; }
     .ev-prog { margin-top: 4px; }

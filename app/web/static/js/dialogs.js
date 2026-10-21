@@ -4,7 +4,7 @@ import * as api from './api.js';
 import { enc, q } from './api.js';
 import { I, ico } from './icons.js';
 import { esc } from './format.js';
-import { state, qbByName, embyByName } from './store.js';
+import { qbByName, embyByName } from './store.js';
 import {
     $, $$, busy, chkBox, closeModal, inp, mTop, notice, openSmall, reload, toast,
 } from './ui.js';
@@ -17,8 +17,8 @@ export function openChooser() {
     box.className = 'modal';
     box.innerHTML = `<div class="modal-head"><h3>添加设备</h3><button data-close>${I.x}</button></div>
     <div class="modal-body"><div class="choose">
-        <button data-addkind="qb" style="${state.view === 'emby' ? '' : 'border-color:var(--qb);box-shadow:0 0 0 4px var(--qb-soft)'}"><span class="ci"><img src="/static/img/qbittorrent-logo.svg" alt=""></span><b>qBittorrent</b><small>按周期统计上传流量，达量自动限速</small></button>
-        <button data-addkind="emby" style="${state.view === 'emby' ? 'border-color:var(--emby);box-shadow:0 0 0 4px var(--emby-soft)' : ''}"><span class="ci"><img src="/static/img/emby-icon.svg" alt=""></span><b>Emby</b><small>按用户统计播放流量，记录播放与选片</small></button>
+        <button data-addkind="qb"><span class="ci"><img src="/static/img/qbittorrent-logo.svg" alt=""></span><b>qBittorrent</b><small>按周期统计上传流量，达量自动限速</small></button>
+        <button data-addkind="emby"><span class="ci"><img src="/static/img/emby-icon.svg" alt=""></span><b>Emby</b><small>按用户统计播放流量，记录播放与选片</small></button>
     </div></div>`;
     $('#modal').classList.add('open');
 }
