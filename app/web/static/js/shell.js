@@ -476,7 +476,9 @@ function syncDetailEvents() {
         panel.style.maxHeight = '';
         return;
     }
-    panel.style.maxHeight = `${Math.round(card.getBoundingClientRect().height)}px`;
+    const cardH = card.getBoundingClientRect().height;
+    const cap = Math.min(cardH, window.innerHeight * 0.7);
+    panel.style.maxHeight = `${Math.round(cap)}px`;
 }
 window.addEventListener('resize', syncDetailEvents);
 

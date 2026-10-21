@@ -274,6 +274,7 @@ body[data-detail="1"] .sec-chart { grid-area: chart; }
 /* 上下排列时卡片与下面同宽。事件面板最高跟卡片齐平，多的在里面滚。 */
 body[data-detail="1"] .sec-events > .panel {
     display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+    max-height: 70vh;
 }
 body[data-detail="1"] .sec-events > .panel > .panel-name,
 body[data-detail="1"] .sec-events > .panel > .toolbar { flex: none; }
