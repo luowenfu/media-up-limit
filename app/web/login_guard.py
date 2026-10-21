@@ -5,7 +5,7 @@ import os
 import threading
 import time
 
-FAILS_BEFORE_DELAY = 3
+FAILS_BEFORE_DELAY = 2
 MAX_DELAY_SECONDS = 5 * 60
 _MAX_ENTRIES = 4096
 
@@ -83,7 +83,7 @@ def _bucket(ip: str, username: str):
 
 
 def wait_seconds_for_failures(count: int) -> int:
-    """第 3 次失败后依次等待 1、2、4、8 秒，上限 5 分钟。"""
+    """第 1 次失败可立刻再试。从第 2 次起依次等待 1、2、4、8 秒，上限 5 分钟。"""
     if count < FAILS_BEFORE_DELAY:
         return 0
     return min(MAX_DELAY_SECONDS, 2 ** (count - FAILS_BEFORE_DELAY))
@@ -131,7 +131,7 @@ def record_success(ip: str, username: str) -> None:
 
 
 def delay_message(seconds: int) -> str:
-    return f'尝试过于频繁，请 {max(1, int(seconds))} 秒后再试'
+    return f'密码错误，锁定{max(1, int(seconds))}秒…'
 
 
 def _evict() -> None:
