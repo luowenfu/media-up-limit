@@ -1,5 +1,5 @@
 /* 电脑 ≥1200 用默认样式。这里只写平板和手机。横屏手机仍按手机。 */
-#menuBtn, #backBtn, #metricsBtn, .bottom-bar, .scrim, .detail-tabs, .side-toggle { display: none; }
+#menuBtn, #backBtn, .bottom-bar, .scrim, .detail-tabs, .side-toggle { display: none; }
 
 @media (max-width: 1199px) {
     .merge { grid-template-columns: 1fr; }
@@ -49,7 +49,6 @@
     body.side-off #menuBtn[hidden] { display: none; }
     .page { padding: 18px 18px 32px; }
     .topbar-in { padding-left: 18px; padding-right: 18px; }
-    .tb-split { display: none; }
     .tb-metrics { justify-content: flex-start; }
     .log { grid-template-columns: 1fr auto; gap: 4px 10px; padding: 9px 12px; }
     .log time { grid-column: 1; }
@@ -92,21 +91,18 @@
     .icon-btn { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; color: var(--text); }
     .icon-btn:hover { background: #f1f5f9; }
     .tb-title { flex: 1; min-height: 38px; }
-    body[data-detail="1"]:not(.metrics-open) .tb-bar { box-shadow: 0 1px 0 var(--line); }
-    body[data-detail="1"] .tb-metrics-clip { position: sticky; top: var(--tb-bar-h, 54px); z-index: 90; }
-    body.metrics-fold .tb-metrics-clip { width: 100%; }
-    body.metrics-fold .tb-metrics-clip > .tb-metrics { transition: opacity .25s ease, padding-bottom .3s cubic-bezier(.2, .8, .2, 1); }
-    body.metrics-fold:not(.metrics-open) .tb-metrics-clip > .tb-metrics { padding-bottom: 0; border-bottom-width: 0; }
-    .tb-metrics-slot, .tb-metrics-clip { display: contents; }
-    .tb-split { display: none; }
-    .tb-metrics {
-        position: relative; z-index: 90;
-        width: 100%; height: auto; margin: 0; flex: none;
-        display: block; overflow: visible;
-        padding: 0 12px 10px;
+    .tb-metrics-slot {
+        position: relative; z-index: 90; width: 100%;
         background: rgba(255, 255, 255, .96);
         backdrop-filter: blur(14px);
         border-bottom: 1px solid var(--line);
+    }
+    body[data-detail="1"] .tb-metrics-slot { position: sticky; top: var(--tb-bar-h, 54px); }
+    .tb-metrics-clip { width: 100%; }
+    .tb-metrics {
+        width: 100%; height: auto; margin: 0; flex: none;
+        display: block; padding: 0 12px;
+        background: none;
     }
     .tb-metrics-in { display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding-top: 2px; }
     .tb-tray {

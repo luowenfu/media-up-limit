@@ -7,7 +7,7 @@ import {
     rememberPage, restorePage, savePrefs, syncMerge,
 } from './store.js';
 import {
-    fixRoute, isListView, rememberPart, render, refreshLogsInPlace, revealSection, syncDetailFold, toggleMetricsBar, toggleMetricsDock, toggleNavGroup, togglePadSide,
+    fixRoute, isListView, rememberPart, render, refreshLogsInPlace, revealSection, syncDetailFold, toggleMetricsDock, toggleNavGroup, togglePadSide,
 } from './shell.js';
 import { uiClick, uiInput, relockTiles } from './interact.js';
 import { toggleReveal } from './cards.js';
@@ -113,7 +113,6 @@ document.addEventListener('click', e => {
         return;
     }
     if (t.id === 'backBtn') { go({ dev: '' }); return; }
-    if (t.id === 'metricsBtn') { toggleMetricsBar(); return; }
     if (t.id === 'metricsSplit') { toggleMetricsDock(); return; }
     if (t.dataset.quick) {
         const [mode, which] = t.dataset.quick.split(':');

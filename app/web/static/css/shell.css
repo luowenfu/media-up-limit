@@ -181,74 +181,48 @@ html[data-scheme="dark"] #themeMark::before { content: "深色"; }
 .kind.qb { background: var(--qb-soft); color: var(--qb); }
 .kind.emby { background: var(--emby-soft); color: var(--emby); }
 .tb-metrics { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; max-width: 100%; flex: 0 0 auto; }
-/* 状态条换行后，用和手机一样的按钮收起、展开 */
+/* 状态栏：放得下时跟在标题后，竖线左右收起。挤成单独一行时，横线放在下面上下收起 */
+.tb-metrics-slot { display: flex; align-items: center; gap: 2px; flex: none; min-width: 0; margin-left: -8px; }
+.tb-split {
+    position: relative; width: 18px; height: 40px; flex: none;
+    display: grid; place-items: center; border-radius: 9px; color: var(--text-3);
+    background: transparent; -webkit-tap-highlight-color: transparent;
+}
+.tb-split:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.tb-split-line {
+    width: 1.5px; height: 16px; border-radius: 2px; background: #c5ced9;
+    transition: width .28s cubic-bezier(.2, .8, .2, 1), height .28s cubic-bezier(.2, .8, .2, 1);
+}
+.tb-metrics-slot.is-collapsed .tb-split-line { height: 28px; }
 .tb-split-grip {
     position: absolute; width: 16px; height: 16px; border-radius: 50%;
     display: grid; place-items: center;
     background: #fff; border: 1px solid var(--line); box-shadow: var(--shadow-sm);
     color: var(--text-2);
-    transition: transform .28s cubic-bezier(.2, .8, .2, 1), color .2s;
+    transition: transform .28s cubic-bezier(.2, .8, .2, 1);
 }
-/* 换行后和手机：横向分割线，箭头朝下展开、朝上收起。按钮尺寸固定，切换时不跳 */
-body.metrics-fold #metricsBtn {
-    position: relative; display: grid; place-items: center; margin-left: auto; flex: none;
-    width: 40px; height: 30px; padding: 0; border-radius: 9px; color: var(--text-3);
+.tb-metrics-slot.is-collapsed .tb-split-grip { transform: rotate(180deg); }
+.tb-metrics-clip {
+    display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr; min-width: 0; overflow: hidden;
+    transition: grid-template-columns .36s cubic-bezier(.2, .8, .2, 1), grid-template-rows .3s cubic-bezier(.2, .8, .2, 1);
 }
-/* 收起按钮只转箭头，不加底色、不变色 */
-#metricsBtn, #metricsBtn:hover, .tb-split, .tb-split:hover { background: transparent; -webkit-tap-highlight-color: transparent; }
-.tb-fold-line { width: 28px; height: 1.5px; border-radius: 2px; background: #c5ced9; }
-body.metrics-fold.metrics-open #metricsBtn .tb-split-grip { transform: rotate(180deg); }
-/* 收起、展开用行高过渡。收起后抵掉换行间距，标题位置不变 */
-body.metrics-fold .topbar-in { transition: row-gap .3s cubic-bezier(.2, .8, .2, 1); }
-body.metrics-fold:not(.metrics-open) .topbar-in { row-gap: 0; }
-body.metrics-fold .tb-metrics-clip,
-body.metrics-fold .tb-metrics-slot.is-collapsed .tb-metrics-clip {
-    display: grid; grid-template-rows: 1fr; grid-template-columns: 1fr; min-width: 0; overflow: hidden;
-    transition: grid-template-rows .3s cubic-bezier(.2, .8, .2, 1);
+.tb-metrics-slot.is-collapsed .tb-metrics-clip { grid-template-columns: 0fr; }
+.tb-metrics-clip > .tb-metrics {
+    min-width: 0; min-height: 0; justify-content: flex-start; flex-wrap: nowrap;
+    max-width: none; margin: 0;
+    transition: opacity .3s ease;
 }
-body.metrics-fold:not(.metrics-open) .tb-metrics-clip { grid-template-rows: 0fr; }
-body.metrics-fold .tb-metrics-clip > .tb-metrics,
-body.metrics-fold .tb-metrics-slot.is-collapsed .tb-metrics-clip > .tb-metrics {
-    min-height: 0; opacity: 1; transform: none; pointer-events: auto;
-    transition: opacity .25s ease;
-}
-body.metrics-fold:not(.metrics-open) .tb-metrics-clip > .tb-metrics { opacity: 0; pointer-events: none; }
-body.metrics-fold .topbar-in { align-content: flex-start; }
-body.metrics-fold .tb-title { min-height: 44px; }
-body.metrics-fold .tb-split { display: none; }
-/* 电脑端：状态图标挨着类型标签，点中间竖线收进分割线。默认展开 */
-@media (min-width: 1200px) {
-    .tb-metrics-slot {
-        display: flex; align-items: center; gap: 2px; flex: none;
-        min-width: 0; margin-left: -8px;
-    }
-    .tb-split {
-        position: relative; width: 18px; height: 40px; flex: none;
-        display: grid; place-items: center; border-radius: 9px; color: var(--text-3);
-    }
-    .tb-split:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-    .tb-split-line {
-        width: 1.5px; height: 22px; border-radius: 2px; background: #c5ced9;
-        transition: height .28s cubic-bezier(.2, .8, .2, 1);
-    }
-    .tb-split:hover .tb-split-line,
-    .tb-metrics-slot.is-collapsed .tb-split-line { height: 28px; }
-    .tb-metrics-slot.is-collapsed .tb-split-grip { transform: rotate(180deg); }
-    .tb-metrics-clip {
-        display: grid; grid-template-columns: 1fr; min-width: 0;
-        transition: grid-template-columns .36s cubic-bezier(.2, .8, .2, 1);
-    }
-    .tb-metrics-slot.is-collapsed .tb-metrics-clip { grid-template-columns: 0fr; }
-    .tb-metrics-clip > .tb-metrics {
-        min-width: 0; overflow: hidden; justify-content: flex-start; flex-wrap: nowrap;
-        max-width: none; margin: 0;
-        transition: opacity .3s ease, transform .36s cubic-bezier(.2, .8, .2, 1);
-    }
-    .tb-metrics-slot.is-collapsed .tb-metrics-clip > .tb-metrics {
-        opacity: 0; transform: translateX(-8px); pointer-events: none;
-    }
-}
-@media (min-width: 1200px) and (prefers-reduced-motion: reduce) {
+.tb-metrics-clip .tb-tray { flex: none; }
+.tb-metrics-slot.is-collapsed .tb-metrics-clip > .tb-metrics { opacity: 0; pointer-events: none; }
+.tb-metrics-slot.is-stacked { flex: 1 1 100%; flex-direction: column; align-items: stretch; gap: 0; margin-left: 0; }
+.tb-metrics-slot.is-stacked .tb-split { order: 1; width: 100%; height: 18px; }
+.tb-metrics-slot.is-stacked .tb-split-line { width: 20px; height: 1.5px; }
+.tb-metrics-slot.is-stacked.is-collapsed .tb-split-line { width: 36px; }
+.tb-metrics-slot.is-stacked .tb-split-grip { transform: rotate(90deg); }
+.tb-metrics-slot.is-stacked.is-collapsed .tb-split-grip { transform: rotate(-90deg); }
+.tb-metrics-slot.is-stacked .tb-metrics-clip > .tb-metrics { flex-wrap: wrap; }
+.tb-metrics-slot.is-stacked.is-collapsed .tb-metrics-clip { grid-template-columns: 1fr; grid-template-rows: 0fr; }
+@media (prefers-reduced-motion: reduce) {
     .tb-metrics-clip,
     .tb-metrics-clip > .tb-metrics,
     .tb-split-line,

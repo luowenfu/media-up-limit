@@ -223,63 +223,23 @@ function ensureTopbar() {
     ensureTbBar();
 }
 
-const METRICS_ICON = '<i class="tb-fold-line" aria-hidden="true"></i><span class="tb-split-grip" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2.2 3.8 5 6.6l2.8-2.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
-
-/** 手机设备详情默认收起。其它视图在状态条换行后默认展开，用同一个按钮收起。 */
-let metricsOpen = false;
-let metricsUserSet = false;
-let metricsFoldKey = '';
-
-function metricsWrapped() {
-    if (isPhone()) return true;
+/** 状态栏放不进标题这一行时改成单独一行。按托盘原始宽度算，不受收起状态影响 */
+function syncMetricsLayout() {
+    const slot = document.getElementById('metricsSlot');
     const title = document.querySelector('.tb-title');
-    const metrics = document.querySelector('.tb-metrics');
-    const slot = document.querySelector('.tb-metrics-slot') || metrics;
-    if (!title || !metrics || !slot) return false;
-    return slot.getBoundingClientRect().left < title.getBoundingClientRect().right
-        || metrics.scrollHeight > 64;
-}
-
-function syncMetricsToggle() {
-    const phoneDetail = isPhone() && !!state.dev;
-    const key = phoneDetail ? 'detail' : 'bar';
-    if (key !== metricsFoldKey) {
-        metricsFoldKey = key;
-        metricsUserSet = false;
+    const inner = document.querySelector('.topbar-in');
+    if (!slot || !title || !inner) return;
+    let stacked = isPhone();
+    if (!stacked) {
+        const trays = [...slot.querySelectorAll('.tb-tray')];
+        const need = trays.reduce((sum, t) => sum + t.offsetWidth, 0) + 8 * Math.max(0, trays.length - 1) + 20;
+        const room = inner.getBoundingClientRect().right - parseFloat(getComputedStyle(inner).paddingRight)
+            - title.getBoundingClientRect().right - 8;
+        stacked = need > room;
     }
-    const wrapped = metricsWrapped();
-    if (!metricsUserSet) metricsOpen = !phoneDetail;
-    const showBtn = wrapped;
-    const open = showBtn && metricsOpen;
-    document.body.classList.toggle('metrics-fold', showBtn);
-    document.body.classList.toggle('metrics-open', open);
+    slot.classList.toggle('is-stacked', stacked);
     const bar = document.querySelector('.tb-bar');
     if (bar && isPhone()) document.documentElement.style.setProperty('--tb-bar-h', bar.getBoundingClientRect().height + 'px');
-    const btn = document.getElementById('metricsBtn');
-    if (!btn) return;
-    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    btn.setAttribute('aria-label', open ? '收起状态栏' : '展开状态栏');
-}
-
-export function toggleMetricsBar() {
-    metricsUserSet = true;
-    metricsOpen = !document.body.classList.contains('metrics-open');
-    syncMetricsToggle();
-    syncMetricsEdge();
-}
-
-function ensureMetricsBtn() {
-    if (document.getElementById('metricsBtn')) return;
-    const bar = document.querySelector('.tb-bar');
-    if (!bar) return;
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'icon-btn';
-    btn.id = 'metricsBtn';
-    btn.setAttribute('aria-label', '展开状态栏');
-    btn.setAttribute('aria-expanded', 'false');
-    btn.innerHTML = METRICS_ICON;
-    bar.appendChild(btn);
 }
 
 /** 标题行单独吸顶，统计留在文档流里，随滚动匀速滑到标题下面 */
@@ -299,7 +259,7 @@ function ensureTbBar() {
 
 const SPLIT_BTN = '<i class="tb-split-line" aria-hidden="true"></i><span class="tb-split-grip" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M6.2 2.2 3.4 5l2.8 2.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
 
-/** 电脑端状态图标默认展开，点分割线收进竖线里。只在当次打开里记住 */
+/** 状态栏默认展开，点分割线收起。只在当次打开里记住 */
 let metricsDocked = false;
 
 function syncMetricsDock() {
@@ -314,9 +274,9 @@ function syncMetricsDock() {
 }
 
 export function toggleMetricsDock() {
-    if (isMobile()) return;
     metricsDocked = !metricsDocked;
     syncMetricsDock();
+    syncMetricsEdge();
 }
 
 /** 旧页面没有分割线时补上，统计仍留在顶栏里、不进标题行 */
@@ -355,7 +315,6 @@ function ensureMetricsDock() {
 export function renderChrome() {
     ensureTopbar();
     ensureTbBar();
-    ensureMetricsBtn();
     ensureMetricsDock();
     ensureDetailTabs();
     ensureSidebar();
@@ -393,26 +352,25 @@ export function renderChrome() {
         metrics.style.height = '';
         metrics.style.transition = '';
     }
-    syncMetricsToggle();
+    syncMetricsLayout();
     syncMetricsDock();
-    requestAnimationFrame(syncMetricsToggle);
+    requestAnimationFrame(syncMetricsLayout);
 }
 
 /** 统计完全滑进标题栏后，给标题栏补上底边，避免和内容贴在一起 */
 function syncMetricsEdge() {
     const bar = document.querySelector('.tb-bar');
-    const metrics = document.querySelector('.tb-metrics');
+    const slot = document.getElementById('metricsSlot');
     if (bar && isMobile()) document.documentElement.style.setProperty('--tb-bar-h', bar.getBoundingClientRect().height + 'px');
-    const hidden = metrics && getComputedStyle(metrics).display === 'none';
-    if (!bar || !metrics || !isMobile() || hidden) {
+    if (!bar || !slot || !isMobile()) {
         document.body.classList.remove('metrics-gone');
         return;
     }
-    const gone = metrics.getBoundingClientRect().bottom <= bar.getBoundingClientRect().bottom + 0.5;
+    const gone = slot.getBoundingClientRect().bottom <= bar.getBoundingClientRect().bottom + 0.5;
     document.body.classList.toggle('metrics-gone', gone);
 }
 window.addEventListener('scroll', syncMetricsEdge, { passive: true });
-window.addEventListener('resize', () => { syncMetricsToggle(); syncMetricsEdge(); });
+window.addEventListener('resize', () => { syncMetricsLayout(); syncMetricsEdge(); });
 
 /* ---------- 页面区块 ---------- */
 const LOADING = '<div class="panel panel-pad" style="text-align:center;color:var(--text-3);padding:48px 16px">加载中…</div>';

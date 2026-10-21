@@ -28,6 +28,7 @@ html[data-scheme="dark"] .sidebar,
 html[data-scheme="dark"] .topbar,
 html[data-scheme="dark"] .tb-bar,
 html[data-scheme="dark"] .tb-metrics,
+html[data-scheme="dark"] .tb-metrics-slot,
 html[data-scheme="dark"] .detail-tabs,
 html[data-scheme="dark"] .bottom-bar {
     background: rgba(12, 18, 32, .94);
@@ -38,8 +39,7 @@ html[data-scheme="dark"] .login-card,
 html[data-scheme="dark"] .tb-split-grip {
     background: #151c2c;
 }
-html[data-scheme="dark"] .tb-split-line,
-html[data-scheme="dark"] .tb-fold-line { background: #4b5d78; }
+html[data-scheme="dark"] .tb-split-line { background: #4b5d78; }
 html[data-scheme="dark"] .tb-split-grip { border-color: #3d4d68; }
 html[data-scheme="dark"] .nav-item { color: #cbd5e1; }
 html[data-scheme="dark"] .nav-item.active { color: var(--accent); background: var(--accent-soft); }
