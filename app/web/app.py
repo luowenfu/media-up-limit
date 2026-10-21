@@ -34,7 +34,11 @@ for _bp in (auth_bp, qb_bp, qb_config_bp, settings_bp, emby_bp, emby_records_bp,
 
 @app.after_request
 def add_no_cache_headers(response):
-    if request.path.startswith('/static/') or request.path == '/favicon.ico':
+    if request.path.startswith('/static/img/'):
+        response.headers['Cache-Control'] = 'public, max-age=86400'
+        response.headers.pop('Pragma', None)
+        response.headers.pop('Expires', None)
+    elif request.path.startswith('/static/') or request.path == '/favicon.ico':
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
