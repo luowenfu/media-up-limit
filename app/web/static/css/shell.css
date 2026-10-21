@@ -280,9 +280,10 @@ body[data-detail="1"] .sec-events > .panel > .toolbar { flex: none; }
 body[data-detail="1"] .sec-events .timeline {
     flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto;
 }
-@container (min-width: 980px) {
+/* 左侧卡片 680、间距 16，筛选条大约还要 560。不够就把事件记录换到下一行。 */
+@container (min-width: 1260px) {
     body[data-detail="1"] #content {
-        grid-template-columns: minmax(0, 680px) minmax(280px, 1fr);
+        grid-template-columns: minmax(0, 680px) minmax(560px, 1fr);
         grid-template-areas: "card events" "chart chart";
     }
     body[data-detail="1"] .sec-card { max-width: 680px; }
