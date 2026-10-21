@@ -16,7 +16,7 @@
 }
 @media (min-width: 768px) and (max-width: 1199px) and (min-height: 501px) {
     .side-toggle {
-        position: absolute; top: 12px; right: 8px; z-index: 2;
+        position: absolute; top: 6px; right: 8px; z-index: 2;
         display: grid; place-items: center;
         width: 32px; height: 32px; border-radius: 9px;
         color: var(--text-2);
