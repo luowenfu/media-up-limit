@@ -265,21 +265,19 @@ function ensureTbBar() {
 
 const SPLIT_BTN = '<i class="tb-split-line" aria-hidden="true"></i><span class="tb-split-grip" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M6.2 2.2 3.4 5l2.8 2.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
 
-/** 状态栏默认展开，点分割线收起。存在本机，刷新后保持 */
+/** 状态栏打开页面时先展开。上次是收起的，1 秒后再收起 */
 const DOCK_KEY = 'qb-metrics-docked';
 let metricsDocked = false;
-try { metricsDocked = localStorage.getItem(DOCK_KEY) === '1'; } catch (e) { /* 隐私模式按展开处理 */ }
-let dockShown = false;
+let dockTimer = 0;
+try {
+    if (localStorage.getItem(DOCK_KEY) === '1') {
+        dockTimer = setTimeout(() => { dockTimer = 0; metricsDocked = true; syncMetricsDock(); }, 1000);
+    }
+} catch (e) { /* 隐私模式按展开处理 */ }
 
 function syncMetricsDock() {
     const slot = document.getElementById('metricsSlot');
     const btn = document.getElementById('metricsSplit');
-    const topbar = document.querySelector('.topbar');
-    if (!dockShown && topbar) {
-        dockShown = true;
-        topbar.classList.add('no-anim');
-        requestAnimationFrame(() => requestAnimationFrame(() => topbar.classList.remove('no-anim')));
-    }
     if (slot) slot.classList.toggle('is-collapsed', metricsDocked);
     if (!btn) return;
     btn.classList.toggle('is-collapsed', metricsDocked);
@@ -290,6 +288,8 @@ function syncMetricsDock() {
 }
 
 export function toggleMetricsDock() {
+    clearTimeout(dockTimer);
+    dockTimer = 0;
     metricsDocked = !metricsDocked;
     try { localStorage.setItem(DOCK_KEY, metricsDocked ? '1' : '0'); } catch (e) { /* 隐私模式只影响当次 */ }
     syncMetricsDock();
