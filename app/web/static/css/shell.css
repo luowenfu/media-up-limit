@@ -182,12 +182,28 @@ html[data-scheme="dark"] #themeMark::before { content: "深色"; }
 .kind.emby { background: var(--emby-soft); color: var(--emby); }
 .tb-metrics { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; max-width: 100%; flex: 0 0 auto; }
 /* 状态条换行后，用和手机一样的按钮收起、展开 */
-body.metrics-fold #metricsBtn {
-    display: grid; margin-left: auto; flex: none;
-    width: 30px; height: 30px; border-radius: 9px;
+.tb-split-grip {
+    position: absolute; width: 16px; height: 16px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: #fff; border: 1px solid var(--line); box-shadow: var(--shadow-sm);
+    color: var(--text-2);
+    transition: transform .28s cubic-bezier(.2, .8, .2, 1), color .2s;
 }
-body.metrics-fold.metrics-open #metricsBtn { color: var(--accent); background: var(--accent-soft); }
-body.metrics-fold.metrics-open #metricsBtn svg { transform: rotate(180deg); transition: transform .2s ease; }
+/* 换行后和手机：横向分割线，箭头朝下展开、朝上收起。按钮尺寸固定，切换时不跳 */
+body.metrics-fold #metricsBtn {
+    position: relative; display: grid; place-items: center; margin-left: auto; flex: none;
+    width: 40px; height: 30px; padding: 0; border-radius: 9px; color: var(--text-3);
+}
+body.metrics-fold #metricsBtn:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.tb-fold-line {
+    width: 28px; height: 1.5px; border-radius: 2px; background: #c5ced9;
+    transition: background .2s;
+}
+body.metrics-fold:not(.metrics-open) #metricsBtn .tb-fold-line,
+body.metrics-fold #metricsBtn:hover .tb-fold-line { background: var(--accent); }
+body.metrics-fold:not(.metrics-open) #metricsBtn .tb-split-grip,
+body.metrics-fold #metricsBtn:hover .tb-split-grip { color: var(--accent); }
+body.metrics-fold.metrics-open #metricsBtn .tb-split-grip { transform: rotate(180deg); }
 body.metrics-fold:not(.metrics-open) .tb-metrics { display: none; }
 body.metrics-fold .tb-split { display: none; }
 /* 电脑端：状态图标挨着类型标签，点中间竖线收进分割线。默认展开 */
@@ -208,15 +224,8 @@ body.metrics-fold .tb-split { display: none; }
     }
     .tb-split:hover .tb-split-line,
     .tb-metrics-slot.is-collapsed .tb-split-line { height: 28px; background: var(--accent); }
-    .tb-split-grip {
-        position: absolute; width: 16px; height: 16px; border-radius: 50%;
-        display: grid; place-items: center;
-        background: #fff; border: 1px solid var(--line); box-shadow: var(--shadow-sm);
-        color: var(--text-2); opacity: 0; transform: scale(.7);
-        transition: opacity .2s, transform .28s cubic-bezier(.2, .8, .2, 1), color .2s;
-    }
-    .tb-split:hover .tb-split-grip { opacity: 1; transform: scale(1); color: var(--accent); }
-    .tb-metrics-slot.is-collapsed .tb-split-grip { opacity: 1; color: var(--accent); transform: scale(1) rotate(180deg); }
+    .tb-split:hover .tb-split-grip { color: var(--accent); }
+    .tb-metrics-slot.is-collapsed .tb-split-grip { color: var(--accent); transform: rotate(180deg); }
     .tb-metrics-clip {
         display: grid; grid-template-columns: 1fr; min-width: 0;
         transition: grid-template-columns .36s cubic-bezier(.2, .8, .2, 1);
@@ -230,7 +239,6 @@ body.metrics-fold .tb-split { display: none; }
     .tb-metrics-slot.is-collapsed .tb-metrics-clip > .tb-metrics {
         opacity: 0; transform: translateX(-8px); pointer-events: none;
     }
-    .tb-metrics-slot.is-collapsed .tb-split:hover .tb-split-grip { transform: scale(1) rotate(180deg); }
 }
 @media (min-width: 1200px) and (prefers-reduced-motion: reduce) {
     .tb-metrics-clip,

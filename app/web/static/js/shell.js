@@ -223,7 +223,7 @@ function ensureTopbar() {
     ensureTbBar();
 }
 
-const METRICS_ICON = '<svg width="15" height="15" viewBox="0 0 20 20" fill="none"><path d="M5 7.5 10 12.5 15 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const METRICS_ICON = '<i class="tb-fold-line" aria-hidden="true"></i><span class="tb-split-grip" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2.2 3.8 5 6.6l2.8-2.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
 
 /** 手机设备详情默认收起。其它视图在状态条换行后默认展开，用同一个按钮收起。 */
 let metricsOpen = false;
