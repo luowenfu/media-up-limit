@@ -1045,6 +1045,9 @@ def _meta_from_lucky_row(row: dict) -> dict:
         'user_name': user_name,
         'user_id': user_id,
         'viewing_title': str(row.get('media_label') or '').strip(),
+        'client': str(row.get('client') or '').strip(),
+        'device_name': str(row.get('device_name') or '').strip(),
+        'client_ip': str(row.get('client_ip') or '').strip(),
     }
 
 

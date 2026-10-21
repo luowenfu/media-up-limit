@@ -1386,6 +1386,11 @@ def _analyze_ip_group(
             'conn_role': conn_role,
             'conn_role_label': _CONN_ROLE_LABELS.get(conn_role, conn_role),
             'emby_user': draft['emby_user'],
+            'client': str(best_session.get('client') or '').strip(),
+            'device_name': str(best_session.get('device_name') or '').strip(),
+            'client_ip': parse_endpoint_ip(
+                str(best_session.get('remote_endpoint') or '').strip(),
+            ) or ip,
             'emby_mode': emby_mode,
             'emby_mode_label': _EMBY_MODE_LABELS.get(emby_mode, emby_mode),
             'emby_label': emby_label,

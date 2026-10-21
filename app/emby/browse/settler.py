@@ -213,18 +213,6 @@ def _sync_superseded_browse_settlement(
         _settle_browse_session(name, sid, meta, settle_reason='account_superseded')
 
 
-def _copy_missing_client(dst: dict, src: Optional[dict]) -> None:
-    """账户切换的缓存往往只有用户名，客户端和地址从上一会话补上。"""
-    if not isinstance(dst, dict) or not isinstance(src, dict):
-        return
-    for field in ('client', 'device_name', 'client_ip'):
-        if str(dst.get(field) or '').strip():
-            continue
-        value = str(src.get(field) or '').strip()
-        if value:
-            dst[field] = value
-
-
 def _meta_for_prev_user_switch(
     instance_name: str,
     sid: str,
@@ -246,32 +234,24 @@ def _meta_for_prev_user_switch(
         'session_id': sid,
         'emby_session_id': sid,
     })
-    profile = dict(prev_profile or {})
-    stored = emby_playback_traffic.get_browse_session_meta(name, sid)
-    if str(stored.get('user_id') or '').strip() not in ('', prev_uid):
-        stored = {}
-
-    def finish(meta: dict) -> dict:
-        if not meta.get('user_name'):
-            return {}
-        done = dict(meta)
-        done['user_id'] = prev_uid
-        done.setdefault('emby_session_id', sid)
-        done.setdefault('session_id', sid)
-        done.setdefault('id', sid)
-        _copy_missing_client(done, profile)
-        _copy_missing_client(done, stored)
-        return done
-
     meta = _meta_for_browse_key(name, old_key)
     if meta.get('user_name'):
-        return finish(meta)
+        meta['user_id'] = prev_uid
+        return meta
 
-    if str(profile.get('user_name') or '').strip():
-        return finish(profile)
+    profile = dict(prev_profile or {})
+    prev_name = str(profile.get('user_name') or '').strip()
+    if prev_name:
+        meta = dict(profile)
+        meta['user_id'] = prev_uid
+        meta.setdefault('emby_session_id', sid)
+        meta.setdefault('session_id', sid)
+        meta.setdefault('id', sid)
+        return meta
 
-    if stored.get('user_name'):
-        return finish(stored)
+    stored = emby_playback_traffic.get_browse_session_meta(name, sid)
+    if str(stored.get('user_id') or '').strip() == prev_uid and stored.get('user_name'):
+        return stored
 
     with _lock:
         for key, cached in (_browse_key_meta.get(name) or {}).items():
@@ -280,7 +260,9 @@ def _meta_for_prev_user_switch(
             if key != old_key and not key.startswith(f'browse:{prev_uid}:'):
                 continue
             if cached.get('user_name'):
-                return finish(cached)
+                merged = dict(cached)
+                merged['user_id'] = prev_uid
+                return merged
     return {}
 
 
@@ -733,6 +715,9 @@ def _meta_from_lucky_row(row: dict) -> dict:
         'user_name': user_name,
         'user_id': user_id,
         'viewing_title': str(row.get('media_label') or '').strip(),
+        'client': str(row.get('client') or '').strip(),
+        'device_name': str(row.get('device_name') or '').strip(),
+        'client_ip': str(row.get('client_ip') or '').strip(),
     }
 
 
