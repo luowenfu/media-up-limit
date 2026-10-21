@@ -239,6 +239,12 @@ function syncMetricsLayout() {
     }
     slot.classList.toggle('is-stacked', stacked);
     const bar = document.querySelector('.tb-bar');
+    const split = document.getElementById('metricsSplit');
+    if (split && bar) {
+        if (stacked && split.parentElement !== bar) bar.appendChild(split);
+        if (!stacked && split.parentElement !== slot) slot.insertBefore(split, slot.firstChild);
+        split.classList.toggle('is-stacked', stacked);
+    }
     if (bar && isPhone()) document.documentElement.style.setProperty('--tb-bar-h', bar.getBoundingClientRect().height + 'px');
 }
 
@@ -267,6 +273,7 @@ function syncMetricsDock() {
     const btn = document.getElementById('metricsSplit');
     if (slot) slot.classList.toggle('is-collapsed', metricsDocked);
     if (!btn) return;
+    btn.classList.toggle('is-collapsed', metricsDocked);
     const label = metricsDocked ? '展开状态栏' : '收起状态栏';
     btn.setAttribute('aria-expanded', metricsDocked ? 'false' : 'true');
     btn.setAttribute('aria-label', label);
