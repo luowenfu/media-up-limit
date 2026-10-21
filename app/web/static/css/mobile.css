@@ -1,5 +1,5 @@
 /* 电脑 ≥1200 用默认样式。这里只写平板和手机。横屏手机仍按手机。 */
-#menuBtn, #backBtn, #metricsBtn, .bottom-bar, .scrim, .detail-tabs { display: none; }
+#menuBtn, #backBtn, #metricsBtn, .bottom-bar, .scrim, .detail-tabs, .side-toggle { display: none; }
 
 @media (max-width: 1199px) {
     .merge { grid-template-columns: 1fr; }
@@ -15,15 +15,20 @@
     .kpis, .log-stats { grid-template-columns: repeat(2, 1fr); }
 }
 @media (min-width: 768px) and (max-width: 1199px) and (min-height: 501px) {
-    #menuBtn { display: grid; }
-    #menuBtn[hidden] { display: none; }
-    .icon-btn { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; color: var(--text); }
-    .icon-btn:hover { background: #f1f5f9; }
-    body.side-off .sidebar {
-        width: 0; min-width: 0; padding-left: 0; padding-right: 0;
-        border-right-width: 0; pointer-events: none;
+    .side-toggle {
+        display: grid; place-items: center;
+        width: 100%; height: 40px; margin-top: 4px; border-radius: 10px;
+        color: var(--text-2);
     }
-    body.side-off #menuBtn { color: var(--accent); background: var(--accent-soft); }
+    .side-toggle:hover { background: #f1f5f9; color: var(--text); }
+    .side-toggle svg { transition: transform .28s cubic-bezier(.2, .8, .2, 1); }
+    body.side-off .sidebar {
+        width: 52px; min-width: 52px; padding: 12px 8px;
+        justify-content: flex-end; align-items: center;
+    }
+    body.side-off .sidebar > :not(.side-toggle) { display: none; }
+    body.side-off .side-toggle { width: 36px; color: var(--accent); background: var(--accent-soft); }
+    body.side-off .side-toggle svg { transform: rotate(180deg); }
     .page { padding: 18px 18px 32px; }
     .topbar-in { padding-left: 18px; padding-right: 18px; }
     .tb-split { display: none; }

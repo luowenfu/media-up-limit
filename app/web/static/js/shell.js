@@ -28,27 +28,18 @@ export const isListView = v => LIST_VIEWS.includes(v);
 
 const isMobile = isPhone;
 
-/** 平板顶栏按钮：侧栏开着时写收起，收起后写展开。手机仍是打开菜单。 */
+/** 平板侧栏底部的收起按钮。收起后侧栏留一条窄边，按钮还在里面。 */
 export function syncSideBtn() {
-    const btn = $('#menuBtn');
+    const btn = $('#sideBtn');
     const side = document.querySelector('.sidebar');
-    if (!btn) return;
-    if (!isPad()) {
-        btn.setAttribute('aria-label', '打开菜单');
-        btn.removeAttribute('aria-expanded');
-        if (side) {
-            side.inert = false;
-            side.removeAttribute('aria-hidden');
-        }
-        return;
+    if (side) {
+        side.inert = false;
+        side.removeAttribute('aria-hidden');
     }
-    const off = document.body.classList.contains('side-off');
+    if (!btn) return;
+    const off = isPad() && document.body.classList.contains('side-off');
     btn.setAttribute('aria-label', off ? '展开侧栏' : '收起侧栏');
     btn.setAttribute('aria-expanded', off ? 'false' : 'true');
-    if (side) {
-        side.inert = off;
-        side.toggleAttribute('aria-hidden', off);
-    }
 }
 
 export function togglePadSide() {
@@ -345,7 +336,7 @@ export function renderChrome() {
     kind.textContent = view === 'emby' ? 'EMBY' : 'qB';
     const mobile = isMobile();
     $('#backBtn').hidden = !dev || mobile;
-    $('#menuBtn').hidden = (mobile || isPad()) ? false : !!dev;
+    $('#menuBtn').hidden = mobile ? false : !!dev;
     syncSideBtn();
     $$('#detailTabs [data-detail-tab]').forEach(el => el.classList.toggle('active', el.dataset.detailTab === (state.detailTab || 'card')));
     $('#ver').textContent = APP_VERSION;

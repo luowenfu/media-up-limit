@@ -228,10 +228,8 @@ function commitRange() {
 bindRangePicker(commitRange);
 $('#sheetMask').addEventListener('click', closeSheet);
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
-$('#menuBtn').addEventListener('click', () => {
-    if (isPad()) { togglePadSide(); return; }
-    document.body.classList.add('drawer');
-});
+$('#menuBtn').addEventListener('click', () => document.body.classList.add('drawer'));
+$('#sideBtn').addEventListener('click', () => { if (isPad()) togglePadSide(); });
 $('#scrim').addEventListener('click', closeDrawer);
 let wasMobile = isPhone();
 let wasPad = isPad();

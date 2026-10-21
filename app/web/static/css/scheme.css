@@ -46,6 +46,7 @@ html[data-scheme="dark"] .nav-item.active .nav-badge { background: #0c1220; colo
 html[data-scheme="dark"] .nav-item:hover,
 html[data-scheme="dark"] .nav-caret:hover,
 html[data-scheme="dark"] .icon-btn:hover,
+html[data-scheme="dark"] .side-toggle:hover,
 html[data-scheme="dark"] .x-btn:hover,
 html[data-scheme="dark"] .modal-head button:hover,
 html[data-scheme="dark"] .mini-btn:hover {

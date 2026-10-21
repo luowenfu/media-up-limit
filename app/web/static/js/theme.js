@@ -63,6 +63,10 @@ export function ensureSidebar() {
     if (!theme && foot) foot.insertAdjacentHTML('afterbegin', THEME_BTN);
     else if (theme && foot && foot.firstElementChild !== theme) foot.prepend(theme);
     document.querySelectorAll('.bottom-bar [data-open="settings"] svg').forEach(svg => { svg.outerHTML = gearSvg(21); });
+    if (!document.getElementById('sideBtn')) {
+        const side = document.querySelector('.sidebar');
+        if (side) side.insertAdjacentHTML('beforeend', `<button type="button" class="side-toggle" id="sideBtn" aria-label="收起侧栏" aria-expanded="true"><svg width="18" height="18" viewBox="0 0 20 20" fill="none"><rect x="2.5" y="3" width="15" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 3v14" stroke="currentColor" stroke-width="1.6"/><path d="M13.2 7.5 10.2 10l3 2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`);
+    }
     applyScheme(isDark());
 }
 
