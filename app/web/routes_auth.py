@@ -13,6 +13,7 @@ from flask import session
 import logging
 
 from core.secrets_store import DEFAULT_WEB_PASS
+from core.secrets_store import DEFAULT_WEB_USER
 from core.secrets_store import get_web_username
 from core.secrets_store import needs_setup
 from core.secrets_store import set_web_credentials
@@ -56,7 +57,7 @@ def setup_page():
         if session.get('authenticated'):
             return redirect('/')
         return redirect('/login')
-    return render_template('setup.html', username=get_web_username())
+    return render_template('setup.html', username=get_web_username() or DEFAULT_WEB_USER)
 
 
 @bp.route('/login')
