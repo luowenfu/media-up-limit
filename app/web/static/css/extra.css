@@ -103,7 +103,8 @@ html[data-scheme="dark"] .chart-ctrl > .cap { border-right-color: #334155; }
 .login-brand h1 { margin: 0; font-size: 18px; font-weight: 800; color: var(--text); }
 .login-brand p { margin: 3px 0 0; font-size: 12.5px; color: var(--text-2); }
 .login-form { display: grid; gap: 14px; }
-.login-form .btn.primary { width: 100%; justify-content: center; height: 42px; }
+.login-form .btn { width: 100%; justify-content: center; }
+.login-form .btn.primary { height: 42px; }
 .login-remember { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; }
 .login-error { margin: 0; padding: 9px 12px; border-radius: 10px; font-size: 12.5px; background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
 .login-version { margin: 18px 0 0; text-align: center; font-size: 12px; color: var(--text-3); }

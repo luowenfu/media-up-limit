@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 from pathlib import Path
@@ -6,6 +7,8 @@ from typing import Iterator, List, Optional
 from core.syslog_localize import localize_system_log_entry
 
 from core.paths import APP_LOG_PATH
+
+logger = logging.getLogger(__name__)
 
 _LOG_LINE_RE = re.compile(
     r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) '
@@ -21,7 +24,7 @@ def resolve_app_log_path(*, for_write: bool = False) -> Path:
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
         except OSError:
-            pass
+            logger.debug('创建日志目录失败: %s', path.parent, exc_info=True)
     return path
 
 

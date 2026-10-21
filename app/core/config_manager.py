@@ -539,12 +539,14 @@ def migrate_plaintext_secrets(config: dict) -> tuple:
     web_user = str(global_cfg.pop('web_username', '') or '').strip()
     web_pass = global_cfg.pop('web_password', '') or ''
     if web_pass and web_pass != '******':
-        secrets_store.set_web_credentials(
-            web_user or secrets_store.DEFAULT_WEB_USER,
-            web_pass,
-        )
+        user = web_user or secrets_store.DEFAULT_WEB_USER
+        if web_pass == secrets_store.DEFAULT_WEB_PASS:
+            secrets_store.set_web_credentials(user)
+            logger.info('config.yaml 中的 Web 密码仍是默认值，已去掉明文，登录后需修改')
+        else:
+            secrets_store.set_web_credentials(user, web_pass)
+            logger.info('已从 config.yaml 迁移 Web 凭据到 secrets 文件')
         migrated = True
-        logger.info('已从 config.yaml 迁移 Web 凭据到 secrets 文件')
     elif web_user:
         secrets_store.set_web_credentials(web_user)
         migrated = True
@@ -1105,7 +1107,7 @@ def _merge_config_preserve_lists(base: dict) -> dict:
             if not merged.get('emby_instances') and disk.get('emby_instances'):
                 merged['emby_instances'] = disk['emby_instances']
         except Exception:
-            pass
+            logger.warning('合并磁盘配置失败', exc_info=True)
     return merged
 
 

@@ -174,6 +174,11 @@ def is_episode_switch_gap(
         if sid not in open_sids:
             return False
     except Exception:
+        logger.debug(
+            '读取未结案播放段失败: %s',
+            instance_name,
+            exc_info=True,
+        )
         return False
     return True
 

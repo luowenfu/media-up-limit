@@ -11,6 +11,10 @@ from werkzeug.security import check_password_hash, generate_password_hash
 logger = logging.getLogger(__name__)
 
 _lock = threading.RLock()
+# 默认密码校验走 pbkdf2，按用户名缓存；密码哈希变了才重算。
+_default_pw_cache = {}
+_default_pw_cache_lock = threading.Lock()
+_password_state_gen = 0
 
 from core.paths import (  # noqa: E402
     DATA_KEY_PATH, WEB_AUTH_PATH, QB_SECRETS_PATH, EMBY_SECRETS_PATH, LUCKY_SECRETS_PATH,
@@ -86,6 +90,7 @@ def ensure_web_auth() -> dict:
         auth = {
             'username': DEFAULT_WEB_USER,
             'password_hash': generate_password_hash(DEFAULT_WEB_PASS),
+            'pw_ver': 0,
         }
         _write_json(WEB_AUTH_PATH, auth)
         logger.info(f"已创建默认 Web 登录凭据: {WEB_AUTH_PATH}")
@@ -104,19 +109,64 @@ def verify_web_password(password: str) -> bool:
     return check_password_hash(password_hash, password)
 
 
+def get_pw_ver() -> int:
+    """密码版本。修改密码后递增，用于让其他会话重新登录。"""
+    auth = ensure_web_auth()
+    try:
+        return int(auth.get('pw_ver') or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def password_state_generation() -> int:
+    """进程内密码状态代次。改密后递增，供登录会话缓存失效。"""
+    return _password_state_gen
+
+
+def is_default_password(username: str = None) -> bool:
+    """当前 Web 密码是否仍为出厂默认密码。结果按用户名缓存。"""
+    auth = ensure_web_auth()
+    stored_user = str(auth.get('username') or DEFAULT_WEB_USER)
+    asked = str(username or stored_user).strip() or stored_user
+    if asked != stored_user:
+        return False
+    password_hash = auth.get('password_hash') or ''
+    if not password_hash:
+        return False
+    with _default_pw_cache_lock:
+        cached = _default_pw_cache.get(stored_user)
+        if cached and cached[0] == password_hash:
+            return cached[1]
+    result = check_password_hash(password_hash, DEFAULT_WEB_PASS)
+    with _default_pw_cache_lock:
+        _default_pw_cache[stored_user] = (password_hash, result)
+    return result
+
+
 def has_web_password() -> bool:
     auth = _read_json(WEB_AUTH_PATH, {})
     return bool(auth.get('password_hash'))
 
 
 def set_web_credentials(username: str, password: str = None) -> None:
+    global _password_state_gen
     with _lock:
         auth = ensure_web_auth()
         auth['username'] = str(username or '').strip() or DEFAULT_WEB_USER
         if password:
             if len(password) < 6:
                 raise ValueError('密码至少 6 位')
+            if password == DEFAULT_WEB_PASS:
+                raise ValueError('不能使用默认密码')
             auth['password_hash'] = generate_password_hash(password)
+            try:
+                current_ver = int(auth.get('pw_ver') or 0)
+            except (TypeError, ValueError):
+                current_ver = 0
+            auth['pw_ver'] = current_ver + 1
+            _password_state_gen += 1
+            with _default_pw_cache_lock:
+                _default_pw_cache.clear()
         _write_json(WEB_AUTH_PATH, auth)
 
 

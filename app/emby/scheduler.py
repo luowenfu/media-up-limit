@@ -506,7 +506,11 @@ class EmbyInstanceWorker:
             try:
                 playback_record_store.begin_post_recovery_playback_window(self.name)
             except Exception:
-                pass
+                logger.warning(
+                    '[Emby:%s] 开启重启后续传窗口失败',
+                    self.name,
+                    exc_info=True,
+                )
 
         sessions = self._sync_playback_sessions(client, api_online=api_online)
 
@@ -514,7 +518,11 @@ class EmbyInstanceWorker:
             try:
                 playback_record_store.end_post_recovery_playback_window(self.name)
             except Exception:
-                pass
+                logger.warning(
+                    '[Emby:%s] 结束重启后续传窗口失败',
+                    self.name,
+                    exc_info=True,
+                )
 
         credit_browse = (
             collect_mode == 'lucky'
@@ -1390,12 +1398,20 @@ class EmbyMonitor:
         try:
             emby_playback_traffic.clear_persisted_live_upload_state(instance_name)
         except Exception:
-            pass
+            logger.warning(
+                '清除 Emby 播放上行状态失败: %s',
+                instance_name,
+                exc_info=True,
+            )
         try:
             import emby.browse.settler as browse_upload_settler
             browse_upload_settler.clear_instance(instance_name)
         except Exception:
-            pass
+            logger.warning(
+                '清除 Emby 选片状态失败: %s',
+                instance_name,
+                exc_info=True,
+            )
         worker = self._workers.get(instance_name)
         if worker:
             worker._live_upload_hydrated = False

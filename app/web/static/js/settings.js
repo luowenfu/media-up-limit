@@ -97,7 +97,7 @@ const collectOf = refresh => 5 * Math.max(1, Math.min(10, refresh));
 function loginPane(g) {
     return fs('lock', 'Web 登录', '访问本管理页面所需的账号', `<div class="f-grid">
         ${fld('管理账号', inp({ id: 'sUser', pre: 'user', val: g.web_username || '', auto: 'username' }), { full: true })}
-        ${fld('新密码', inp({ id: 'sPass', pre: 'key', type: 'password', ph: '留空则不修改', auto: 'new-password' }), { hint: '至少 6 位' })}
+        ${fld('新密码', inp({ id: 'sPass', pre: 'key', type: 'password', ph: '留空则不修改', auto: 'new-password' }), { hint: '至少 6 位，且不能用默认密码' })}
         ${fld('确认密码', inp({ id: 'sPass2', pre: 'key', type: 'password', ph: '再次输入新密码', auto: 'new-password' }))}
     </div>`);
 }

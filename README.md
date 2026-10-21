@@ -63,7 +63,21 @@
 | ------- | ------------ |
 | `admin` | `adminadmin` |
 
+首次使用默认密码登录后，必须先修改密码才能进入其他页面。连续多次登录失败会临时锁定该 IP。
 
+#### 反向代理后的真实 IP
+
+登录失败次数默认按直连地址统计，不读取 `X-Forwarded-For`。
+
+如果前面有反向代理，设置环境变量 `TRUSTED_PROXY_COUNT`。`N` 表示信任从右往左的 N 层代理，程序取 `X-Forwarded-For` 里从右数第 N 个地址作为客户端 IP。未设置、不是正整数，或转发头层数不够时，仍使用直连地址。
+
+只有一层 Nginx 或 Lucky 时：
+
+```bash
+environment:
+  TZ: Asia/Shanghai
+  TRUSTED_PROXY_COUNT: "1"
+```
 
 **以及图表统计功能，图略...**
 
