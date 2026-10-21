@@ -16,19 +16,32 @@
 }
 @media (min-width: 768px) and (max-width: 1199px) and (min-height: 501px) {
     .side-toggle {
+        position: absolute; top: 12px; right: 8px; z-index: 2;
         display: grid; place-items: center;
-        width: 100%; height: 40px; margin-top: 4px; border-radius: 10px;
+        width: 32px; height: 32px; border-radius: 9px;
         color: var(--text-2);
     }
     .side-toggle:hover { background: #f1f5f9; color: var(--text); }
-    .side-toggle svg { transition: transform .28s cubic-bezier(.2, .8, .2, 1); }
+    .brand { padding-right: 36px; }
+    .icon-btn { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; color: var(--text); }
+    .icon-btn:hover { background: #f1f5f9; }
+    body.side-off .shell { display: block; }
     body.side-off .sidebar {
-        width: 52px; min-width: 52px; padding: 12px 8px;
-        justify-content: flex-end; align-items: center;
+        position: fixed; left: 0; top: 0; height: 100dvh;
+        width: min(84vw, 300px);
+        transform: translateX(-100%);
+        box-shadow: 0 0 50px rgba(15, 23, 42, .3);
+        z-index: 120;
     }
-    body.side-off .sidebar > :not(.side-toggle) { display: none; }
-    body.side-off .side-toggle { width: 36px; color: var(--accent); background: var(--accent-soft); }
-    body.side-off .side-toggle svg { transform: rotate(180deg); }
+    body.side-off.drawer .sidebar { transform: none; }
+    body.side-off .scrim {
+        display: block; position: fixed; inset: 0; z-index: 110;
+        background: rgba(15, 23, 42, .45);
+        opacity: 0; pointer-events: none; transition: opacity .25s;
+    }
+    body.side-off.drawer .scrim { opacity: 1; pointer-events: auto; }
+    body.side-off #menuBtn { display: grid; }
+    body.side-off #menuBtn[hidden] { display: none; }
     .page { padding: 18px 18px 32px; }
     .topbar-in { padding-left: 18px; padding-right: 18px; }
     .tb-split { display: none; }

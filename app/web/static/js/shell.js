@@ -28,22 +28,20 @@ export const isListView = v => LIST_VIEWS.includes(v);
 
 const isMobile = isPhone;
 
-/** 平板侧栏底部的收起按钮。收起后侧栏留一条窄边，按钮还在里面。 */
+/** 平板：展开时收起按钮在侧栏右上角。收起后跟手机一样，用顶栏菜单图标再打开。 */
 export function syncSideBtn() {
-    const btn = $('#sideBtn');
-    const side = document.querySelector('.sidebar');
-    if (side) {
-        side.inert = false;
-        side.removeAttribute('aria-hidden');
-    }
-    if (!btn) return;
     const off = isPad() && document.body.classList.contains('side-off');
-    btn.setAttribute('aria-label', off ? '展开侧栏' : '收起侧栏');
+    const menu = $('#menuBtn');
+    if (isPad() && menu) menu.hidden = !off;
+    const btn = $('#sideBtn');
+    if (!btn) return;
+    btn.setAttribute('aria-label', '收起侧栏');
     btn.setAttribute('aria-expanded', off ? 'false' : 'true');
 }
 
 export function togglePadSide() {
-    document.body.classList.toggle('side-off');
+    document.body.classList.remove('drawer');
+    if (!document.body.classList.contains('side-off')) document.body.classList.add('side-off');
     syncSideBtn();
 }
 
