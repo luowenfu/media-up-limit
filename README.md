@@ -71,16 +71,7 @@
 
 直连地址如果是本机或局域网地址（回环、内网 RFC1918、IPv6 本地地址 ULA、链路本地地址），会自动把 `X-Forwarded-For` 最右边一项，没有这项时再用 `X-Real-IP`，当作客户端 IP。直连地址是公网时，忽略这些头。
 
-挂在本机的 Nginx 或 Lucky 后面时，一般不用再设置。需要自己指定时，使用环境变量 `TRUSTED_PROXY_COUNT`：
-
-- 正整数 `N`：始终取 `X-Forwarded-For` 从右数第 N 个，覆盖自动识别
-- `0`：不信任转发头，只用直连地址
-
-```bash
-environment:
-  TZ: Asia/Shanghai
-  TRUSTED_PROXY_COUNT: "0"
-```
+多数自建不用设置 `TRUSTED_PROXY_COUNT`。Docker 用 host 网络，或 Lucky、NAS 反代和本程序在同一台机器或同一局域网时，会自动识别。只有反代地址在程序看来是公网时才要设，例如程序在云服务器上、前面是 Cloudflare。正整数表示取 `X-Forwarded-For` 从右数第几个；设为 `0` 则强制不信任转发头。
 
 **以及图表统计功能，图略...**
 
