@@ -187,7 +187,8 @@
     .rank-kind { font-size: 10px; }
     .rank-row.can-open { gap: 6px; grid-template-columns: 22px minmax(0, 1fr) auto 18px; }
     .rank-row.can-open > .rank-v { margin-right: 0; }
-    .rank-detail, .rank-detail .rank-detail { padding-left: 0; }
+    .rank-subnote { display: none; }
+    .rank-detail, .rank-detail .rank-detail { padding-left: 28px; }
     .log-stats { grid-template-columns: 1fr 1fr; gap: 10px; }
     .live-val { font-size: 17px; }
     .dev-head { flex-wrap: wrap; }
