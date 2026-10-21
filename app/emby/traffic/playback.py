@@ -115,7 +115,7 @@ def _keys_for_session(session: dict, *, credit_browse: bool = False) -> Set[str]
             if browse_key:
                 keys.add(browse_key)
         except Exception:
-            pass
+            logger.debug('读取选片累加键失败', exc_info=True)
     return keys
 
 
@@ -155,7 +155,7 @@ def collect_online_persist_keys(
             if key:
                 keys.add(key)
     except Exception:
-        pass
+        logger.debug('读取受保护播放段失败: %s', name, exc_info=True)
     if credit_browse:
         with _lock:
             browse_bucket = dict(_browse_upload_accumulators.get(name) or {})
@@ -174,6 +174,7 @@ def _playback_checkpoint_bytes(instance_name: str, active_keys: Set[str]) -> Dic
             instance_name,
         )
     except Exception:
+        logger.debug('读取播放上行检查点失败: %s', instance_name, exc_info=True)
         return {}
     return {
         key: val
@@ -450,7 +451,7 @@ def _protected_accumulator_keys(name: str) -> Set[str]:
             if key:
                 keys.add(key)
     except Exception:
-        pass
+        logger.debug('读取受保护累加键失败: %s', name, exc_info=True)
     return keys
 
 

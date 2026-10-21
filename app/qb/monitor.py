@@ -773,6 +773,7 @@ class QBittorrentClient:
                 return None
             return str(self._client.app.version)
         except Exception:
+            logger.debug('读取 qB 版本失败: %s', self.name, exc_info=True)
             return None
 
 

@@ -176,8 +176,9 @@ def ensure_schema():
                 try:
                     c.execute(
                         f'ALTER TABLE {table} ADD COLUMN {column} {col_type}')
-                except sqlite3.OperationalError:
-                    pass
+                except sqlite3.OperationalError as exc:
+                    if 'duplicate column' not in str(exc).lower():
+                        raise
             _ensure_torrent_rank_tables(c)
             conn.commit()
             _schema_ensured = True
@@ -245,14 +246,16 @@ def init_db():
 
         try:
             c.execute('ALTER TABLE instance_status ADD COLUMN last_delta_bytes BIGINT DEFAULT 0')
-        except sqlite3.OperationalError:
-            pass
+        except sqlite3.OperationalError as exc:
+            if 'duplicate column' not in str(exc).lower():
+                raise
 
         for table, column, col_type in _SCHEMA_COLUMNS:
             try:
                 c.execute(f'ALTER TABLE {table} ADD COLUMN {column} {col_type}')
-            except sqlite3.OperationalError:
-                pass
+            except sqlite3.OperationalError as exc:
+                if 'duplicate column' not in str(exc).lower():
+                    raise
 
         c.execute('''
             CREATE INDEX IF NOT EXISTS idx_hourly_instance_time

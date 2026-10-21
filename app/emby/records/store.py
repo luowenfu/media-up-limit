@@ -1019,7 +1019,11 @@ def _pre_restart_upload_total(instance_name: str, record: dict) -> int:
             db_val = max(0, int(db_upload.get(key) or 0))
             db_extra = max(0, db_val - restorable)
         except Exception:
-            pass
+            logger.warning(
+                '读取重启前上行累计失败: %s',
+                instance_name,
+                exc_info=True,
+            )
     return max(booked + restorable + db_extra, chk, booked)
 
 

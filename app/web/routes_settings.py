@@ -38,9 +38,14 @@ def api_config_global_update():
             return jsonify({'success': False, 'error': '请求无效'}), 400
         
         old_port = state.monitor.config.get('global', {}).get('web_port', 8765)
+        from core.secrets_store import get_pw_ver
+        before_ver = get_pw_ver()
         validated, full_config = config_manager.update_global(
             data, base_config=state.monitor.config
         )
+        if get_pw_ver() != before_ver:
+            from web.auth import sync_session_after_password_change
+            sync_session_after_password_change()
         if not state.monitor.apply_config(full_config, refresh_status=False):
             return jsonify({'success': False, 'error': '保存失败'}), 500
         if state.emby_monitor and not state.emby_monitor.apply_config(full_config):

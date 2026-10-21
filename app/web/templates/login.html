@@ -57,7 +57,10 @@ $('loginForm').addEventListener('submit', async e => {
             body: JSON.stringify({ username: $('user').value.trim(), password: $('pass').value, remember: $('remember').checked }),
         });
         const d = await r.json().catch(() => ({}));
-        if (r.ok && d.success) { window.location.replace('/'); return; }
+        if (r.ok && d.success) {
+            window.location.replace(d.must_change_password ? '/change-password' : '/');
+            return;
+        }
         $('err').textContent = d.error || '登录失败';
     } catch (err) {
         $('err').textContent = '无法连接服务';

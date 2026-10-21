@@ -189,14 +189,14 @@ def _migrate_from_legacy_traffic_db_unlocked() -> None:
         try:
             dest_conn.rollback()
         except Exception:
-            pass
+            logger.debug('Emby 迁移回滚失败', exc_info=True)
         logger.error('Emby 数据库迁移失败', exc_info=True)
         raise
     finally:
         try:
             dest_conn.execute('DETACH DATABASE legacy')
         except Exception:
-            pass
+            logger.debug('分离 Emby 迁移数据库失败', exc_info=True)
         dest_conn.close()
 
     legacy_write = sqlite3.connect(_LEGACY_DB_PATH, timeout=30.0)
@@ -359,8 +359,9 @@ def init_db():
                     c.execute(
                         f'ALTER TABLE {table} ADD COLUMN {column} {col_type}',
                     )
-                except sqlite3.OperationalError:
-                    pass
+                except sqlite3.OperationalError as exc:
+                    if 'duplicate column' not in str(exc).lower():
+                        raise
             c.execute('''
                 CREATE INDEX IF NOT EXISTS idx_emby_hourly_instance_time
                 ON emby_traffic_hourly(instance_name, hour_start)

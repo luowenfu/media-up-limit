@@ -95,6 +95,10 @@ def resolve_upload_bytes(instance_name: str, *, playback_record: dict) -> Option
                 upload_bytes=total,
             )
         except Exception:
-            pass
+            logger.warning(
+                '播放上行异常检查失败: %s',
+                instance_name,
+                exc_info=True,
+            )
         return total
     return None
