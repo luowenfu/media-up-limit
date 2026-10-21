@@ -68,7 +68,7 @@ function navGroup(kind) {
             <button type="button" class="nav-item ${head}" data-nav="${kind}"><img class="nav-ic" src="${GROUP_ICON[kind]}" alt=""><span class="grow">${NAMES[kind]}</span><span class="nav-badge">${list.length}</span></button>
             <button type="button" class="nav-caret" data-nav-toggle="${kind}" aria-expanded="${open}" aria-label="${open ? '收起' : '展开'}${NAMES[kind]}设备">${ICON_CARET}</button>
         </div>
-        <div class="nav-sub"><div>${devs || '<div class="nav-empty">暂无设备</div>'}</div></div>
+        <div class="nav-sub"><div><div class="nav-devs">${devs || '<div class="nav-empty">暂无设备</div>'}</div></div></div>
     </div>`;
 }
 

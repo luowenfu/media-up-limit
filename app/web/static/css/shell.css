@@ -13,9 +13,10 @@
     backdrop-filter: blur(14px);
     border-right: 1px solid var(--line);
     z-index: 40;
-    overflow-y: auto;
+    overflow: hidden;
     transition: transform .28s cubic-bezier(.2, .8, .2, 1);
 }
+.sidebar > :not(.nav-tree) { flex: none; }
 .brand { display: flex; align-items: center; gap: 11px; padding: 2px 4px 4px; }
 .brand-logo {
     width: 40px; height: 40px; border-radius: 28%;
@@ -66,10 +67,27 @@ html[data-scheme="dark"] #themeMark::before { content: "深色"; }
     background: #eef1f5; color: var(--text-2);
 }
 .nav-item.active .nav-badge { background: #fff; color: var(--accent); box-shadow: var(--shadow-sm); }
-.spacer { flex: 1; }
 
-/* 设备树：分组名进列表，箭头只负责展开收起 */
-.nav-row { display: flex; align-items: center; gap: 2px; }
+/* 设备树占满中间，头尾固定。每组最多露出 6 台，多的在本组内滚 */
+.nav-tree {
+    --nav-rows: 6;
+    --nav-dev-h: 36px;
+    --nav-dev-gap: 2px;
+    flex: 1 1 auto; min-height: 0;
+    overflow: hidden;
+    margin-left: -16px; padding-left: 16px;
+}
+.nav-tree > .nav-item { flex: none; }
+.nav-group {
+    display: flex; flex-direction: column;
+    flex: 0 1 auto; min-height: 42px;
+    overflow: hidden;
+    margin-left: -16px; padding-left: 16px;
+}
+.nav-group.open {
+    max-height: calc(42px + 6px + var(--nav-rows) * var(--nav-dev-h) + (var(--nav-rows) - 1) * var(--nav-dev-gap));
+}
+.nav-row { display: flex; align-items: center; gap: 2px; flex: none; }
 .nav-row .nav-item { flex: 1; min-width: 0; }
 .nav-item.within { color: var(--text); font-weight: 650; }
 .nav-ic { width: 18px; height: 18px; flex-shrink: 0; object-fit: contain; }
@@ -81,11 +99,20 @@ html[data-scheme="dark"] #themeMark::before { content: "深色"; }
 .nav-caret:hover { background: #f4f6fa; color: var(--text); }
 .nav-caret svg { transition: transform .22s ease; }
 .nav-group.open .nav-caret svg { transform: rotate(90deg); }
-.nav-sub { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .22s ease; }
-.nav-group.open .nav-sub { grid-template-rows: 1fr; }
-.nav-sub > div { min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
+.nav-sub { display: grid; grid-template-rows: 0fr; min-height: 0; transition: grid-template-rows .22s ease; }
+.nav-group.open .nav-sub { grid-template-rows: 1fr; flex: 1 1 auto; min-height: 0; }
+.nav-sub > div { min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
 .nav-group.open .nav-sub > div { padding: 2px 0 4px; }
-.nav-dev { height: 36px; padding-left: 40px; font-size: 13px; }
+.nav-devs {
+    display: flex; flex-direction: column; gap: var(--nav-dev-gap);
+    min-height: 0;
+    max-height: calc(var(--nav-rows) * var(--nav-dev-h) + (var(--nav-rows) - 1) * var(--nav-dev-gap));
+    margin-left: -16px; padding-left: 16px;
+    overflow-x: hidden; overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.nav-group.open .nav-devs { flex: 1 1 auto; }
+.nav-dev { flex: none; height: var(--nav-dev-h); padding-left: 40px; font-size: 13px; }
 .nav-dev::after { content: ""; position: absolute; left: 21px; top: 0; bottom: 0; border-left: 1px solid var(--line); }
 .nav-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--ok); }
 .nav-dot.hot { background: var(--warn); }
