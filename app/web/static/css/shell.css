@@ -194,7 +194,8 @@ body.metrics-fold #metricsBtn {
     position: relative; display: grid; place-items: center; margin-left: auto; flex: none;
     width: 40px; height: 30px; padding: 0; border-radius: 9px; color: var(--text-3);
 }
-body.metrics-fold #metricsBtn:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+body.metrics-fold #metricsBtn,
+body.metrics-fold #metricsBtn:hover { background: transparent; -webkit-tap-highlight-color: transparent; }
 .tb-fold-line {
     width: 28px; height: 1.5px; border-radius: 2px; background: #c5ced9;
     transition: background .2s;
