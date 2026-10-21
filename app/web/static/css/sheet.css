@@ -54,6 +54,9 @@
 .fs-head b { display: block; font-size: 14px; color: var(--text); }
 .fs-head small { font-size: 12px; color: var(--text-2); }
 .fs-head .r { margin-left: auto; }
+.def-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.def-card { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #f8fafc; }
+.def-card > b { display: block; margin-bottom: 10px; font-size: 13px; font-weight: 750; color: var(--text); }
 .f-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 16px; }
 .f-grid .full { grid-column: 1 / -1; min-width: 0; }
 .f-grid.c3 { grid-template-columns: 1.2fr 1fr 1fr; }

@@ -3,7 +3,7 @@
 import * as api from './api.js';
 import { exportLogs, loadMoreLogs, logListHtml } from './syslogs.js';
 import {
-    state, loadGlobal, loadPrefs, loadStatus, navCollapsed, pageSnapshot, pickView, refreshLive,
+    state, loadGlobal, loadPrefs, loadStatus, navCollapsed, pageSnapshot, pickLanding, refreshLive,
     rememberPage, restorePage, savePrefs, syncMerge,
 } from './store.js';
 import {
@@ -46,7 +46,6 @@ function go(patch, { replace = false } = {}) {
     if (`${state.view}|${state.dev}` === before && !replace) { closeDrawer(); return; }
     if (`${state.view}|${state.dev}` !== before) resetFilters();
     if (state.view === 'qb' || state.view === 'emby') setGroupOpen(state.view, true);
-    if (isListView(state.view) && !state.dev && state.prefs.device_view_mode !== state.view) savePrefs({ device_view_mode: state.view });
     history[replace ? 'replaceState' : 'pushState'](route(), '');
     closeDrawer();
     render();
@@ -329,7 +328,11 @@ async function boot() {
         toast(e.message || '加载失败', 'err');
     }
     syncMerge();
-    if (!restorePage()) state.view = pickView();
+    if (!restorePage()) {
+        const land = pickLanding();
+        state.view = land.view;
+        state.dev = land.dev || '';
+    }
     fixRoute();
     history.replaceState(route(), '');
     state.ready = true;

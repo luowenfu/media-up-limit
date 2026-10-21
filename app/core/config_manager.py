@@ -27,6 +27,7 @@ SEED_CONFIG_PATH = '/config/config.yaml'
 _lock = threading.RLock()
 
 EMBY_DEFAULT_DEVICE_VIEWS = ('qb', 'emby', 'merge')
+MOBILE_DEFAULT_VIEWS = ('qb', 'emby')
 EMBY_BURST_PRIORITY_MODES = ('seek_first', 'new_first')
 
 DEFAULT_GLOBAL = {
@@ -37,6 +38,10 @@ DEFAULT_GLOBAL = {
     'web_port': 8765,
     'emby_enabled': False,
     'emby_default_device_view': 'qb',
+    'default_pc_view': 'qb',
+    'default_pc_device': '',
+    'default_mobile_view': 'qb',
+    'default_mobile_device': '',
     'emby_burst_new_session_window_seconds': 8,
     'emby_burst_seek_window_seconds': 6,
     'emby_burst_priority_mode': 'seek_first',
@@ -634,9 +639,51 @@ def save_config(config: dict, path: str = CONFIG_PATH) -> None:
         _write_config_file(config, path)
 
 
+def _clean_device_name(value) -> str:
+    name = str(value or '').strip()
+    if not name or len(name) > INSTANCE_NAME_MAX_LENGTH:
+        return ''
+    return name
+
+
+def _migrate_default_display(stored: dict) -> None:
+    """旧配置只有平台。没有新字段时，用它填电脑和手机的默认显示。"""
+    if not isinstance(stored, dict):
+        return
+    legacy = str(stored.get('emby_default_device_view') or 'qb').strip().lower()
+    if legacy not in EMBY_DEFAULT_DEVICE_VIEWS:
+        legacy = 'qb'
+    if 'default_pc_view' not in stored:
+        stored['default_pc_view'] = legacy
+    if 'default_pc_device' not in stored:
+        stored['default_pc_device'] = ''
+    if 'default_mobile_view' not in stored:
+        stored['default_mobile_view'] = legacy if legacy in MOBILE_DEFAULT_VIEWS else 'qb'
+    if 'default_mobile_device' not in stored:
+        stored['default_mobile_device'] = ''
+
+
+def _normalize_default_display(result: dict) -> None:
+    pc = str(result.get('default_pc_view') or 'qb').strip().lower()
+    if pc not in EMBY_DEFAULT_DEVICE_VIEWS:
+        pc = 'qb'
+    result['default_pc_view'] = pc
+    result['default_pc_device'] = '' if pc == 'merge' else _clean_device_name(result.get('default_pc_device'))
+    mobile = str(result.get('default_mobile_view') or 'qb').strip().lower()
+    if mobile not in MOBILE_DEFAULT_VIEWS:
+        mobile = 'qb'
+    result['default_mobile_view'] = mobile
+    result['default_mobile_device'] = _clean_device_name(result.get('default_mobile_device'))
+    result['emby_default_device_view'] = pc
+
+
 def get_global_config(config: dict = None) -> dict:
     cfg = config or load_config()
-    return {**DEFAULT_GLOBAL, **cfg.get('global', {})}
+    stored = dict(cfg.get('global') or {})
+    _migrate_default_display(stored)
+    result = {**DEFAULT_GLOBAL, **stored}
+    _normalize_default_display(result)
+    return result
 
 
 def get_instances(config: dict = None) -> list:
@@ -797,10 +844,7 @@ def _validate_global(global_cfg: dict, strict: bool = False,
     result['web_port'] = max(1024, min(65535, _safe_int(result.get('web_port'), 8765)))
     result['timezone'] = str(result.get('timezone') or 'Asia/Shanghai')
     result['emby_enabled'] = bool(result.get('emby_enabled', False))
-    default_view = str(result.get('emby_default_device_view') or 'qb').strip().lower()
-    if default_view not in EMBY_DEFAULT_DEVICE_VIEWS:
-        default_view = 'qb'
-    result['emby_default_device_view'] = default_view
+    _normalize_default_display(result)
     burst_new_window = _safe_int(
         result.get('emby_burst_new_session_window_seconds'),
         DEFAULT_GLOBAL['emby_burst_new_session_window_seconds'],
@@ -1077,7 +1121,9 @@ def update_global(global_cfg: dict, base_config: dict = None) -> tuple:
 
         config.setdefault('qbittorrent_instances', [])
         config.setdefault('emby_instances', [])
-        current_global = {**DEFAULT_GLOBAL, **(config.get('global') or {})}
+        stored_global = dict(config.get('global') or {})
+        _migrate_default_display(stored_global)
+        current_global = {**DEFAULT_GLOBAL, **stored_global}
         merged_global = {**current_global, **(global_cfg or {})}
         config['global'] = _validate_global(
             merged_global,
@@ -1296,17 +1342,16 @@ def mask_instance_for_api(inst: dict) -> dict:
 
 
 def mask_global_for_api(global_cfg: dict, config: dict = None) -> dict:
-    result = {**DEFAULT_GLOBAL, **(global_cfg or {})}
+    stored = dict(global_cfg or {})
+    _migrate_default_display(stored)
+    result = {**DEFAULT_GLOBAL, **stored}
     result.pop('reset_day', None)
     result.pop('web_password', None)
     result['web_username'] = secrets_store.get_web_username()
     result['has_web_password'] = secrets_store.has_web_password()
     result['config_path'] = CONFIG_RELATIVE_PATH
     result['emby_enabled'] = bool(result.get('emby_enabled', False))
-    default_view = str(result.get('emby_default_device_view') or 'qb').strip().lower()
-    if default_view not in EMBY_DEFAULT_DEVICE_VIEWS:
-        default_view = 'qb'
-    result['emby_default_device_view'] = default_view
+    _normalize_default_display(result)
     emby_instances = (config or {}).get('emby_instances') or []
     result['emby_instance_count'] = len(emby_instances)
     result['emby_feature_locked'] = (

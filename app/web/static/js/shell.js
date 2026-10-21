@@ -28,24 +28,29 @@ export const isListView = v => LIST_VIEWS.includes(v);
 
 const isMobile = () => matchMedia('(max-width: 992px)').matches;
 
-/** 路由兜底：Emby 关闭时回到 qB，设备被删时回到所在分组。手机上不使用合并视图 */
+/** 把兜底后的页面写回地址历史，保留已有的筛选 */
+function rememberRoute() {
+    const cur = history.state;
+    const dev = state.dev || '';
+    if (cur && cur.view === state.view && (cur.dev || '') === dev) return;
+    const next = cur && typeof cur === 'object' ? { ...cur, view: state.view, dev } : { view: state.view, dev };
+    history.replaceState(next, '');
+}
+
+/** 路由兜底：Emby 关闭时回到 qB，设备被删时回到所在分组。手机上不使用合并视图，并进入一台设备 */
 export function fixRoute() {
+    const before = `${state.view}|${state.dev || ''}`;
     if (!embyOn() && (state.view === 'emby' || state.view === 'merge')) Object.assign(state, { view: 'qb', dev: '' });
     if (isMobile() && state.view === 'merge') {
         state.view = state.embyRaw.length && !state.qbRaw.length ? 'emby' : 'qb';
         state.dev = '';
-        const cur = history.state;
-        if (!cur || cur.view === 'merge') history.replaceState({ view: state.view, dev: '' }, '');
-    }
-    if (isMobile() && (state.view === 'qb' || state.view === 'emby') && !state.dev) {
-        const first = listOf(state.view)[0];
-        if (first) {
-            state.dev = first.name;
-            const cur = history.state;
-            if (!cur || !cur.dev) history.replaceState({ view: state.view, dev: state.dev }, '');
-        }
     }
     if (state.dev && (state.view === 'merge' || state.view === 'syslogs' || !listOf(state.view).some(d => d.name === state.dev))) state.dev = '';
+    if (isMobile() && (state.view === 'qb' || state.view === 'emby') && !state.dev) {
+        const first = listOf(state.view)[0];
+        if (first) state.dev = first.name;
+    }
+    if (`${state.view}|${state.dev || ''}` !== before) rememberRoute();
     if (isListView(state.view)) state.lastList = state.view;
 }
 

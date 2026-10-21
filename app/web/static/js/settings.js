@@ -2,9 +2,9 @@
 
 import * as api from './api.js';
 import { ico } from './icons.js';
-import { fmtFileSize, fmtUptime } from './format.js';
+import { esc, fmtFileSize, fmtUptime } from './format.js';
 import { APP_VERSION } from './version.js';
-import { loadGlobal } from './store.js';
+import { embyList, loadGlobal, qbList } from './store.js';
 import { openOrphans } from './orphans.js';
 import {
     $, closeSheet, fld, fs, inp, isOn, notice, openSheet, reload, segF, sel, stepper, swRow, toast, val,
@@ -17,6 +17,70 @@ const FILE_NOTE = {
 };
 const VIEW_LABEL = { qb: 'qB', emby: 'Emby', merge: '合并' };
 const VIEW_VALUE = { qB: 'qb', Emby: 'emby', 合并: 'merge' };
+const namesOf = kind => (kind === 'emby' ? embyList() : qbList()).map(d => d.name);
+
+function setDeviceSelect(select, names, current, allowType) {
+    const opts = [];
+    if (allowType) opts.push(['', '类型页']);
+    names.forEach(name => opts.push([name, name]));
+    if (!opts.length) opts.push(['', '暂无设备']);
+    const known = new Set(names);
+    let cur = current;
+    if (allowType) {
+        if (cur && !known.has(cur)) cur = '';
+    } else if (!known.has(cur)) cur = names[0] || '';
+    select.innerHTML = opts.map(([value, label]) => `<option value="${esc(value)}"${value === cur ? ' selected' : ''}>${esc(label)}</option>`).join('');
+    select.disabled = !allowType && !names.length;
+}
+
+function chosenView(root, attr) {
+    const btn = root.querySelector(`[${attr}].on`);
+    return VIEW_VALUE[btn?.getAttribute(attr)] || 'qb';
+}
+
+function syncTargets(root, { resetPc = false, resetMobile = false, pcDevice, mobileDevice } = {}) {
+    const pc = chosenView(root, 'data-pc-view');
+    const mobile = chosenView(root, 'data-mobile-view');
+    const pcWrap = root.querySelector('[data-pc-device]');
+    const pcSelect = root.querySelector('#sPcDev');
+    const mobileSelect = root.querySelector('#sMobileDev');
+    if (pcWrap) pcWrap.hidden = pc === 'merge';
+    if (pcSelect && pc !== 'merge') {
+        const prefer = resetPc ? '' : (pcDevice !== undefined ? pcDevice : pcSelect.value);
+        setDeviceSelect(pcSelect, namesOf(pc), prefer, true);
+    }
+    if (mobileSelect) {
+        const prefer = resetMobile ? '' : (mobileDevice !== undefined ? mobileDevice : mobileSelect.value);
+        const names = namesOf(mobile);
+        setDeviceSelect(mobileSelect, names, prefer, false);
+        const hint = root.querySelector('[data-mobile-hint]');
+        if (hint) hint.textContent = names.length ? '进入这台设备的详情' : '该类型还没有设备';
+    }
+}
+
+function applyEmbyGate(root, on, seed) {
+    root.querySelectorAll('[data-pc-view="Emby"], [data-pc-view="合并"], [data-mobile-view="Emby"]').forEach(btn => {
+        btn.hidden = !on;
+    });
+    let resetPc = false;
+    let resetMobile = false;
+    if (!on) {
+        if (chosenView(root, 'data-pc-view') !== 'qb') {
+            root.querySelectorAll('[data-pc-view]').forEach(b => b.classList.toggle('on', b.getAttribute('data-pc-view') === 'qB'));
+            resetPc = true;
+        }
+        if (chosenView(root, 'data-mobile-view') !== 'qb') {
+            root.querySelectorAll('[data-mobile-view]').forEach(b => b.classList.toggle('on', b.getAttribute('data-mobile-view') === 'qB'));
+            resetMobile = true;
+        }
+    }
+    syncTargets(root, {
+        resetPc,
+        resetMobile,
+        pcDevice: resetPc ? '' : seed?.pcDevice,
+        mobileDevice: resetMobile ? '' : seed?.mobileDevice,
+    });
+}
 const collectOf = refresh => 5 * Math.max(1, Math.min(10, refresh));
 
 function loginPane(g) {
@@ -37,8 +101,26 @@ function systemPane(g) {
         + fs('play', 'Emby 监控', '', `<div class="sw-list">
         ${swRow({ t: '开启 Emby 监控功能', d: locked ? '已存在 Emby 设备，需先删除全部 Emby 设备才能关闭' : '开启后可添加 Emby 设备，按用户统计播放与选片流量', on: g.emby_enabled, disabled: locked, name: 'emby' })}
     </div>
-    <div style="margin-top:12px">${fld('默认显示', segF(['qB', 'Emby', '合并'], VIEW_LABEL[g.emby_default_device_view] || 'qB', 'data-view'), { hint: '打开页面时侧栏默认选中的平台' })}</div>
     <div style="margin-top:12px">${fld('选片流量记录下限', inp({ id: 'sBrowse', val: g.emby_browse_upload_min_mb, type: 'number', suf: 'MB', attr: 'step="any"' }), { hint: '单次选片上传不足该值时不记入统计与日志' })}</div>`);
+}
+
+function viewDefaults(g) {
+    const emby = !!g.emby_enabled;
+    const pcView = ['qb', 'emby', 'merge'].includes(g.default_pc_view) ? g.default_pc_view : (g.emby_default_device_view || 'qb');
+    const pcLabel = !emby && pcView !== 'qb' ? 'qB' : (VIEW_LABEL[pcView] || 'qB');
+    const mobileLabel = g.default_mobile_view === 'emby' && emby ? 'Emby' : 'qB';
+    return fs('eye', '默认显示', '新开页面时进入这里。刷新仍留在当前页', `<div class="def-grid">
+        <div class="def-card">
+            <b>电脑</b>
+            ${fld('进入', segF(['qB', 'Emby', '合并'], pcLabel, 'data-pc-view'))}
+            <div data-pc-device style="margin-top:12px">${fld('页面', '<div class="inp"><select id="sPcDev"></select></div>', { hint: '类型页打开列表，选设备进入详情' })}</div>
+        </div>
+        <div class="def-card">
+            <b>手机</b>
+            ${fld('类型', segF(['qB', 'Emby'], mobileLabel, 'data-mobile-view'))}
+            <div style="margin-top:12px">${fld('设备', '<div class="inp"><select id="sMobileDev"></select></div>')}<div class="hint-t" data-mobile-hint>进入这台设备的详情</div></div>
+        </div>
+    </div>`);
 }
 
 function dataPane(g, info) {
@@ -65,7 +147,10 @@ async function save(root, g) {
         web_username: val(root, '#sUser'), timezone: val(root, '#sZone'),
         web_port: parseInt(val(root, '#sPort'), 10),
         emby_enabled: isOn(root, '[data-sw="emby"]'),
-        emby_default_device_view: VIEW_VALUE[root.querySelector('[data-view].on')?.dataset.view] || 'qb',
+        default_pc_view: chosenView(root, 'data-pc-view'),
+        default_pc_device: chosenView(root, 'data-pc-view') === 'merge' ? '' : val(root, '#sPcDev'),
+        default_mobile_view: chosenView(root, 'data-mobile-view'),
+        default_mobile_device: val(root, '#sMobileDev'),
         emby_browse_upload_min_mb: parseFloat(val(root, '#sBrowse')),
     };
     if (pass) payload.web_password = pass;
@@ -89,7 +174,7 @@ export async function openSettings() {
         hint: '修改 Web 端口需重启后生效', saveLabel: '保存',
         tabs: [
             { label: '登录安全', icon: 'lock', html: loginPane(g) },
-            { label: '系统', icon: 'server', html: systemPane(g) },
+            { label: '系统', icon: 'server', html: systemPane(g) + viewDefaults(g) },
             { label: '数据', icon: 'db', html: dataPane(g, info) },
         ],
         onSave: root => save(root, g),
@@ -99,5 +184,24 @@ export async function openSettings() {
         if (e.target.id === 'keepYears') $('#yearsWarn').style.display = +e.target.value < g.data_retention_years ? '' : 'none';
         if (e.target.id === 'sRefresh') $('#sCollect').value = `自动 · 当前 ${collectOf(+e.target.value || 1)} 秒`;
     };
-    sheet.onclick = e => { if (e.target.closest('[data-orphans]')) openOrphans(); };
+    applyEmbyGate(sheet, !!g.emby_enabled, {
+        pcDevice: g.default_pc_device || '',
+        mobileDevice: g.default_mobile_device || '',
+    });
+    sheet.onclick = e => {
+        if (e.target.closest('[data-orphans]')) openOrphans();
+        const embySw = e.target.closest('[data-sw="emby"]');
+        const pcBtn = e.target.closest('[data-pc-view]');
+        const mobileBtn = e.target.closest('[data-mobile-view]');
+        if (!embySw && !pcBtn && !mobileBtn) return;
+        const prevPc = chosenView(sheet, 'data-pc-view');
+        const prevMobile = chosenView(sheet, 'data-mobile-view');
+        queueMicrotask(() => {
+            if (embySw) applyEmbyGate(sheet, embySw.classList.contains('on'));
+            else syncTargets(sheet, {
+                resetPc: !!pcBtn && chosenView(sheet, 'data-pc-view') !== prevPc,
+                resetMobile: !!mobileBtn && chosenView(sheet, 'data-mobile-view') !== prevMobile,
+            });
+        });
+    };
 }

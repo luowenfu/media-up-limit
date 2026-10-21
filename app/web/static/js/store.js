@@ -210,12 +210,26 @@ export function restorePage() {
     return ok;
 }
 
-/** 启动时进入的设备视图：账号偏好优先，其次全局默认 */
-export function pickView() {
-    const own = state.prefs.device_view_mode;
-    const def = state.global.emby_default_device_view;
-    let p = own || def || 'qb';
-    if (!embyOn() || !state.embyRaw.length) p = 'qb';
-    if (p === 'merge' && (!state.qbRaw.length || !state.embyRaw.length)) p = state.embyRaw.length && !state.qbRaw.length ? 'emby' : 'qb';
-    return ['qb', 'emby', 'merge'].includes(p) ? p : 'qb';
+/** 新开页面时进入的位置。电脑可以是类型页、某台设备或合并视图，手机是某台设备 */
+export function pickLanding() {
+    const g = state.global || {};
+    const mobile = matchMedia('(max-width: 992px)').matches;
+    let view = mobile
+        ? (g.default_mobile_view === 'emby' ? 'emby' : 'qb')
+        : (['qb', 'emby', 'merge'].includes(g.default_pc_view) ? g.default_pc_view : (g.emby_default_device_view || 'qb'));
+    if (!['qb', 'emby', 'merge'].includes(view)) view = 'qb';
+    let dev = '';
+    if (mobile) dev = String(g.default_mobile_device || '').trim();
+    else if (view !== 'merge') dev = String(g.default_pc_device || '').trim();
+    if (!embyOn() || !state.embyRaw.length) {
+        if (view === 'emby' || view === 'merge') {
+            view = 'qb';
+            dev = '';
+        }
+    }
+    if (view === 'merge' && (!state.qbRaw.length || !state.embyRaw.length)) {
+        view = state.embyRaw.length && !state.qbRaw.length ? 'emby' : 'qb';
+        dev = '';
+    }
+    return { view, dev };
 }
