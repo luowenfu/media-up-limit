@@ -42,8 +42,28 @@ export function syncSideBtn() {
 export function togglePadSide() {
     document.body.classList.remove('drawer');
     if (!document.body.classList.contains('side-off')) document.body.classList.add('side-off');
+    sideAuto = false;
     syncSideBtn();
 }
+
+/** 合并视图里卡片窄于 620 会收成单栏。平板上改为收起侧栏，让卡片保持左右对照。 */
+let sideAuto = false;
+function syncMergeSide() {
+    const narrow = isPad() && state.view === 'merge' && window.innerWidth < 256 + 36 + 630;
+    const body = document.body;
+    if (narrow) {
+        if (!body.classList.contains('side-off')) {
+            body.classList.add('side-off');
+            body.classList.remove('drawer');
+            sideAuto = true;
+        }
+    } else if (sideAuto) {
+        body.classList.remove('side-off', 'drawer');
+        sideAuto = false;
+    }
+    syncSideBtn();
+}
+window.addEventListener('resize', syncMergeSide);
 
 /** 把兜底后的页面写回地址历史，保留已有的筛选 */
 function rememberRoute() {
@@ -335,7 +355,7 @@ export function renderChrome() {
     const mobile = isMobile();
     $('#backBtn').hidden = !dev || mobile;
     $('#menuBtn').hidden = mobile ? false : !!dev;
-    syncSideBtn();
+    syncMergeSide();
     $$('#detailTabs [data-detail-tab]').forEach(el => el.classList.toggle('active', el.dataset.detailTab === (state.detailTab || 'card')));
     $('#ver').textContent = APP_VERSION;
     rememberPage();
