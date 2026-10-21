@@ -14,7 +14,7 @@
     border-right: 1px solid var(--line);
     z-index: 40;
     overflow: hidden;
-    transition: transform .28s cubic-bezier(.2, .8, .2, 1), margin-left .28s cubic-bezier(.2, .8, .2, 1);
+    transition: transform .28s cubic-bezier(.2, .8, .2, 1), width .28s cubic-bezier(.2, .8, .2, 1), padding .28s cubic-bezier(.2, .8, .2, 1), border-right-width .28s cubic-bezier(.2, .8, .2, 1);
 }
 .sidebar > :not(.nav-tree) { flex: none; }
 .brand { display: flex; align-items: center; gap: 11px; padding: 2px 4px 4px; }

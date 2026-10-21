@@ -36,13 +36,19 @@ export function syncSideBtn() {
     if (!isPad()) {
         btn.setAttribute('aria-label', '打开菜单');
         btn.removeAttribute('aria-expanded');
-        side?.removeAttribute('aria-hidden');
+        if (side) {
+            side.inert = false;
+            side.removeAttribute('aria-hidden');
+        }
         return;
     }
     const off = document.body.classList.contains('side-off');
     btn.setAttribute('aria-label', off ? '展开侧栏' : '收起侧栏');
     btn.setAttribute('aria-expanded', off ? 'false' : 'true');
-    side?.toggleAttribute('aria-hidden', off);
+    if (side) {
+        side.inert = off;
+        side.toggleAttribute('aria-hidden', off);
+    }
 }
 
 export function togglePadSide() {
