@@ -10,6 +10,10 @@ export const $$ = s => [...document.querySelectorAll(s)];
 const PHONE_MQ = '(max-width: 767px), (max-width: 1199px) and (orientation: landscape) and (max-height: 500px)';
 export const isPhone = () => matchMedia(PHONE_MQ).matches;
 
+/** 平板。侧栏可以收起，页面结构仍跟电脑一样。 */
+const PAD_MQ = '(min-width: 768px) and (max-width: 1199px) and (min-height: 501px)';
+export const isPad = () => matchMedia(PAD_MQ).matches;
+
 export const COL = { qb: ['#2563eb', '#3b82f6'], emby: ['#059669', '#10b981'], sys: ['#334155', '#64748b'] };
 
 /* ---------- 表单构件 ---------- */

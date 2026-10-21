@@ -15,6 +15,12 @@
     .kpis, .log-stats { grid-template-columns: repeat(2, 1fr); }
 }
 @media (min-width: 768px) and (max-width: 1199px) and (min-height: 501px) {
+    #menuBtn { display: grid; }
+    #menuBtn[hidden] { display: none; }
+    .icon-btn { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; color: var(--text); }
+    .icon-btn:hover { background: #f1f5f9; }
+    body.side-off .sidebar { margin-left: calc(-1 * var(--sidebar-w)); pointer-events: none; }
+    body.side-off #menuBtn { color: var(--accent); background: var(--accent-soft); }
     .page { padding: 18px 18px 32px; }
     .topbar-in { padding-left: 18px; padding-right: 18px; }
     .tb-split { display: none; }

@@ -13,7 +13,7 @@ import { relockTiles } from './interact.js';
 import {
     state, qbList, embyList, embyOn, navCollapsed, rememberPage,
 } from './store.js';
-import { $, $$, isPhone } from './ui.js';
+import { $, $$, isPad, isPhone } from './ui.js';
 import { ensureSidebar } from './theme.js';
 
 export const NAMES = { qb: 'qBittorrent', emby: 'Emby', merge: '合并视图' };
@@ -27,6 +27,28 @@ export const listOf = kind => (kind === 'emby' ? embyList() : qbList());
 export const isListView = v => LIST_VIEWS.includes(v);
 
 const isMobile = isPhone;
+
+/** 平板顶栏按钮：侧栏开着时写收起，收起后写展开。手机仍是打开菜单。 */
+export function syncSideBtn() {
+    const btn = $('#menuBtn');
+    const side = document.querySelector('.sidebar');
+    if (!btn) return;
+    if (!isPad()) {
+        btn.setAttribute('aria-label', '打开菜单');
+        btn.removeAttribute('aria-expanded');
+        side?.removeAttribute('aria-hidden');
+        return;
+    }
+    const off = document.body.classList.contains('side-off');
+    btn.setAttribute('aria-label', off ? '展开侧栏' : '收起侧栏');
+    btn.setAttribute('aria-expanded', off ? 'false' : 'true');
+    side?.toggleAttribute('aria-hidden', off);
+}
+
+export function togglePadSide() {
+    document.body.classList.toggle('side-off');
+    syncSideBtn();
+}
 
 /** 把兜底后的页面写回地址历史，保留已有的筛选 */
 function rememberRoute() {
@@ -317,7 +339,8 @@ export function renderChrome() {
     kind.textContent = view === 'emby' ? 'EMBY' : 'qB';
     const mobile = isMobile();
     $('#backBtn').hidden = !dev || mobile;
-    $('#menuBtn').hidden = mobile ? false : !!dev;
+    $('#menuBtn').hidden = (mobile || isPad()) ? false : !!dev;
+    syncSideBtn();
     $$('#detailTabs [data-detail-tab]').forEach(el => el.classList.toggle('active', el.dataset.detailTab === (state.detailTab || 'card')));
     $('#ver').textContent = APP_VERSION;
     rememberPage();

@@ -7,7 +7,7 @@ import {
     rememberPage, restorePage, savePrefs, syncMerge,
 } from './store.js';
 import {
-    fixRoute, isListView, rememberPart, render, refreshLogsInPlace, revealSection, syncDetailFold, toggleMetricsBar, toggleMetricsDock, toggleNavGroup,
+    fixRoute, isListView, rememberPart, render, refreshLogsInPlace, revealSection, syncDetailFold, toggleMetricsBar, toggleMetricsDock, toggleNavGroup, togglePadSide,
 } from './shell.js';
 import { uiClick, uiInput, relockTiles } from './interact.js';
 import { toggleReveal } from './cards.js';
@@ -18,7 +18,7 @@ import { normalizeDayRange, normalizeMonthRange, parseDay, parseMonth, quickPres
 import { bindRangePicker, closeRangePicker } from './range_picker.js';
 import { chartOrderPref, moveChartBlock } from './stats.js';
 import {
-    $, closeDrawer, closeModal, closeSheet, isPhone, toast,
+    $, closeDrawer, closeModal, closeSheet, isPad, isPhone, toast,
 } from './ui.js';
 
 const pad = n => String(n).padStart(2, '0');
@@ -228,15 +228,21 @@ function commitRange() {
 bindRangePicker(commitRange);
 $('#sheetMask').addEventListener('click', closeSheet);
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
-$('#menuBtn').addEventListener('click', () => document.body.classList.add('drawer'));
+$('#menuBtn').addEventListener('click', () => {
+    if (isPad()) { togglePadSide(); return; }
+    document.body.classList.add('drawer');
+});
 $('#scrim').addEventListener('click', closeDrawer);
 let wasMobile = isPhone();
+let wasPad = isPad();
 window.addEventListener('resize', () => {
     relockTiles();
     const mobile = isPhone();
+    const pad = isPad();
     const needDevice = mobile && (state.view === 'merge' || ((state.view === 'qb' || state.view === 'emby') && !state.dev));
-    if (needDevice || mobile !== wasMobile) render();
+    if (needDevice || mobile !== wasMobile || pad !== wasPad) render();
     wasMobile = mobile;
+    wasPad = pad;
 });
 window.addEventListener('popstate', e => {
     if (!e.state) return;
