@@ -62,7 +62,8 @@ docker-compose*.yaml
 compose*.yml
 compose*.yaml
 
-# 测试与开发工具（当前项目未使用，预留）
+# 测试与开发工具（测试代码只留本机）
+tests/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
