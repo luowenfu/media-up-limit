@@ -236,15 +236,8 @@ function metricsWrapped() {
     const metrics = document.querySelector('.tb-metrics');
     const slot = document.querySelector('.tb-metrics-slot') || metrics;
     if (!title || !metrics || !slot) return false;
-    const hidden = getComputedStyle(metrics).display === 'none';
-    const slotHidden = slot !== metrics && getComputedStyle(slot).display === 'none';
-    if (hidden) metrics.style.setProperty('display', 'flex', 'important');
-    if (slotHidden) slot.style.setProperty('display', 'block', 'important');
-    const wrapped = slot.getBoundingClientRect().top > title.getBoundingClientRect().top + 8
-        || metrics.getBoundingClientRect().height > 64;
-    if (hidden) metrics.style.removeProperty('display');
-    if (slotHidden) slot.style.removeProperty('display');
-    return wrapped;
+    return slot.getBoundingClientRect().left < title.getBoundingClientRect().right
+        || metrics.scrollHeight > 64;
 }
 
 function syncMetricsToggle() {
