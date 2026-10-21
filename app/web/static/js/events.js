@@ -170,7 +170,7 @@ function browseEvent(r) {
     return {
         t: parseTime(r.stopped_at), cls: 'violet', icon: 'eye', title: '选片记录',
         place: place(!lan),
-        desc: `浏览《${what}》${client(r) ? ' · ' + client(r) : ''}`,
+        desc: `浏览 ${what}${client(r) ? ' · ' + client(r) : ''}`,
         meta: [['选片流量', fmtBytes(r.estimated_upload_bytes, 1000)]],
         cat: 'browse', device: r.instance_name, user: r.user_name, lan,
         ipTip: [['IP 地址', r.client_ip || '未记录']],
