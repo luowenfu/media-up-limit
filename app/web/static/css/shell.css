@@ -226,6 +226,7 @@ html[data-scheme="dark"] #themeMark::before { content: "深色"; }
 .topbar-in { transition: row-gap .3s cubic-bezier(.2, .8, .2, 1); }
 .topbar-in:has(.tb-metrics-slot.is-stacked) { align-content: flex-start; }
 .topbar-in:has(.tb-metrics-slot.is-stacked.is-collapsed) { row-gap: 0; }
+.topbar.no-anim, .topbar.no-anim * { transition: none !important; }
 @media (prefers-reduced-motion: reduce) {
     .tb-metrics-clip,
     .tb-metrics-clip > .tb-metrics,
