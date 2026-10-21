@@ -75,13 +75,6 @@ function syncTargets(root, seed) {
         if (names.length) box.mobile[mobile] = value;
         const items = names.length ? names.map(name => [name, name]) : [['', '暂无设备']];
         mountSelect(mobileSelect, items, names.length ? value : '', !names.length);
-        const hint = root.querySelector('[data-def-hint]');
-        if (hint) {
-            const text = names.length
-                ? '电脑可选类型页、某台设备或合并视图。手机进入该类型下的一台设备'
-                : '电脑可选类型页、某台设备或合并视图。该类型还没有设备';
-            if (hint.textContent !== text) hint.textContent = text;
-        }
     }
 }
 
@@ -127,19 +120,18 @@ function viewDefaults(g) {
     const pcView = ['qb', 'emby', 'merge'].includes(g.default_pc_view) ? g.default_pc_view : (g.emby_default_device_view || 'qb');
     const pcLabel = !emby && pcView !== 'qb' ? 'qB' : (VIEW_LABEL[pcView] || 'qB');
     const mobileLabel = g.default_mobile_view === 'emby' && emby ? 'Emby' : 'qB';
-    return fs('eye', '默认显示', '新开页面进入这里。刷新仍留在当前页', `<div class="def-rows">
+    return fs('eye', '默认显示', '每次打开时默认进入的页面', `<div class="def-rows">
         <div class="def-row">
-            <b>电脑</b>
+            <b>PC端</b>
             ${segF(['qB', 'Emby', '合并'], pcLabel, 'data-pc-view')}
             <div class="def-pick" data-pc-device><div class="inp"><select id="sPcDev"></select></div></div>
         </div>
         <div class="def-row">
-            <b>手机</b>
+            <b>移动端</b>
             ${segF(['qB', 'Emby'], mobileLabel, 'data-mobile-view')}
             <div class="def-pick"><div class="inp"><select id="sMobileDev"></select></div></div>
         </div>
-    </div>
-    <div class="hint-t" data-def-hint>电脑可选类型页、某台设备或合并视图。手机进入该类型下的一台设备</div>`);
+    </div>`);
 }
 
 function dataPane(g, info) {
