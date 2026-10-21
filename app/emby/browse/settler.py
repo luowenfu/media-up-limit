@@ -58,19 +58,32 @@ def _remember_key_meta(instance_name: str, key: str, meta: dict) -> None:
         return
     with _lock:
         bucket = _browse_key_meta.setdefault(name, {})
+        prev = bucket.get(key) or {}
+
+        def keep(field: str) -> str:
+            return str(meta.get(field) or prev.get(field) or '')
+
         bucket[key] = {
             'user_name': user_name,
-            'user_id': str(meta.get('user_id') or ''),
-            'viewing_title': str(meta.get('viewing_title') or ''),
-            'series_name': str(meta.get('series_name') or ''),
-            'episode_label': str(meta.get('episode_label') or ''),
-            'episode_title': str(meta.get('episode_title') or ''),
-            'device_name': str(meta.get('device_name') or ''),
-            'client': str(meta.get('client') or ''),
-            'client_ip': str(meta.get('client_ip') or ''),
-            'production_year': meta.get('production_year'),
+            'user_id': keep('user_id'),
+            'viewing_title': keep('viewing_title'),
+            'series_name': keep('series_name'),
+            'episode_label': keep('episode_label'),
+            'episode_title': keep('episode_title'),
+            'device_name': keep('device_name'),
+            'client': keep('client'),
+            'client_ip': keep('client_ip'),
+            'production_year': (
+                meta.get('production_year')
+                if meta.get('production_year') is not None
+                else prev.get('production_year')
+            ),
             'emby_session_id': str(
-                meta.get('emby_session_id') or meta.get('session_id') or meta.get('id') or '',
+                meta.get('emby_session_id')
+                or meta.get('session_id')
+                or meta.get('id')
+                or prev.get('emby_session_id')
+                or '',
             ),
         }
 
@@ -200,6 +213,18 @@ def _sync_superseded_browse_settlement(
         _settle_browse_session(name, sid, meta, settle_reason='account_superseded')
 
 
+def _copy_missing_client(dst: dict, src: Optional[dict]) -> None:
+    """账户切换的缓存往往只有用户名，客户端和地址从上一会话补上。"""
+    if not isinstance(dst, dict) or not isinstance(src, dict):
+        return
+    for field in ('client', 'device_name', 'client_ip'):
+        if str(dst.get(field) or '').strip():
+            continue
+        value = str(src.get(field) or '').strip()
+        if value:
+            dst[field] = value
+
+
 def _meta_for_prev_user_switch(
     instance_name: str,
     sid: str,
@@ -221,24 +246,32 @@ def _meta_for_prev_user_switch(
         'session_id': sid,
         'emby_session_id': sid,
     })
+    profile = dict(prev_profile or {})
+    stored = emby_playback_traffic.get_browse_session_meta(name, sid)
+    if str(stored.get('user_id') or '').strip() not in ('', prev_uid):
+        stored = {}
+
+    def finish(meta: dict) -> dict:
+        if not meta.get('user_name'):
+            return {}
+        done = dict(meta)
+        done['user_id'] = prev_uid
+        done.setdefault('emby_session_id', sid)
+        done.setdefault('session_id', sid)
+        done.setdefault('id', sid)
+        _copy_missing_client(done, profile)
+        _copy_missing_client(done, stored)
+        return done
+
     meta = _meta_for_browse_key(name, old_key)
     if meta.get('user_name'):
-        meta['user_id'] = prev_uid
-        return meta
+        return finish(meta)
 
-    profile = dict(prev_profile or {})
-    prev_name = str(profile.get('user_name') or '').strip()
-    if prev_name:
-        meta = dict(profile)
-        meta['user_id'] = prev_uid
-        meta.setdefault('emby_session_id', sid)
-        meta.setdefault('session_id', sid)
-        meta.setdefault('id', sid)
-        return meta
+    if str(profile.get('user_name') or '').strip():
+        return finish(profile)
 
-    stored = emby_playback_traffic.get_browse_session_meta(name, sid)
-    if str(stored.get('user_id') or '').strip() == prev_uid and stored.get('user_name'):
-        return stored
+    if stored.get('user_name'):
+        return finish(stored)
 
     with _lock:
         for key, cached in (_browse_key_meta.get(name) or {}).items():
@@ -247,9 +280,7 @@ def _meta_for_prev_user_switch(
             if key != old_key and not key.startswith(f'browse:{prev_uid}:'):
                 continue
             if cached.get('user_name'):
-                merged = dict(cached)
-                merged['user_id'] = prev_uid
-                return merged
+                return finish(cached)
     return {}
 
 
@@ -458,6 +489,9 @@ def _sync_emby_browse_transitions(
                 'user_name': str(sess.get('user_name') or '').strip(),
                 'client': str(sess.get('client') or '').strip(),
                 'device_name': str(sess.get('device_name') or '').strip(),
+                'client_ip': parse_endpoint_ip(
+                    str(sess.get('remote_endpoint') or '').strip(),
+                ),
             }
             for sid, sess in by_sid.items()
             if str(sess.get('user_id') or '').strip()
