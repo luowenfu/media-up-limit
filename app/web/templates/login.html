@@ -29,7 +29,7 @@ try { if (localStorage.getItem('qb-scheme') === 'dark') document.documentElement
     <form class="login-form" id="loginForm" autocomplete="on">
         <div>
             <div class="fl">账号</div>
-            <div class="inp"><input id="user" name="username" value="admin" autocomplete="username" autofocus></div>
+            <div class="inp"><input id="user" name="username" autocomplete="username" required autofocus></div>
         </div>
         <div>
             <div class="fl">密码</div>
@@ -45,9 +45,33 @@ try { if (localStorage.getItem('qb-scheme') === 'dark') document.documentElement
 import { APP_VERSION } from '/static/js/version.js';
 const $ = id => document.getElementById(id);
 $('ver').textContent = APP_VERSION;
+let waitTimer = 0;
+function showError(text) {
+    $('err').textContent = text || '登录失败';
+    $('err').hidden = false;
+}
+function startCountdown(seconds) {
+    window.clearInterval(waitTimer);
+    let left = Math.max(1, Number(seconds) || 1);
+    const btn = $('go');
+    const tick = () => {
+        if (left <= 0) {
+            window.clearInterval(waitTimer);
+            btn.disabled = false;
+            $('err').hidden = true;
+            return;
+        }
+        showError(`请 ${left} 秒后再试`);
+        btn.disabled = true;
+        left -= 1;
+    };
+    tick();
+    waitTimer = window.setInterval(tick, 1000);
+}
 $('loginForm').addEventListener('submit', async e => {
     e.preventDefault();
     const btn = $('go');
+    if (btn.disabled) return;
     btn.disabled = true;
     $('err').hidden = true;
     try {
@@ -57,15 +81,22 @@ $('loginForm').addEventListener('submit', async e => {
             body: JSON.stringify({ username: $('user').value.trim(), password: $('pass').value, remember: $('remember').checked }),
         });
         const d = await r.json().catch(() => ({}));
-        if (r.ok && d.success) {
-            window.location.replace(d.must_change_password ? '/change-password' : '/');
+        if (d.setup_required) {
+            window.location.replace('/setup');
             return;
         }
-        $('err').textContent = d.error || '登录失败';
+        if (r.ok && d.success) {
+            window.location.replace('/');
+            return;
+        }
+        if (r.status === 429 && d.retry_after) {
+            startCountdown(d.retry_after);
+            return;
+        }
+        showError(d.error || '登录失败');
     } catch (err) {
-        $('err').textContent = '无法连接服务';
+        showError('无法连接服务');
     }
-    $('err').hidden = false;
     btn.disabled = false;
 });
 </script>
