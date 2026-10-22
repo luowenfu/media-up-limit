@@ -174,6 +174,15 @@ def cycle_used_by_user(
     return used
 
 
+def _quota_via(quota: dict, fold: str) -> str:
+    """own 独立额度，total 总额度，all 全部用户额度。"""
+    if listed_limit_gb(quota, fold) is not None:
+        return 'own'
+    if is_total_mode(quota):
+        return 'total'
+    return 'all'
+
+
 def _prefer_config_names(quota: dict, names: Dict[str, str]) -> None:
     """名单上的名字优先用额度里配置的写法。"""
     for row in (quota or {}).get('users') or []:
@@ -268,17 +277,17 @@ def quota_summary(
                     own = listed_limit_gb(quota, fold)
                     if own is None:
                         if value['total_reached']:
-                            overs.append(_quota_user(names, fold, limit_gb, total, 'total'))
+                            overs.append(_quota_user(names, fold, limit_gb, total, _quota_via(quota, fold)))
                     elif own > 0 and amount >= own * GB:
-                        overs.append(_quota_user(names, fold, own, amount, 'user'))
+                        overs.append(_quota_user(names, fold, own, amount, _quota_via(quota, fold)))
             elif value['total_reached']:
                 for fold in used:
-                    overs.append(_quota_user(names, fold, limit_gb, total, 'total'))
+                    overs.append(_quota_user(names, fold, limit_gb, total, _quota_via(quota, fold)))
         else:
             for fold, amount in used.items():
                 limit_gb = user_limit_gb(quota, fold)
                 if limit_gb > 0 and amount >= limit_gb * GB:
-                    overs.append(_quota_user(names, fold, limit_gb, amount, 'user'))
+                    overs.append(_quota_user(names, fold, limit_gb, amount, _quota_via(quota, fold)))
         overs.sort(key=lambda row: (-row['used_gb'], str(row['name']).casefold()))
         value['overs'] = overs
         # 没配独立额度时卡片写「全部用户」，人数仍按原来的 0
@@ -294,18 +303,19 @@ def quota_summary(
         lookup = []
         for fold in names:
             personal = used.get(fold, 0)
+            via = _quota_via(quota, fold)
             if is_total_mode(quota):
                 own = listed_limit_gb(quota, fold)
                 if own is None and pool_limit > 0:
                     lookup.append(_quota_user(
-                        names, fold, pool_limit, pool_bytes, 'total', personal,
+                        names, fold, pool_limit, pool_bytes, via, personal,
                     ))
                     continue
                 limit_gb = own or 0.0
-                lookup.append(_quota_user(names, fold, limit_gb, personal, 'user'))
+                lookup.append(_quota_user(names, fold, limit_gb, personal, via))
             else:
                 lookup.append(_quota_user(
-                    names, fold, user_limit_gb(quota, fold), personal, 'user',
+                    names, fold, user_limit_gb(quota, fold), personal, via,
                 ))
         lookup.sort(key=lambda row: str(row['name']).casefold())
         value['lookup'] = lookup

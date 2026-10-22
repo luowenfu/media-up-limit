@@ -92,7 +92,7 @@ function quotaUsers(rows) {
             usedGb,
             meterGb,
             remainGb,
-            via: u.via === 'total' ? 'total' : 'user',
+            via: u.via === 'total' || u.via === 'all' || u.via === 'own' ? u.via : 'own',
         };
     }).filter(u => u.name);
 }
