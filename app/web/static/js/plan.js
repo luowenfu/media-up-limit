@@ -18,10 +18,32 @@ export const anchorHtml = (label, value) => {
     return fld('每天恢复时间', sel(hours, String(value || 0), '', 'data-anchor'), { hint: '到点后开始新周期' });
 };
 
+const SPEED_MAX = 2097151;
+
+/** 限速：空着当 0（不限速）。必须是整数 KB/s。 */
+export function readSpeedKbps(raw) {
+    const text = String(raw ?? '').trim();
+    if (text === '') return 0;
+    const n = Number(text);
+    if (!Number.isFinite(n)) throw new Error('请填写限速');
+    if (!Number.isInteger(n)) throw new Error('限速最小单位是 1 KB/s');
+    if (n < 0 || n > SPEED_MAX) throw new Error(`限速须在 0–${SPEED_MAX} 之间（0 表示不限速）`);
+    return n;
+}
+
+function readThresholdGb(raw) {
+    const text = String(raw ?? '').trim();
+    if (text === '') throw new Error('请填写阈值');
+    const n = Number(text);
+    if (!Number.isFinite(n)) throw new Error('请填写阈值');
+    if (!Number.isInteger(n) || n < 1) throw new Error('阈值最小单位是 1 GB');
+    return n;
+}
+
 export const ruleRow = (r, n) => `<div class="rule-ed">
     <span class="n">${n}</span>
-    <div class="inp"><span class="k">阈值</span><input type="number" step="any" value="${r.th ?? ''}" placeholder="如 300" data-f="th"><span class="suf">GB</span></div>
-    <div class="inp"><span class="k">限速至</span><input type="number" value="${r.sp ?? ''}" placeholder="0 = 无限速" data-f="sp"><span class="suf">KB/s</span></div>
+    <div class="inp"><span class="k">阈值</span><input type="number" min="1" step="1" value="${r.th ?? ''}" placeholder="如 300" data-f="th"><span class="suf">GB</span></div>
+    <div class="inp"><span class="k">限速至</span><input type="number" min="0" step="1" value="${r.sp ?? ''}" placeholder="0 = 无限速" data-f="sp"><span class="suf">KB/s</span></div>
     <button type="button" class="rule-del" title="删除规则">${ico('del', 15)}</button>
 </div>`;
 
@@ -66,7 +88,7 @@ export const planHtml = o => {
     <div class="f-grid">
         ${fld('周期类型', segF(['按月', '按周', '按天'], label, 'data-cyc'), { full: true })}
         <div class="anchor">${anchorHtml(label, c.reset_anchor)}</div>
-        ${fld('周期恢复后限速至', inp({ val: c.reset_limit_kbps || 0, type: 'number', suf: 'KB/s', attr: 'data-reset' }), { hint: '0 表示无限速' })}
+        ${fld('周期恢复后限速至', inp({ val: c.reset_limit_kbps || 0, type: 'number', suf: 'KB/s', attr: 'data-reset min="0" step="1"' }), { hint: '0 表示无限速' })}
     </div>
     <div class="rules-head"><b>规则</b><small>周期内上传达到阈值后，按对应速度限速</small></div>
     ${o.next ? '' : `<div class="scale" data-used="${o.used || 0}">${scaleHtml(rules.map(r => +r.th || 0), o.used)}</div>`}
@@ -82,12 +104,16 @@ export function readPlan(plan) {
     const cycle = {
         type: CYC_TYPE[label],
         reset_anchor: Number.isNaN(anchor) ? 1 : anchor,
-        reset_limit_kbps: parseInt(plan.querySelector('[data-reset]')?.value, 10) || 0,
+        reset_limit_kbps: readSpeedKbps(plan.querySelector('[data-reset]')?.value),
     };
     const speed_rules = [...plan.querySelectorAll('.rule-ed')].map(row => ({
-        cycle_upload_limit_gb: parseFloat(row.querySelector('[data-f="th"]').value),
-        speed_limit_kbps: parseInt(row.querySelector('[data-f="sp"]').value, 10) || 0,
+        cycle_upload_limit_gb: readThresholdGb(row.querySelector('[data-f="th"]').value),
+        speed_limit_kbps: readSpeedKbps(row.querySelector('[data-f="sp"]').value),
     }));
-    if (speed_rules.some(r => !(r.cycle_upload_limit_gb > 0))) throw new Error('请填写每条规则的阈值');
+    for (let i = 1; i < speed_rules.length; i++) {
+        if (speed_rules[i].cycle_upload_limit_gb <= speed_rules[i - 1].cycle_upload_limit_gb) {
+            throw new Error(`规则 ${i + 1} 的上行阈值须大于规则 ${i}`);
+        }
+    }
     return { cycle, speed_rules };
 }

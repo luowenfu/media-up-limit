@@ -719,19 +719,26 @@ def clamp_emby_m3_wan_pool_scale(value, *, strict: bool = False) -> float:
 
 
 def clamp_emby_browse_upload_min_mb(value, *, strict: bool = False) -> float:
-    """选片流量入账阈值（MB）：单次选片段累计上传不低于该值才写入统计与日志。"""
+    """选片流量入账阈值（MB）：单次选片段累计上传不低于该值才写入统计与日志。最小单位 1 MB。"""
     try:
         mb = float(value)
     except (TypeError, ValueError):
+        if strict:
+            raise ValueError('请填写选片流量记录下限')
+        mb = float(DEFAULT_GLOBAL['emby_browse_upload_min_mb'])
+    if mb != mb or mb in (float('inf'), float('-inf')):
+        if strict:
+            raise ValueError('请填写选片流量记录下限')
         mb = float(DEFAULT_GLOBAL['emby_browse_upload_min_mb'])
     if strict:
-        if mb < EMBY_BROWSE_UPLOAD_MIN_MB_MIN or mb > EMBY_BROWSE_UPLOAD_MIN_MB_MAX:
-            lo = int(EMBY_BROWSE_UPLOAD_MIN_MB_MIN) if EMBY_BROWSE_UPLOAD_MIN_MB_MIN == int(EMBY_BROWSE_UPLOAD_MIN_MB_MIN) else EMBY_BROWSE_UPLOAD_MIN_MB_MIN
-            hi = int(EMBY_BROWSE_UPLOAD_MIN_MB_MAX) if EMBY_BROWSE_UPLOAD_MIN_MB_MAX == int(EMBY_BROWSE_UPLOAD_MIN_MB_MAX) else EMBY_BROWSE_UPLOAD_MIN_MB_MAX
-            raise ValueError(
-                f'选片入账阈值须在 {lo}～{hi} MB 之间',
-            )
-        return round(mb, 2)
+        if abs(mb - round(mb)) > 1e-6:
+            raise ValueError('选片流量记录下限最小单位是 1 MB')
+        whole = int(round(mb))
+        lo = int(EMBY_BROWSE_UPLOAD_MIN_MB_MIN)
+        hi = int(EMBY_BROWSE_UPLOAD_MIN_MB_MAX)
+        if whole < lo or whole > hi:
+            raise ValueError(f'选片流量记录下限须在 {lo}～{hi} MB 之间')
+        return float(whole)
     mb = max(
         EMBY_BROWSE_UPLOAD_MIN_MB_MIN,
         min(EMBY_BROWSE_UPLOAD_MIN_MB_MAX, mb),
@@ -966,31 +973,70 @@ def cycle_plans_equal(plan_a: dict, plan_b: dict) -> bool:
     return True
 
 
-def _validate_upload_limit_kbps(value, field_label: str = '限速') -> int:
+def _number_kind(value):
+    """区分空、非数字、带小数、整数。返回 (kind, number)。"""
+    if value is None:
+        return 'blank', 0
+    if isinstance(value, bool):
+        return 'bad', 0
+    if isinstance(value, int):
+        return 'ok', value
+    if isinstance(value, float):
+        if value != value or value in (float('inf'), float('-inf')):
+            return 'bad', 0
+        if not value.is_integer():
+            return 'frac', 0
+        return 'ok', int(value)
+    text = str(value).strip()
+    if not text:
+        return 'blank', 0
     try:
-        limit = int(value or 0)
-    except (TypeError, ValueError):
-        raise ValueError(f'{field_label}须为 0–{QB_MAX_UPLOAD_LIMIT_KBPS} 的整数')
+        num = float(text)
+    except ValueError:
+        return 'bad', 0
+    if num != num or num in (float('inf'), float('-inf')):
+        return 'bad', 0
+    if not num.is_integer():
+        return 'frac', 0
+    return 'ok', int(num)
+
+
+def _validate_upload_limit_kbps(value, _field_label: str = '限速') -> int:
+    kind, limit = _number_kind(0 if value is None else value)
+    if kind == 'blank':
+        return 0
+    if kind == 'bad':
+        raise ValueError('请填写限速')
+    if kind == 'frac':
+        raise ValueError('限速最小单位是 1 KB/s')
     if limit < 0 or limit > QB_MAX_UPLOAD_LIMIT_KBPS:
         raise ValueError(
-            f'{field_label}须在 0–{QB_MAX_UPLOAD_LIMIT_KBPS} 之间（0 表示不限速）'
+            f'限速须在 0–{QB_MAX_UPLOAD_LIMIT_KBPS} 之间（0 表示不限速）'
         )
     return limit
+
+
+def _validate_threshold_gb(value) -> int:
+    kind, gb = _number_kind(value)
+    if kind in ('blank', 'bad'):
+        raise ValueError('请填写阈值')
+    if kind == 'frac' or gb < 1:
+        raise ValueError('阈值最小单位是 1 GB')
+    return gb
 
 
 def _validate_speed_rules(rules: list) -> list:
     if not rules:
         return [{'cycle_upload_limit_gb': 500, 'speed_limit_kbps': 128}]
     validated = []
-    for i, rule in enumerate(rules):
+    for rule in rules:
         threshold = rule.get('cycle_upload_limit_gb')
         if threshold is None:
-            threshold = rule.get('monthly_upload_limit_gb', 0)
+            threshold = rule.get('monthly_upload_limit_gb')
         validated.append({
-            'cycle_upload_limit_gb': max(0.01, float(threshold)),
+            'cycle_upload_limit_gb': _validate_threshold_gb(threshold),
             'speed_limit_kbps': _validate_upload_limit_kbps(
                 rule.get('speed_limit_kbps', 0),
-                f'规则 {i + 1} 的限速',
             ),
         })
     for i in range(1, len(validated)):

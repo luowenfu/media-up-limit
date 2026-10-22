@@ -5,6 +5,7 @@ import { enc, q } from './api.js';
 import { I, ico } from './icons.js';
 import { esc } from './format.js';
 import { qbByName, embyByName } from './store.js';
+import { readSpeedKbps } from './plan.js';
 import {
     $, $$, busy, chkBox, closeModal, inp, mTop, notice, openSmall, reload, toast,
 } from './ui.js';
@@ -34,7 +35,7 @@ export function openLimit(name) {
         <div class="cur-box"><div><div class="k">当前全局上传限速</div><div class="v num">${d.limit.global}</div></div>
             <span class="chip ${d.triggered ? 'hot' : ''}" style="background:rgba(255,255,255,.12);color:#fff;border-color:transparent">${rule}</span></div>
         <label class="fl">全局限速至</label>
-        ${inp({ id: 'limInp', type: 'number', ph: '0 表示不限速', suf: 'KB/s' })}
+        ${inp({ id: 'limInp', type: 'number', ph: '0 表示不限速', suf: 'KB/s', attr: 'min="0" step="1"' })}
         <div class="presets">${[[0, '不限速'], [128, '128 K'], [256, '256 K'], [512, '512 K'], [1024, '1 M'], [2048, '2 M']].map(([v, l]) => `<button type="button" class="preset" data-preset="${v}">${l}</button>`).join('')}</div>
         <div class="hint-t" style="margin-top:12px">临时限速，直到下一条达量规则触发后自动接管；不影响 qB 备用限速的执行。</div>
         ${alt ? `<div style="margin-top:14px">${notice('warn', '<b>qB 当前处于备用限速（计划任务）中</b>，此时修改全局限速不会立即生效，会在备用限速结束后才起作用。', 'warn')}</div>${chkBox('我知道了，仍要设置', '#d97706', 'limAck')}` : ''}
@@ -50,7 +51,13 @@ export function refreshLimit() {
 }
 
 export async function applyLimit(btn) {
-    const v = Math.max(0, parseInt($('#limInp').value, 10) || 0);
+    let v;
+    try {
+        v = readSpeedKbps($('#limInp').value);
+    } catch (e) {
+        toast(e.message, 'err');
+        return;
+    }
     const name = btn.dataset.name;
     await busy(btn, '应用中…', async () => {
         try {
