@@ -255,6 +255,8 @@ def quota_summary(
         'type_label': TYPE_LABELS.get(str(cycle.get('type') or 'month'), '按月'),
         'range_label': '',
         'mode': 'total' if is_total_mode(quota) else 'user',
+        'total_limit_gb': round(float(quota.get('total_limit_gb') or 0), 2),
+        'default_limit_gb': round(float(quota.get('default_limit_gb') or 0), 2),
         'over_count': 0,
         'total_reached': False,
         'overs': [],

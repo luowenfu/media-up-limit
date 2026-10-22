@@ -358,12 +358,14 @@
 }
 .qd-remain { text-align: right; align-self: center; grid-column: 3; grid-row: 1 / span 2; }
 .qd-set {
-    grid-column: 4; grid-row: 1 / span 2; align-self: center; justify-self: end;
-    height: 28px; padding: 0 8px; border: 0; border-radius: 8px;
-    background: var(--emby-soft); color: var(--emby);
+    grid-column: 4; grid-row: 1 / span 2; align-self: stretch; justify-self: end;
+    display: flex; align-items: center;
+    margin: 4px 0 4px 2px; padding: 0 2px 0 12px;
+    border: 0; border-left: 1px solid var(--line); border-radius: 0;
+    background: transparent; color: var(--text-3);
     font-size: 12px; font-weight: 650; white-space: nowrap;
 }
-.qd-set:hover, .qd-set.on { background: rgba(16, 185, 129, .22); color: var(--emby); }
+.qd-set:hover, .qd-set.on { background: transparent; color: var(--text-2); }
 .qd-edit { grid-column: 1 / -1; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
 .qd-edit-row { display: flex; align-items: center; gap: 8px; }
 .qd-edit-row .k { flex: none; font-size: 12px; font-weight: 700; color: var(--text-2); }

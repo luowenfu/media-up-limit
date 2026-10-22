@@ -121,6 +121,13 @@ export function quotaTip(hit) {
     return [['额度', quotaGb(hit.limitGb)], ['目前', quotaGb(hit.usedGb)]];
 }
 
+function quotaRuleText(q) {
+    const total = Number(q.total_limit_gb) || 0;
+    const each = Number(q.default_limit_gb) || 0;
+    if (q.mode === 'user') return each > 0 ? `按每人额度 ${quotaGb(each)}` : '仅独立额度';
+    return total > 0 ? `按总额度 ${quotaGb(total)}` : '仅独立额度';
+}
+
 function embyQuotaTexts(d) {
     const q = d.user_quota_status || {};
     if (!q.enabled) return { on: false, dry: false, cycle: '未启用', over: '未启用', overs: [], lookup: [] };
@@ -131,6 +138,7 @@ function embyQuotaTexts(d) {
         on: true,
         dry: !!q.dry_run,
         cycle: q.range_label || '—',
+        rule: quotaRuleText(q),
         over: `${over}${q.dry_run ? '（只记录）' : ''}`,
         overs: quotaUsers(q.overs),
         lookup: quotaUsers(q.lookup),
@@ -166,6 +174,7 @@ export function embyVM(d, hist) {
         quotaOn: quota.on,
         quotaDry: quota.dry,
         quotaCycle: quota.cycle,
+        quotaRule: quota.rule || '仅独立额度',
         quotaOver: quota.over,
         quotaOvers: quota.overs,
         quotaLookup: quota.lookup,

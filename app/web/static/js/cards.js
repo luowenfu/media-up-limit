@@ -221,7 +221,7 @@ function quotaRow(u) {
         <span class="qd-av">${esc(quotaMark(u.name))}</span>
         <div class="qd-name"><b>${esc(u.name)}</b>${via}</div>
         <div class="qd-remain${over ? ' over' : ''}"><b class="num">${esc(quotaRemain(u))}</b><small>剩余</small></div>
-        <button type="button" class="qd-set${editing ? ' on' : ''}" data-quota-set="${esc(u.name)}">额度设置</button>
+        <button type="button" class="qd-set${editing ? ' on' : ''}" data-quota-set="${esc(u.name)}">设置</button>
         <div class="qd-sub num">目前 ${esc(quotaGb(u.usedGb))} · 额度 ${esc(cap)}</div>
         ${limit > 0 ? `<div class="qd-bar"><i style="width:${pct.toFixed(1)}%"></i></div>` : ''}
         ${editor}
@@ -252,7 +252,7 @@ export function quotaListHtml(d) {
 }
 
 function quotaDrawer(d) {
-    const meta = `当前周期：${esc(d.quotaCycle)}${d.quotaDry ? ' · 只记录，不会停播' : ''}`;
+    const meta = `当前周期：${esc(d.quotaCycle)} • ${esc(d.quotaRule || '仅独立额度')}${d.quotaDry ? ' • 只记录，不会停播' : ''}`;
     return `<div class="quota-mask" data-quota-close></div>
         <div class="quota-drawer" role="dialog" aria-label="额度查询">
             <div class="qd-grip"></div>
