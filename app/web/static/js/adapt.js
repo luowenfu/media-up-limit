@@ -121,9 +121,15 @@ export function quotaTip(hit) {
     return [['额度', quotaGb(hit.limitGb)], ['目前', quotaGb(hit.usedGb)]];
 }
 
+function limitOf(rows, via) {
+    const row = (rows || []).find(u => u && u.via === via && Number(u.limit_gb) > 0);
+    return row ? Number(row.limit_gb) || 0 : 0;
+}
+
 function quotaRuleText(q) {
-    const total = Number(q.total_limit_gb) || 0;
-    const each = Number(q.default_limit_gb) || 0;
+    const rows = q.lookup || [];
+    const each = Number(q.default_limit_gb) || limitOf(rows, 'all');
+    const total = Number(q.total_limit_gb) || limitOf(rows, 'total');
     if (q.mode === 'user') return each > 0 ? `按每人额度 ${quotaGb(each)}` : '仅独立额度';
     return total > 0 ? `按总额度 ${quotaGb(total)}` : '仅独立额度';
 }
