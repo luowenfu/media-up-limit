@@ -8,7 +8,7 @@ from core.cycle import format_resume_when
 
 # 值以 preset: 开头，界面上的文字要和这里保持一致
 PRESETS = {
-    'preset:1': '本周期流量已用完，{when}恢复，播放将在 5 秒后停止',
+    'preset:1': '本期流量已用完，{when}恢复，播放将在 5 秒后停止',
     'preset:2': '流量额度已用完，5 秒后停止播放，请{when}再看',
     'preset:3': '服务器流量已达上限，请{when}再看',
 }

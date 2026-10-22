@@ -96,7 +96,7 @@ const QUOTA_MSG_CUSTOM = '__custom__';
 const WEEK_LABEL = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 // 模板要和 emby/quota/message.py 的 PRESETS 一致，{when} 在发送时按周期重算
 const QUOTA_PRESETS = [
-    ['preset:1', '本周期流量已用完，{when}恢复，播放将在 5 秒后停止'],
+    ['preset:1', '本期流量已用完，{when}恢复，播放将在 5 秒后停止'],
     ['preset:2', '流量额度已用完，5 秒后停止播放，请{when}再看'],
     ['preset:3', '服务器流量已达上限，请{when}再看'],
 ];
@@ -185,9 +185,11 @@ function quotaPane(cfg, users) {
     const msgText = String(qt.message_text || '');
     const stored = OLD_QUOTA_PRESETS[msgText] || msgText;
     const msgSel = QUOTA_PRESETS.some(([id]) => id === stored) || !stored ? (stored || 'preset:1') : QUOTA_MSG_CUSTOM;
+    const whenNow = resumeWhen(cyc);
     const msgOptions = QUOTA_PRESETS
-        .map(([id, tpl]) => [id, tpl.replaceAll('{when}', resumeWhen(cyc))])
+        .map(([id, tpl]) => [id, tpl.replaceAll('{when}', whenNow)])
         .concat([[QUOTA_MSG_CUSTOM, '自定义']]);
+    const liveTpl = QUOTA_PRESETS.find(([id]) => id === msgSel);
     return notice('', '<b>达量停播：</b>额度用完后再开始播放，3 秒后收到提示，再过 5 秒被停止。需要开启「流量采集」里的 Lucky 反代模式，局域网播放不受影响')
         + fs('shield', '达量停播', '', `<div class="sw-list">
             ${swRow({ t: '启用达量停播', d: '额度用完后，再开播的用户会被停播', on: !!qt.enabled, name: 'qEnable' })}
@@ -198,7 +200,8 @@ function quotaPane(cfg, users) {
             <div class="anchor">${anchorHtml(label, cyc.reset_anchor)}</div>
         </div></div>
         <div class="f-grid q-msg">
-            ${fld('提示文案', sel(msgOptions, msgSel, 'qMsgSel'), { full: true, hint: '按当前周期算出恢复时间。按天为今日或明日几点，按周为本周或下周几，按月为本月或下月几日' })}
+            ${fld('提示文案', sel(msgOptions, msgSel, 'qMsgSel'), { full: true, hint: '改周期类型或恢复时间，这句话会跟着变' })}
+            <div class="full q-msg-live" id="qMsgLive" style="${liveTpl ? '' : 'display:none'}">${esc(liveTpl ? liveTpl[1].replaceAll('{when}', whenNow) : '')}</div>
             <div class="full" id="qMsgBox" style="${msgSel === QUOTA_MSG_CUSTOM ? '' : 'display:none'}">
                 ${inp({ id: 'qMsgText', val: msgSel === QUOTA_MSG_CUSTOM ? msgText : '', ph: `最多 ${QUOTA_MSG_MAX} 个字` })}
             </div>
@@ -235,22 +238,32 @@ export function refreshQuotaView(root = document.getElementById('sheet')) {
     show('#qList', !all);
 }
 
-/** 周期类型或恢复日变了，下拉里的三句通用文案跟着换恢复时间 */
+/** 周期类型、恢复时间或所选预设变了，三句通用文案和下面的整句一起换 */
 export function refreshQuotaMessages(root = document.getElementById('sheet')) {
     const select = root?.querySelector('#qMsgSel');
     const plan = root?.querySelector('#quotaPlan');
     if (!select || !plan) return;
     const when = resumeWhen(readPlan(plan).cycle);
+    const current = select.value;
     for (const opt of select.options) {
         const preset = QUOTA_PRESETS.find(([id]) => id === opt.value);
-        if (preset) opt.textContent = preset[1].replaceAll('{when}', when);
+        if (preset) opt.text = preset[1].replaceAll('{when}', when);
+    }
+    select.value = current;
+    const custom = current === QUOTA_MSG_CUSTOM;
+    const box = root.querySelector('#qMsgBox');
+    if (box) box.style.display = custom ? '' : 'none';
+    const live = root.querySelector('#qMsgLive');
+    const chosen = QUOTA_PRESETS.find(([id]) => id === current);
+    if (live) {
+        live.style.display = chosen ? '' : 'none';
+        if (chosen) live.textContent = chosen[1].replaceAll('{when}', when);
     }
 }
 
-/** 提示文案下拉变化：选「自定义」时显示输入框 */
+/** 提示文案下拉变化：通用句显示整句，自定义显示输入框 */
 export function onQuotaMsgChange(select) {
-    const box = select.closest('#sheet')?.querySelector('#qMsgBox');
-    if (box) box.style.display = select.value === QUOTA_MSG_CUSTOM ? '' : 'none';
+    refreshQuotaMessages(select.closest('#sheet'));
 }
 
 function readQuota(root) {
