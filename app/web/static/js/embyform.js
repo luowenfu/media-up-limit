@@ -276,15 +276,14 @@ export function onQuotaMsgChange(select) {
     refreshQuotaMessages(root);
 }
 
-/** 额度按 0.1 GB 为单位。空着当 0。不合步进返回 null 的是非法数字。el 是出错时要标红的输入框。 */
+/** 额度按 0.1 GB 为单位。空着当 0。小数点后最多一位，多出来的不四舍五入。el 是出错时要标红的输入框。 */
 function readQuotaGb(raw, el) {
     const text = String(raw ?? '').trim();
     if (text === '') return 0;
     const n = Number(text);
     if (!Number.isFinite(n) || n < 0) return null;
-    const stepped = Math.round(n * 10) / 10;
-    if (Math.abs(n - stepped) > 1e-4) throw fieldError(el, '额度最小单位是 0.1 GB');
-    return stepped;
+    if (!/^\d+(\.\d)?$/.test(text)) throw fieldError(el, '额度最小单位是 0.1 GB');
+    return Math.round(n * 10) / 10;
 }
 
 function readQuota(root) {

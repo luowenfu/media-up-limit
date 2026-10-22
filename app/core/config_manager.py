@@ -1441,7 +1441,7 @@ def normalize_user_quota(raw, *, strict: bool = False) -> dict:
                 raise ValueError(f'{label}不能小于 0')
             return 0.0
         stepped = round(value * 10) / 10
-        if strict and abs(value - stepped) > 1e-4:
+        if strict and abs(value - stepped) > 1e-9:
             raise ValueError('额度最小单位是 0.1 GB')
         return stepped
 
@@ -1472,7 +1472,7 @@ def normalize_user_quota(raw, *, strict: bool = False) -> dict:
                 raise ValueError(f'请填写用户「{name}」的额度（GB 数，0 表示不限）')
             continue
         stepped = round(limit_gb * 10) / 10
-        if strict and abs(limit_gb - stepped) > 1e-4:
+        if strict and abs(limit_gb - stepped) > 1e-9:
             raise ValueError('额度最小单位是 0.1 GB')
         limit_gb = stepped
         fold = name.casefold()
