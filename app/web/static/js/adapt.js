@@ -78,13 +78,23 @@ export function qbVM(d, hist) {
     };
 }
 
-function quotaUsers(q) {
-    return (q.overs || []).map(u => ({
-        name: u.name || '',
-        limitGb: Number(u.limit_gb) || 0,
-        usedGb: Number(u.used_gb) || 0,
-        via: u.via === 'total' ? 'total' : 'user',
-    })).filter(u => u.name);
+function quotaUsers(rows) {
+    return (rows || []).map(u => {
+        const limitGb = Number(u.limit_gb) || 0;
+        const usedGb = Number(u.used_gb) || 0;
+        const meterGb = u.meter_gb == null ? usedGb : (Number(u.meter_gb) || 0);
+        const remainGb = u.remain_gb == null
+            ? (limitGb > 0 ? Math.max(0, Math.round((limitGb - meterGb) * 100) / 100) : null)
+            : (Number(u.remain_gb) || 0);
+        return {
+            name: u.name || '',
+            limitGb,
+            usedGb,
+            meterGb,
+            remainGb,
+            via: u.via === 'total' ? 'total' : 'user',
+        };
+    }).filter(u => u.name);
 }
 
 /** 额度按十进制 GB 显示，到 TB 再换单位 */
@@ -106,7 +116,7 @@ export function quotaTip(hit) {
 
 function embyQuotaTexts(d) {
     const q = d.user_quota_status || {};
-    if (!q.enabled) return { on: false, dry: false, cycle: '未启用', over: '未启用', overs: [] };
+    if (!q.enabled) return { on: false, dry: false, cycle: '未启用', over: '未启用', overs: [], lookup: [] };
     // 按总额度且没有用户独立额度时，合计达到后所有用户都被停播
     const over = q.mode === 'total' && q.total_reached && !q.has_own_limits
         ? '全部用户' : `${q.over_count || 0} 人`;
@@ -115,7 +125,8 @@ function embyQuotaTexts(d) {
         dry: !!q.dry_run,
         cycle: q.range_label || '—',
         over: `${over}${q.dry_run ? '（只记录）' : ''}`,
-        overs: quotaUsers(q),
+        overs: quotaUsers(q.overs),
+        lookup: quotaUsers(q.lookup),
     };
 }
 
@@ -150,6 +161,7 @@ export function embyVM(d, hist) {
         quotaCycle: quota.cycle,
         quotaOver: quota.over,
         quotaOvers: quota.overs,
+        quotaLookup: quota.lookup,
         lucky: d.traffic_collect_mode === 'lucky',
         collect: `${refresh > 1 ? `${refresh} 秒刷新` : '实时刷新'} · ${collect} 秒采集`,
         playing: `局域网 ${lan} · 外网 ${wan}`,

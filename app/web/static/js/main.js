@@ -77,6 +77,7 @@ document.addEventListener('click', e => {
     if (!t) return;
     if (t.closest('[data-quota-close]')) {
         state.quotaDrawer = '';
+        state.quotaQuery = '';
         document.querySelectorAll('.dev.quota-open').forEach(el => el.classList.remove('quota-open'));
         return;
     }
@@ -84,8 +85,13 @@ document.addEventListener('click', e => {
         const card = t.closest('.dev');
         const open = !(card && card.classList.contains('quota-open'));
         state.quotaDrawer = open ? t.dataset.quotaOpen : '';
+        state.quotaQuery = '';
         document.querySelectorAll('.dev.quota-open').forEach(el => el.classList.remove('quota-open'));
-        if (open && card) card.classList.add('quota-open');
+        if (open && card) {
+            card.classList.add('quota-open');
+            const input = card.querySelector('[data-quota-find]');
+            if (input) { input.value = ''; input.focus(); }
+        }
         return;
     }
     if (t.dataset.reveal) { toggleReveal(t.dataset.reveal); render(); return; }
@@ -180,8 +186,15 @@ document.addEventListener('change', e => {
 });
 
 let queryTimer = 0;
+let quotaTimer = 0;
 document.addEventListener('input', e => {
     uiInput(e);
+    if (e.target.hasAttribute('data-quota-find')) {
+        state.quotaQuery = e.target.value;
+        clearTimeout(quotaTimer);
+        quotaTimer = setTimeout(() => render(), 80);
+        return;
+    }
     if (e.target.id === 'logQuery') {
         state.logQuery = e.target.value;
         clearTimeout(queryTimer);
@@ -203,7 +216,14 @@ document.addEventListener('focusout', e => {
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
         if (document.querySelector('.rp-pop')) { closeRangePicker(true); return; }
-        closeModal(); closeSheet(); return;
+        if (e.target.closest?.('[data-quota-find]') && e.target.value) return;
+        closeModal(); closeSheet();
+        if (state.quotaDrawer) {
+            state.quotaDrawer = '';
+            state.quotaQuery = '';
+            document.querySelectorAll('.dev.quota-open').forEach(el => el.classList.remove('quota-open'));
+        }
+        return;
     }
     if (e.key === 'Enter' && (e.target.id === 'stFrom' || e.target.id === 'stTo')) {
         e.preventDefault();

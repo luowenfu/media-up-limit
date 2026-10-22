@@ -39,6 +39,7 @@ export const state = {
     hist: {},
     ready: false,
     quotaDrawer: '',
+    quotaQuery: '',
 };
 
 const HIST_LEN = 24;

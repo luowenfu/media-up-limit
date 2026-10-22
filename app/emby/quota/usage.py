@@ -183,13 +183,35 @@ def _prefer_config_names(quota: dict, names: Dict[str, str]) -> None:
             names[fold] = shown
 
 
-def _quota_user(names: Dict[str, str], fold: str, limit_gb: float, used_bytes: int, via: str) -> dict:
+def _quota_user(
+    names: Dict[str, str],
+    fold: str,
+    limit_gb: float,
+    used_bytes: int,
+    via: str,
+    personal_bytes: Optional[int] = None,
+) -> dict:
+    """used_bytes 是拿来和额度比的量。personal_bytes 是这个人自己的用量，缺省就用 used_bytes。"""
+    meter = max(0, int(used_bytes))
+    personal = meter if personal_bytes is None else max(0, int(personal_bytes))
+    limit = round(float(limit_gb), 2)
+    meter_gb = round(meter / GB, 2)
+    remain = None if limit <= 0 else round(max(0.0, limit - meter_gb), 2)
     return {
         'name': names.get(fold) or fold,
-        'limit_gb': round(float(limit_gb), 2),
-        'used_gb': round(max(0, int(used_bytes)) / GB, 2),
+        'limit_gb': limit,
+        'used_gb': round(personal / GB, 2),
+        'meter_gb': meter_gb,
+        'remain_gb': remain,
         'via': via,
     }
+
+
+def _remember_name(names: Dict[str, str], shown: str) -> None:
+    text = str(shown or '').strip()
+    fold = text.casefold()
+    if fold:
+        names.setdefault(fold, text)
 
 
 _summary_lock = threading.Lock()
@@ -223,6 +245,7 @@ def quota_summary(
         'over_count': 0,
         'total_reached': False,
         'overs': [],
+        'lookup': [],
     }
     try:
         period = iter_cycle_periods(cycle, traffic_db.get_config_timezone(), count=1)[0]
@@ -261,6 +284,31 @@ def quota_summary(
         # 没配独立额度时卡片写「全部用户」，人数仍按原来的 0
         if not (is_total_mode(quota) and value['total_reached'] and not value.get('has_own_limits')):
             value['over_count'] = len(overs)
+        for shown in emby_db.list_distinct_user_names(instance_name):
+            _remember_name(names, shown)
+        for row in (quota.get('users') or []):
+            _remember_name(names, row.get('user_name'))
+        _prefer_config_names(quota, names)
+        pool_limit = float(quota.get('total_limit_gb') or 0) if is_total_mode(quota) else 0.0
+        pool_bytes = total if is_total_mode(quota) else 0
+        lookup = []
+        for fold in names:
+            personal = used.get(fold, 0)
+            if is_total_mode(quota):
+                own = listed_limit_gb(quota, fold)
+                if own is None and pool_limit > 0:
+                    lookup.append(_quota_user(
+                        names, fold, pool_limit, pool_bytes, 'total', personal,
+                    ))
+                    continue
+                limit_gb = own or 0.0
+                lookup.append(_quota_user(names, fold, limit_gb, personal, 'user'))
+            else:
+                lookup.append(_quota_user(
+                    names, fold, user_limit_gb(quota, fold), personal, 'user',
+                ))
+        lookup.sort(key=lambda row: str(row['name']).casefold())
+        value['lookup'] = lookup
     except Exception:
         logger.warning(f'[Emby:{instance_name}] 达量用户数统计失败', exc_info=True)
     with _summary_lock:

@@ -188,27 +188,46 @@ function sessionHtml(s, d) {
 
 const emptySession = `<div class="session-empty"><div><div class="ico">${I.tv}</div></div><div><b>暂无活跃播放</b></div></div>`;
 
+function quotaRemain(u) {
+    if (!(u.limitGb > 0) || u.remainGb == null) return '不限';
+    return quotaGb(u.remainGb);
+}
+
 function quotaRow(u) {
-    const pct = u.limitGb > 0 ? Math.min(100, u.usedGb / u.limitGb * 100) : 100;
-    const note = u.via === 'total' ? '<div class="qd-note">随总额度停播</div>' : '';
+    const limit = u.limitGb;
+    const meter = u.meterGb != null ? u.meterGb : u.usedGb;
+    const over = limit > 0 && meter >= limit;
+    const pct = limit > 0 ? Math.min(100, meter / limit * 100) : 0;
+    const note = u.via === 'total' ? '<div class="qd-note">剩余随总额度</div>' : '';
+    const cap = limit > 0 ? quotaGb(limit) : '不限';
     return `<div class="qd-row">
-        <div class="qd-top"><b>${esc(u.name)}</b><span class="num">目前 ${esc(quotaGb(u.usedGb))} · 额度 ${esc(quotaGb(u.limitGb))}</span></div>
-        <div class="qd-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
+        <div class="qd-top"><b>${esc(u.name)}</b><span class="num qd-remain${over ? ' over' : ''}">剩余 ${esc(quotaRemain(u))}</span></div>
+        <div class="qd-sub num">目前 ${esc(quotaGb(u.usedGb))} · 额度 ${esc(cap)}</div>
+        ${limit > 0 ? `<div class="qd-bar"><i class="${over ? 'over' : 'ok'}" style="width:${pct.toFixed(1)}%"></i></div>` : ''}
         ${note}
     </div>`;
 }
 
 function quotaDrawer(d) {
-    const rows = d.quotaOvers || [];
+    const query = String(state.quotaQuery || '').trim().toLowerCase();
+    const searching = query.length > 0;
+    const rows = searching
+        ? (d.quotaLookup || []).filter(u => u.name.toLowerCase().includes(query))
+        : (d.quotaOvers || []);
     const empty = String(d.quotaOver || '').startsWith('全部用户')
         ? '总额度已到，当前没有可列出的用户'
         : '本周期还没有达量用户';
-    const body = rows.length ? rows.map(quotaRow).join('') : `<div class="qd-empty">${empty}</div>`;
+    const body = searching && !rows.length
+        ? '<div class="qd-empty">没有这个用户</div>'
+        : (rows.length ? rows.map(quotaRow).join('') : `<div class="qd-empty">${empty}</div>`);
     const meta = `${esc(d.quotaCycle)}${d.quotaDry ? ' · 只记录，不会停播' : ''}`;
+    const title = searching ? '剩余额度' : '达量用户';
+    const count = !searching && rows.length ? `<span class="qd-count">${rows.length} 人</span>` : '';
     return `<div class="quota-mask" data-quota-close></div>
-        <div class="quota-drawer" role="dialog" aria-label="达量用户">
-            <div class="qd-head"><b>达量用户</b>${rows.length ? `<span class="qd-count">${rows.length} 人</span>` : ''}<button type="button" class="x-btn" data-quota-close aria-label="关闭">${I.x}</button></div>
+        <div class="quota-drawer" role="dialog" aria-label="${title}">
+            <div class="qd-head"><b>${title}</b>${count}<button type="button" class="x-btn" data-quota-close aria-label="关闭">${I.x}</button></div>
             <div class="qd-meta num">${meta}</div>
+            <div class="qd-search">${ico('search', 15)}<input type="search" data-quota-find placeholder="搜索用户名" value="${esc(state.quotaQuery || '')}" autocomplete="off"></div>
             <div class="qd-list">${body}</div>
         </div>`;
 }
