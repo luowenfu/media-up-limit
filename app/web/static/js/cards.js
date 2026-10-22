@@ -163,9 +163,9 @@ function sessionHtml(s, d) {
     const anomaly = wan && !browse && !(Number(s.estimated_upload_bytes_live) > 0) && !!s.upload_anomaly;
     const mode = browse ? null : playMode(s);
     const cmd = (act, label, icon) => `<button type="button" class="mini-btn icon" title="${label}" data-sess="${act}" data-sid="${esc(s.id)}" data-dev="${esc(d.name)}">${icon}</button>`;
-    const remoteClosed = '远程控制通道为关闭状态（SupportsRemoteControl=false），请检查客户端是否支持';
-    const warnBtn = `<button type="button" class="mini-btn icon warn has-tip session-warn" title="远程控制通道关闭">${I.warn}<span class="ev-tip-src" hidden><div class="ev-note">${esc(remoteClosed)}</div></span></button>`;
-    const ctl = browse ? '' : `<span class="session-ctl">${s.supports_remote_control ? `${cmd(s.is_paused ? 'unpause' : 'pause', s.is_paused ? '继续' : '暂停', s.is_paused ? I.play : I.pause)}${cmd('stop', '停止', I.stop)}${cmd('message', '发送消息', I.msg)}` : warnBtn}</span>`;
+    const remoteClosed = '控制通道关闭，请检查客户端是否支持。（SupportsRemoteControl=false）';
+    const infoBtn = `<button type="button" class="mini-btn icon has-tip session-info" title="控制通道关闭">${I.info}<span class="ev-tip-src" hidden><div class="ev-note">${esc(remoteClosed)}</div></span></button>`;
+    const ctl = browse ? '' : `<span class="session-ctl">${s.supports_remote_control ? `${cmd(s.is_paused ? 'unpause' : 'pause', s.is_paused ? '继续' : '暂停', s.is_paused ? I.play : I.pause)}${cmd('stop', '停止', I.stop)}${cmd('message', '发送消息', I.msg)}` : infoBtn}</span>`;
     const posterId = s.poster_item_id || '';
     const posterSrc = posterId
         ? `/api/emby/poster?instance=${encodeURIComponent(d.name)}&item=${encodeURIComponent(posterId)}${s.poster_tag ? `&tag=${encodeURIComponent(s.poster_tag)}` : ''}`

@@ -347,7 +347,7 @@ export function bindEventPop() {
         if (touched) { touched = false; return; }
         const tag = e.target.closest?.('.has-tip');
         if (hoverOk()) {
-            if (tag?.classList.contains('session-warn')) place(tag);
+            if (tag?.classList.contains('session-info')) place(tag);
             return;
         }
         if (tag) toggle(tag);

@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_TIMEOUT = 5
 DEFAULT_SESSION_MESSAGE_TIMEOUT_MS = 8000
 REMOTE_CONTROL_CLOSED_ERROR = (
-    '远程控制通道为关闭状态（SupportsRemoteControl=false），请检查客户端是否支持'
+    '控制通道关闭，请检查客户端是否支持。（SupportsRemoteControl=false）'
 )
 
 EMBY_LOG_LINE_RE = re.compile(
