@@ -25,6 +25,20 @@ export const ruleRow = (r, n) => `<div class="rule-ed">
     <button type="button" class="rule-del" title="删除规则">${ico('del', 15)}</button>
 </div>`;
 
+/** 记下已保存周期类型的恢复日，切换类型后再切回来时还原 */
+export const anchorsAttr = (label, anchor) => `data-anchors='${JSON.stringify({ [label]: anchor })}'`;
+
+/** 切换周期类型：先记下旧类型当前填的值，再用新类型记过的值（没有就用默认）重画恢复日 */
+export function switchCycleType(plan, prevLabel, label) {
+    const box = plan.querySelector('.anchor');
+    let memo = {};
+    try { memo = JSON.parse(plan.dataset.anchors || '{}'); } catch (e) { memo = {}; }
+    const cur = box.querySelector('[data-anchor]');
+    if (prevLabel && cur) memo[prevLabel] = cur.value;
+    plan.dataset.anchors = JSON.stringify(memo);
+    box.innerHTML = anchorHtml(label, memo[label]);
+}
+
 export function scaleHtml(ths, used) {
     const vals = ths.filter(v => v > 0);
     if (!vals.length) return '<div class="hint-t" style="padding-top:12px">填写阈值后，这里会预览各规则在周期用量上的位置</div>';
@@ -46,7 +60,7 @@ export const planHtml = o => {
     const c = o.cycle || { type: 'month', reset_anchor: 1, reset_limit_kbps: 0 };
     const label = CYC_LABEL[c.type] || '按月';
     const rules = o.rules && o.rules.length ? o.rules : [{ th: '', sp: '' }];
-    return `<div class="plan" ${o.id ? `id="${o.id}"` : ''} ${o.hidden ? 'style="display:none"' : ''}>
+    return `<div class="plan" ${o.id ? `id="${o.id}"` : ''} ${anchorsAttr(label, c.reset_anchor)} ${o.hidden ? 'style="display:none"' : ''}>
     <div class="plan-head"><b>${o.next ? '下周期计划' : '当前周期计划'}</b><small>${o.sub}</small>
         ${o.next ? '<span class="r"><button type="button" class="link-danger" data-next-del>移除</button></span>' : ''}</div>
     <div class="f-grid">

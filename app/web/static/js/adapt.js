@@ -78,9 +78,11 @@ export function qbVM(d, hist) {
     };
 }
 
-function embyModeText(d) {
-    if (d.traffic_collect_mode === 'lucky') return d.lucky_available === false ? 'Lucky 未就绪' : 'Lucky 准确模式';
-    return '未启用流量采集';
+function embyQuotaTexts(d) {
+    const q = d.user_quota_status || {};
+    if (!q.enabled) return { cycle: '未启用', over: '未启用' };
+    const cycle = [q.type_label, q.range_label].filter(Boolean).join(' · ');
+    return { cycle, over: `${q.over_count || 0} 人${q.dry_run ? '（只记录）' : ''}` };
 }
 
 /** 最新开始的播放排最前；没有开始时间的放最后，同刻按会话编号固定 */
@@ -103,12 +105,14 @@ export function embyVM(d, hist) {
     const lan = sessions.length - wan;
     const up = d.api_online ? liveSpeed(d.recent_delta_bytes, refresh, 1000) : ['--', ''];
     const down = d.api_online ? liveSpeed(d.recent_delta_download_bytes, refresh, 1000) : ['--', ''];
+    const quota = embyQuotaTexts(d);
     return {
         raw: d,
         name: d.name,
         url: deviceUrl(d),
         online: !!d.api_online,
-        mode: embyModeText(d),
+        quotaCycle: quota.cycle,
+        quotaOver: quota.over,
         lucky: d.traffic_collect_mode === 'lucky',
         collect: `${refresh > 1 ? `${refresh} 秒刷新` : '实时刷新'} · ${collect} 秒采集`,
         playing: `局域网 ${lan} · 外网 ${wan}`,

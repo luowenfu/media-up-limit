@@ -11,6 +11,7 @@ import time
 from typing import Callable, Dict, Optional
 
 from emby.client import REMOTE_CONTROL_CLOSED_ERROR
+from emby.quota.usage import GB as _GB, cycle_used_bytes, user_limit_gb
 from emby.traffic.filter import is_wan_playback_session
 
 logger = logging.getLogger(__name__)
@@ -23,9 +24,6 @@ MESSAGE_TIMEOUT_MS = 5000
 # 会话短暂从列表消失后再出现，不当作新一次开播
 ABSENT_GRACE_SECONDS = 30.0
 SESSION_ENDED_ERROR = '会话已结束'
-
-# Emby 流量按十进制单位显示（1 GB = 1000 MB），额度同口径
-_GB = 1000 ** 3
 
 # 状态：ignored 不处理；pending 等发消息；messaged 等停止；stopped 已处理完
 _IGNORED = 'ignored'
@@ -68,10 +66,7 @@ class QuotaEnforcer:
 
     def _used_bytes(self, user_name: str, quota: dict, credit_browse: bool,
                     user_ids: set) -> int:
-        fn = self._usage_fn
-        if fn is None:
-            from emby.quota.usage import cycle_used_bytes
-            fn = cycle_used_bytes
+        fn = self._usage_fn or cycle_used_bytes
         return int(fn(
             self.instance_name, user_name, quota.get('cycle') or {},
             credit_browse=credit_browse, user_ids=user_ids,
@@ -85,16 +80,12 @@ class QuotaEnforcer:
         with self._lock:
             self._purge(present, now)
             quota = (inst_cfg or {}).get('user_quota') or {}
-            limits = {
-                str(row.get('user_name') or '').strip().casefold(): float(row.get('limit_gb') or 0)
-                for row in quota.get('users') or []
-            }
-            limits.pop('', None)
+            has_limits = bool(quota.get('users')) or float(quota.get('default_limit_gb') or 0) > 0
             active = (
                 self._baselined
                 and bool(quota.get('enabled'))
                 and str((inst_cfg or {}).get('traffic_collect_mode') or '') == 'lucky'
-                and bool(limits)
+                and has_limits
             )
             credit_browse = (
                 str((inst_cfg or {}).get('traffic_collect_mode') or '') == 'lucky'
@@ -107,8 +98,7 @@ class QuotaEnforcer:
                 if self._baselined and not is_wan_playback_session(session):
                     continue
                 self._state[key] = self._judge(
-                    client, session, sessions, quota, limits, credit_browse,
-                    active, now,
+                    client, session, sessions, quota, credit_browse, active, now,
                 )
             self._baselined = True
             self._advance(client, now)
@@ -121,7 +111,7 @@ class QuotaEnforcer:
             elif entry['stage'] == _STOPPED or now - entry['last_seen'] > ABSENT_GRACE_SECONDS:
                 del self._state[key]
 
-    def _judge(self, client, session, sessions, quota, limits, credit_browse,
+    def _judge(self, client, session, sessions, quota, credit_browse,
                active, now) -> dict:
         entry = {
             'stage': _IGNORED, 'last_seen': now, 'at': now,
@@ -130,8 +120,8 @@ class QuotaEnforcer:
         }
         if not active:
             return entry
-        limit_gb = limits.get(entry['user'].casefold())
-        if not limit_gb:
+        limit_gb = user_limit_gb(quota, entry['user'])
+        if not limit_gb > 0:
             return entry
         user_ids = {
             str(s.get('user_id') or '').strip() for s in sessions

@@ -8,7 +8,7 @@ import { deviceUrl } from './adapt.js';
 import { state, qbByName, embyByName } from './store.js';
 import { openQbForm } from './qbform.js';
 import { addLuckyRuleRow, addQuotaRow, openEmbyForm, removeLuckyRuleRow, removeQuotaRow } from './embyform.js';
-import { anchorHtml, refreshScale, ruleRow } from './plan.js';
+import { refreshScale, ruleRow, switchCycleType } from './plan.js';
 import { openMergeEditor, refreshMergeEditor, saveMerge, toggleAll } from './merge.js';
 import {
     applyDelete, applyLimit, applyReset, openDelete, openLimit, openReset, openSessionMessage, refreshLimit, sendSessionMessage, switchLimitMode,
@@ -91,12 +91,13 @@ function formControl(t) {
         return true;
     }
     if (t.closest('.seg-f')) {
+        const prevCyc = t.dataset.cyc && t.parentElement.querySelector('button.on')?.dataset.cyc;
         t.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === t));
         if (t.dataset.msgStyle) {
             const hint = $('#msgStyleHint');
             if (hint) hint.textContent = t.dataset.msgStyle === 'dialog' ? '持续显示，用户需自行关闭' : '短暂显示，3秒后自动消失';
         }
-        if (t.dataset.cyc) t.closest('.plan').querySelector('.anchor').innerHTML = anchorHtml(t.dataset.cyc);
+        if (t.dataset.cyc) switchCycleType(t.closest('.plan'), prevCyc, t.dataset.cyc);
         return true;
     }
     if (t.matches('.switch')) {

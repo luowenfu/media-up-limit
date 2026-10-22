@@ -192,6 +192,8 @@ class EmbyClient:
         self.lucky_credit_browse_traffic = bool(
             config.get('lucky_credit_browse_traffic', False),
         )
+        quota = config.get('user_quota')
+        self.user_quota = quota if isinstance(quota, dict) else {}
 
     @staticmethod
     def _lucky_rules_from_config(config: dict) -> list:

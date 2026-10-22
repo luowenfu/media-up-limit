@@ -18,6 +18,7 @@ import emby.traffic.tick_audit as emby_traffic_tick_audit
 import emby.user_sync as emby_user_sync
 from emby.client import EmbyClient
 from emby.quota.enforcer import QuotaEnforcer
+from emby.quota.usage import quota_summary
 from emby.lucky.api import (
     LuckyClient,
     calc_conn_traffic_deltas,
@@ -1320,6 +1321,10 @@ class EmbyMonitor:
                 'traffic_collect_mode': client.traffic_collect_mode,
                 'lucky_rule_label': client.lucky_rule_label,
                 'lucky_credit_browse_traffic': client.lucky_credit_browse_traffic,
+                'user_quota_status': quota_summary(
+                    name, client.user_quota,
+                    credit_browse=credit_browse,
+                ) if client.traffic_collect_mode == 'lucky' else {'enabled': False},
                 'is_online': live.get('is_online', status.get('is_online', 0) == 1),
                 'api_online': api_online,
                 'offline_since': offline_since,

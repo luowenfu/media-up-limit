@@ -6,7 +6,7 @@ import { ico } from './icons.js';
 import { esc } from './format.js';
 import { embyList } from './store.js';
 import { askPolicy } from './policy.js';
-import { anchorHtml, readPlan } from './plan.js';
+import { anchorHtml, anchorsAttr, readPlan } from './plan.js';
 import {
     closeSheet, fld, fs, inp, isOn, notice, openSheet, reload, segF, stepper, swRow, testRow, toast, val,
 } from './ui.js';
@@ -103,7 +103,7 @@ function quotaUserOptions(users, current) {
 function quotaRow(users, row = {}) {
     return `<div class="rule-row" data-quota-row>
         <div class="inp"><select data-q-user>${quotaUserOptions(users, row.user_name || '')}</select></div>
-        <div class="inp" style="flex:0 0 150px"><input type="number" min="0" step="any" data-q-gb value="${esc(row.limit_gb ?? '')}" placeholder="额度"><span class="suf">GB</span></div>
+        <div class="inp" style="flex:0 0 150px"><input type="number" min="0" step="any" data-q-gb value="${esc(row.limit_gb ?? '')}" placeholder="0 为不限"><span class="suf">GB</span></div>
         <button type="button" class="rule-x" data-quota-del aria-label="移除这个用户">${ico('x', 14)}</button>
     </div>`;
 }
@@ -115,15 +115,17 @@ function quotaPane(cfg, users) {
     const rows = (qt.users && qt.users.length ? qt.users : [{}]).map(r => quotaRow(users, r)).join('');
     return notice('', '<b>达量停播：</b>用户本周期外网上行达到额度后，再开始播放时，3 秒后收到提示，再过 5 秒被停止。需要开启「流量采集」里的 Lucky 反代模式，局域网播放不受影响')
         + fs('shield', '达量停播', '', `<div class="sw-list">
-            ${swRow({ t: '启用达量停播', d: '只对下面列出的用户生效，没列出的不限', on: !!qt.enabled, name: 'qEnable' })}
+            ${swRow({ t: '启用达量停播', d: '只对设了额度的用户生效，没设额度的用户不限', on: !!qt.enabled, name: 'qEnable' })}
             ${swRow({ t: '只记录不执行', d: '到点只写系统日志，不发提示也不停止。确认用量准确后再关闭', on: qt.dry_run !== false, name: 'qDry' })}
         </div>`)
-        + fs('clock', '统计周期', '', `<div class="plan" id="quotaPlan"><div class="f-grid">
+        + fs('clock', '统计周期', '', `<div class="plan" id="quotaPlan" ${anchorsAttr(label, cyc.reset_anchor)}><div class="f-grid">
             ${fld('周期类型', segF(['按月', '按周', '按天'], label, 'data-cyc'), { full: true })}
             <div class="anchor">${anchorHtml(label, cyc.reset_anchor)}</div>
         </div></div>`)
-        + fs('user', '用户额度', '', `<div class="rule-rows" id="qRows">${rows}</div>
-            <div class="hint-t">额度按本周期外网上行（播放，选片按「流量采集」里的设置）累计，单位 GB（1 GB = 1000 MB）。归属可能有些误差，额度请留余量</div>`,
+        + fs('user', '全部用户', '每位用户各自累计，达到这个额度就停播', `${inp({ id: 'qDefault', type: 'number', val: qt.default_limit_gb > 0 ? qt.default_limit_gb : '', ph: '留空表示不限', suf: 'GB', attr: 'min="0" step="any"' })}
+            <div class="hint-t">下面单独设置的用户按各自的额度，不受这个额度影响。额度按本周期外网上行累计（选片是否计入见「流量采集」），1 GB = 1000 MB。用量归属可能有些误差，额度请留余量</div>`)
+        + fs('user', '单独设置', '优先于「全部用户」的额度', `<div class="rule-rows" id="qRows">${rows}</div>
+            <div class="hint-t">额度填 0 表示不限，例如管理员不受「全部用户」额度限制</div>`,
         `<button type="button" class="rule-add" data-quota-add aria-label="添加用户">${ico('plus', 14)}</button>`);
 }
 
@@ -134,15 +136,21 @@ function readQuota(root) {
     })).filter(r => r.user_name || String(r.limit_gb).trim());
     rows.forEach(r => {
         if (!r.user_name) throw new Error('请为每个额度选择用户');
-        if (!(parseFloat(r.limit_gb) > 0)) throw new Error(`请填写用户「${r.user_name}」的额度`);
-        r.limit_gb = parseFloat(r.limit_gb);
+        const gb = parseFloat(r.limit_gb);
+        if (!(gb >= 0)) throw new Error(`请填写用户「${r.user_name}」的额度（0 表示不限）`);
+        r.limit_gb = gb;
     });
+    const defaultGb = parseFloat(val(root, '#qDefault')) || 0;
+    if (defaultGb < 0) throw new Error('「全部用户」额度不能小于 0');
     const enabled = isOn(root, '[data-sw="qEnable"]');
-    if (enabled && !rows.length) throw new Error('启用达量停播前，请至少添加一个用户额度');
+    if (enabled && !(defaultGb > 0 || rows.some(r => r.limit_gb > 0))) {
+        throw new Error('启用达量停播前，请设置「全部用户」额度，或给某个用户设置额度');
+    }
     return {
         enabled,
         dry_run: isOn(root, '[data-sw="qDry"]'),
         cycle: readPlan(root.querySelector('#quotaPlan')).cycle,
+        default_limit_gb: defaultGb,
         users: rows,
     };
 }

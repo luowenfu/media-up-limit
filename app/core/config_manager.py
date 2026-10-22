@@ -1368,13 +1368,24 @@ def get_web_username() -> str:
 
 
 def normalize_user_quota(raw, *, strict: bool = False) -> dict:
-    """达量停播规则：开关、只记录不执行、周期、用户额度（GB）。
+    """达量停播规则：开关、只记录不执行、周期、全部用户默认额度、单独用户额度（GB）。
 
+    额度 0 表示不限（单独用户填 0 即不受默认额度限制）。
     strict=True 时额度填错直接报错；否则静默丢弃无效行（读取旧配置用）。
     """
     raw = raw if isinstance(raw, dict) else {}
     cycle = _validate_cycle(raw.get('cycle'))
     cycle['reset_limit_kbps'] = 0
+    try:
+        default_gb = float(raw.get('default_limit_gb') or 0)
+    except (TypeError, ValueError):
+        if strict:
+            raise ValueError('「全部用户」额度请填写数字')
+        default_gb = 0.0
+    if default_gb < 0:
+        if strict:
+            raise ValueError('「全部用户」额度不能小于 0')
+        default_gb = 0.0
     users = []
     seen = set()
     for row in raw.get('users') or []:
@@ -1386,10 +1397,10 @@ def normalize_user_quota(raw, *, strict: bool = False) -> dict:
         try:
             limit_gb = float(row.get('limit_gb'))
         except (TypeError, ValueError):
-            limit_gb = 0.0
-        if not limit_gb > 0:
+            limit_gb = -1.0
+        if limit_gb < 0:
             if strict:
-                raise ValueError(f'请填写用户「{name}」的额度（大于 0 的 GB 数）')
+                raise ValueError(f'请填写用户「{name}」的额度（GB 数，0 表示不限）')
             continue
         fold = name.casefold()
         if fold in seen:
@@ -1402,6 +1413,7 @@ def normalize_user_quota(raw, *, strict: bool = False) -> dict:
         'enabled': bool(raw.get('enabled', False)),
         'dry_run': bool(raw.get('dry_run', True)),
         'cycle': cycle,
+        'default_limit_gb': round(default_gb, 2),
         'users': users,
     }
 
