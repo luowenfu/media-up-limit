@@ -559,24 +559,29 @@ function bindRankToggles() {
     });
 }
 
-/** 鼠标悬停提示 */
+/** 鼠标悬停提示。挂在外层上，柱子刷新后换了节点也能接着用。 */
 export function bindChart(kind) {
     bindRankToggles();
     const wrap = document.getElementById('chartWrap');
     if (!wrap || wrap.dataset.bound) return;
     wrap.dataset.bound = '1';
     const tip = document.getElementById('chartTip');
-    const svg = wrap.querySelector('svg');
     const color = SERIES[kind];
-    wrap.querySelectorAll('.col').forEach(g => {
-        g.addEventListener('mouseenter', () => {
-            const [lab, a, bb] = g.dataset.tip.split('|');
-            tip.innerHTML = `<b>${esc(lab)}</b><span><i style="background:${color.colorA}"></i>${esc(a)}</span><span><i style="background:${color.colorB}"></i>${esc(bb)}</span>`;
-            const sx = svg.clientWidth / CHART_W, sy = svg.clientHeight / CHART_H;
-            tip.style.left = (+g.dataset.x * sx) + 'px';
-            tip.style.top = (+g.dataset.y * sy - 6) + 'px';
-            tip.style.opacity = 1;
-        });
-        g.addEventListener('mouseleave', () => { tip.style.opacity = 0; });
+    const colOf = target => target?.closest?.('.col');
+    wrap.addEventListener('mouseover', e => {
+        const g = colOf(e.target);
+        if (!g || !wrap.contains(g) || (e.relatedTarget && g.contains(e.relatedTarget))) return;
+        const [lab, a, bb] = g.dataset.tip.split('|');
+        tip.innerHTML = `<b>${esc(lab)}</b><span><i style="background:${color.colorA}"></i>${esc(a)}</span><span><i style="background:${color.colorB}"></i>${esc(bb)}</span>`;
+        const svg = wrap.querySelector('svg');
+        const sx = svg.clientWidth / CHART_W, sy = svg.clientHeight / CHART_H;
+        tip.style.left = (+g.dataset.x * sx) + 'px';
+        tip.style.top = (+g.dataset.y * sy - 6) + 'px';
+        tip.style.opacity = 1;
+    });
+    wrap.addEventListener('mouseout', e => {
+        const g = colOf(e.target);
+        if (!g || !wrap.contains(g) || (e.relatedTarget && g.contains(e.relatedTarget))) return;
+        tip.style.opacity = 0;
     });
 }

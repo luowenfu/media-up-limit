@@ -13,7 +13,7 @@ import { relockTiles } from './interact.js';
 import {
     state, qbList, embyList, embyOn, navCollapsed, rememberPage,
 } from './store.js';
-import { $, $$, isPad, isPhone } from './ui.js';
+import { $, $$, isPad, isPhone, patchHtml } from './ui.js';
 import { ensureSidebar } from './theme.js';
 import { toTopMark, toTopStick } from './totop.js';
 
@@ -127,7 +127,7 @@ let lastNav = '';
 function renderNav() {
     const html = navTreeHtml();
     if (html === lastNav) return;
-    $('#navTree').innerHTML = html;
+    patchHtml($('#navTree'), html);
     lastNav = html;
 }
 
@@ -514,7 +514,7 @@ function paint(list) {
     }
     list.forEach(p => {
         if (p.html === undefined || p.html === lastHtml[p.id]) return;
-        document.getElementById('sec-' + p.id).innerHTML = p.html;
+        patchHtml(document.getElementById('sec-' + p.id), p.html);
         lastHtml[p.id] = p.html;
     });
 }

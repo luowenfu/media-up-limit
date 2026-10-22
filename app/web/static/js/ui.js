@@ -14,6 +14,67 @@ export const isPhone = () => matchMedia(PHONE_MQ).matches;
 const PAD_MQ = '(min-width: 768px) and (max-width: 1199px) and (min-height: 501px)';
 export const isPad = () => matchMedia(PAD_MQ).matches;
 
+/**
+ * 就地更新一块 HTML。标签对得上的节点留着改，不整段拆掉。
+ * 刷新时鼠标底下的按钮还是原来那个，悬停样式就不会重播一遍。
+ */
+export function patchHtml(host, html) {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = html == null ? '' : html;
+    patchKids(host, tpl.content);
+}
+
+const KEEP_ATTR = new Set(['data-bound']);
+
+function patchKids(host, source) {
+    const oldNodes = [...host.childNodes];
+    const fresh = [...source.childNodes];
+    const common = Math.min(oldNodes.length, fresh.length);
+    for (let i = 0; i < common; i++) patchNode(oldNodes[i], fresh[i]);
+    for (let i = common; i < fresh.length; i++) host.appendChild(fresh[i].cloneNode(true));
+    for (let i = oldNodes.length - 1; i >= fresh.length; i--) oldNodes[i].remove();
+}
+
+function sameKind(a, b) {
+    if (a.nodeType !== b.nodeType) return false;
+    if (a.nodeType === Node.TEXT_NODE) return true;
+    return a.nodeType === Node.ELEMENT_NODE && a.tagName === b.tagName;
+}
+
+function patchNode(oldNode, fresh) {
+    if (!sameKind(oldNode, fresh)) {
+        oldNode.replaceWith(fresh.cloneNode(true));
+        return;
+    }
+    if (oldNode.nodeType === Node.TEXT_NODE) {
+        if (oldNode.data !== fresh.data) oldNode.data = fresh.data;
+        return;
+    }
+    const tag = oldNode.tagName;
+    const focused = document.activeElement === oldNode
+        && (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT');
+    if (focused) return;
+    patchAttrs(oldNode, fresh);
+    patchKids(oldNode, fresh);
+    if (tag === 'OPTION') oldNode.selected = fresh.hasAttribute('selected');
+    else if (tag === 'INPUT' || tag === 'TEXTAREA') {
+        const type = (oldNode.type || '').toLowerCase();
+        if (type === 'checkbox' || type === 'radio') oldNode.checked = fresh.checked;
+        else if (oldNode.value !== fresh.value) oldNode.value = fresh.value;
+    } else if (tag === 'SELECT' && oldNode.value !== fresh.value) oldNode.value = fresh.value;
+}
+
+function patchAttrs(live, fresh) {
+    const next = new Map([...fresh.attributes].map(attr => [attr.name, attr.value]));
+    for (const attr of [...live.attributes]) {
+        if (KEEP_ATTR.has(attr.name)) continue;
+        if (!next.has(attr.name)) live.removeAttribute(attr.name);
+    }
+    for (const [name, value] of next) {
+        if (live.getAttribute(name) !== value) live.setAttribute(name, value);
+    }
+}
+
 export const COL = { qb: ['#2563eb', '#3b82f6'], emby: ['#059669', '#10b981'], sys: ['#334155', '#64748b'] };
 
 /* ---------- 表单构件 ---------- */
