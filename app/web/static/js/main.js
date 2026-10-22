@@ -192,7 +192,7 @@ document.addEventListener('click', e => {
             if (state.quotaTop) card.style.setProperty('--qd-top', `${state.quotaTop}px`);
             card.classList.add('quota-open');
             const input = card.querySelector('[data-quota-find]');
-            if (input) { input.value = ''; input.focus({ preventScroll: true }); }
+            if (input) input.value = '';
             scrollQuotaCard(card);
         }
         return;
