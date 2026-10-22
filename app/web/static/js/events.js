@@ -345,8 +345,11 @@ export function bindEventPop() {
     });
     document.addEventListener('click', e => {
         if (touched) { touched = false; return; }
-        if (hoverOk()) return;
         const tag = e.target.closest?.('.has-tip');
+        if (hoverOk()) {
+            if (tag?.classList.contains('session-warn')) place(tag);
+            return;
+        }
         if (tag) toggle(tag);
         else if (!pop.contains(e.target)) hide();
     });

@@ -14,6 +14,9 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = 5
 DEFAULT_SESSION_MESSAGE_TIMEOUT_MS = 8000
+REMOTE_CONTROL_CLOSED_ERROR = (
+    '远程控制通道为关闭状态（SupportsRemoteControl=false），请检查客户端是否支持'
+)
 
 EMBY_LOG_LINE_RE = re.compile(
     r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?)\s+'
@@ -1371,6 +1374,7 @@ class EmbyClient:
 
         return {
             'id': session.get('Id') or '',
+            'supports_remote_control': bool(session.get('SupportsRemoteControl')),
             'session_mode': session_mode,
             'is_abnormal_disconnect': is_abnormal_disconnect,
             'is_playing': is_playing,
@@ -1490,11 +1494,41 @@ class EmbyClient:
             if session.get('is_remote')
         ]
 
+    def _session_remote_control_error(self, session_id: str) -> Optional[dict]:
+        """发控制命令前读 /Sessions。通道关着或会话不在时返回失败，不发命令。"""
+        resp = self._request('GET', '/Sessions')
+        if resp is None:
+            return {'ok': False, 'error': '无法连接 Emby 服务器'}
+        if resp.status_code >= 400:
+            return {'ok': False, 'error': f'HTTP {resp.status_code}'}
+        try:
+            data = resp.json()
+        except ValueError:
+            return {'ok': False, 'error': '无法连接 Emby 服务器'}
+        if not isinstance(data, list):
+            return {'ok': False, 'error': '会话已结束'}
+        sid = str(session_id or '').strip()
+        raw = next(
+            (
+                item for item in data
+                if isinstance(item, dict) and str(item.get('Id') or '') == sid
+            ),
+            None,
+        )
+        if raw is None:
+            return {'ok': False, 'error': '会话已结束'}
+        if not bool(raw.get('SupportsRemoteControl')):
+            return {'ok': False, 'error': REMOTE_CONTROL_CLOSED_ERROR}
+        return None
+
     def send_session_playing_command(self, session_id: str, command: str) -> dict:
         command = (command or '').strip()
         allowed = {'Pause', 'Unpause', 'Stop'}
         if command not in allowed:
             return {'ok': False, 'error': f'不支持的命令: {command}'}
+        blocked = self._session_remote_control_error(session_id)
+        if blocked:
+            return blocked
         sid = quote(str(session_id), safe='')
         resp = self._request('POST', f'/Sessions/{sid}/Playing/{command}')
         if resp is None:
@@ -1509,6 +1543,9 @@ class EmbyClient:
         message = str(text or '').strip()
         if not message:
             return {'ok': False, 'error': '消息内容不能为空'}
+        blocked = self._session_remote_control_error(session_id)
+        if blocked:
+            return blocked
         sid = quote(str(session_id), safe='')
         params = {'Text': message}
         if timeout_ms is not None:

@@ -120,7 +120,9 @@ html[data-scheme="dark"] select optgroup {
     color: #e2e8f0;
 }
 html[data-scheme="dark"] .tag.up.warn { background: #3b2414; color: #fdba74; }
-html[data-scheme="dark"] .session-up.warn { color: #fdba74; }
+html[data-scheme="dark"] .session-up.warn,
+html[data-scheme="dark"] .session-ctl .mini-btn.icon.warn,
+html[data-scheme="dark"] .session-ctl .mini-btn.icon.warn:hover { color: #fdba74; }
 html[data-scheme="dark"] .rule-x {
     background: #1b2436;
     color: var(--text-1);
