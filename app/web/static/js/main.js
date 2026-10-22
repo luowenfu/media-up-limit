@@ -77,6 +77,23 @@ function quotaHeadOffset(card) {
     return Math.max(0, Math.round(head.getBoundingClientRect().bottom - card.getBoundingClientRect().top));
 }
 
+function stickyTop() {
+    for (const el of [document.querySelector('.tb-bar'), document.querySelector('.topbar')]) {
+        if (!el) continue;
+        const pos = getComputedStyle(el).position;
+        if (pos !== 'sticky' && pos !== 'fixed') continue;
+        const h = el.getBoundingClientRect().height;
+        if (h > 0 && h < window.innerHeight) return Math.round(h);
+    }
+    return 0;
+}
+
+function scrollQuotaCard(card) {
+    const head = card.querySelector('.dev-head') || card;
+    const top = window.scrollY + head.getBoundingClientRect().top - stickyTop();
+    window.scrollTo({ top: Math.max(0, Math.round(top)), behavior: 'smooth' });
+}
+
 function quotaCard() {
     return document.querySelector('.dev.quota-open');
 }
@@ -176,6 +193,7 @@ document.addEventListener('click', e => {
             card.classList.add('quota-open');
             const input = card.querySelector('[data-quota-find]');
             if (input) { input.value = ''; input.focus({ preventScroll: true }); }
+            scrollQuotaCard(card);
         }
         return;
     }
