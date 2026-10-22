@@ -189,9 +189,9 @@ function quotaPane(cfg, users) {
     const msgOptions = QUOTA_PRESETS
         .map(([id, tpl]) => [id, tpl.replaceAll('{when}', whenNow)])
         .concat([[QUOTA_MSG_CUSTOM, '自定义']]);
-    return notice('', '<b>达量停播：</b>额度用完后再开始播放，3 秒后收到提示，再过 5 秒被停止。需要开启「流量采集」里的 Lucky 反代模式，局域网播放不受影响')
+    return notice('', '<b>达量停播：</b>利用 Emby 官方接口控制播放会话；额度用完后再开始播放时将收到提示，5 秒后停止。需要开启「流量采集」里的 Lucky 反代模式，局域网播放不受影响。')
         + fs('shield', '达量停播', '', `<div class="sw-list">
-            ${swRow({ t: '启用达量停播', d: '额度用完后，再开播的用户会被停播', on: !!qt.enabled, name: 'qEnable' })}
+            ${swRow({ t: '启用达量停播', d: '总开关', on: !!qt.enabled, name: 'qEnable' })}
             ${swRow({ t: '只记录不执行', d: '到点只写系统日志，不发提示也不停止。确认用量准确后再关闭', on: qt.dry_run !== false, name: 'qDry' })}
         </div>`)
         + fs('clock', '统计周期', '', `<div class="plan" id="quotaPlan" ${anchorsAttr(label, cyc.reset_anchor)}><div class="f-grid">
@@ -199,20 +199,20 @@ function quotaPane(cfg, users) {
             <div class="anchor">${anchorHtml(label, cyc.reset_anchor)}</div>
         </div></div>
         <div class="f-grid q-msg">
-            ${fld('提示文案', sel(msgOptions, msgSel, 'qMsgSel'), { full: true, hint: '改周期类型或恢复时间，这句会跟着变' })}
+            ${fld('提示文案', sel(msgOptions, msgSel, 'qMsgSel'), { full: true })}
             <div class="full" id="qMsgBox" style="${msgSel === QUOTA_MSG_CUSTOM ? '' : 'display:none'}">
                 ${inp({ id: 'qMsgText', val: msgSel === QUOTA_MSG_CUSTOM ? msgText : '', ph: `最多 ${QUOTA_MSG_MAX} 个字` })}
                 <div class="hint-t" id="qMsgHint">${quotaWhenHint(whenNow)}</div>
             </div>
         </div>`)
-        + fs('sum', '额度规则', '二选一，额度按本周期外网上行累计', `${segF(['按总额度', '按用户'], isTotal ? '按总额度' : '按用户', 'data-qmode')}
+        + fs('sum', '额度设置', '', `${segF(['按总额度', '按用户'], isTotal ? '按总额度' : '按用户', 'data-qmode')}
             <div class="sub-panel" id="qTotalPane" style="${isTotal ? '' : 'display:none'}">
                 ${fld('总额度', inp({ id: 'qTotal', type: 'number', val: qt.total_limit_gb > 0 ? qt.total_limit_gb : '', ph: '所有用户合计', suf: 'GB', attr: 'min="0" step="any"' }), { hint: '所有用户本周期上行合计达到后，之后开播的每个用户都会被停播' })}
             </div>
             <div class="sub-panel" id="qUserPane" style="${isTotal ? 'display:none' : ''}">
                 <div class="sw-list"><div class="sw-row">
                     <div class="t"><b>全部用户</b><small>打开后每位用户各自累计，用同一个额度</small></div>
-                    <div class="inp" id="qDefaultBox" style="flex:0 0 150px;${allUsers ? '' : 'display:none'}"><input id="qDefault" type="number" min="0" step="any" value="${esc(qt.default_limit_gb > 0 ? qt.default_limit_gb : '')}" placeholder="每人额度"><span class="suf">GB</span></div>
+                    <div class="inp" id="qDefaultBox" style="flex:0 0 150px"><input id="qDefault" type="number" min="0" step="any" value="${esc(qt.default_limit_gb > 0 ? qt.default_limit_gb : '')}" placeholder="每人额度"><span class="suf">GB</span></div>
                     <span class="switch ${allUsers ? 'on' : ''}" data-sw="qAll"></span>
                 </div></div>
                 <div id="qList" style="${allUsers ? 'display:none' : ''}">
@@ -233,7 +233,6 @@ export function refreshQuotaView(root = document.getElementById('sheet')) {
     const show = (sel_, on) => { root.querySelector(sel_).style.display = on ? '' : 'none'; };
     show('#qTotalPane', total);
     show('#qUserPane', !total);
-    show('#qDefaultBox', all);
     show('#qList', !all);
 }
 
