@@ -86,7 +86,7 @@ function luckyPane(cfg) {
                 </div>
             </div>
             ${testRow([['luckyConn', '连通性测试', 'search'], ['luckyFlow', '流量接口测试', 'wave']])}`)}
-            ${fs('film', '选片流量', '浏览海报、详情页时产生的流量也计入用户', `<div class="fs-fold" id="browseMin"${creditOn ? '' : ' hidden'}>${fld('计入下限', inp({ id: 'sBrowse', val: browseMinMb(cfg), type: 'number', suf: 'MB', attr: 'min="0" max="100" step="1"' }), { hint: '0 表示不设下限，最小单位 1 MB。单次选片上传不足该值时不记入统计与日志' })}</div>`, `<span class="fs-sw">计入统计</span><span class="switch ${creditOn ? 'on' : ''}" data-sw="browse"></span>`)}
+            ${fs('film', '选片流量', '浏览海报、详情页时产生的流量也计入用户', `<div class="fs-fold" id="browseMin"${creditOn ? '' : ' hidden'}>${fld('计入下限', inp({ id: 'sBrowse', val: browseMinMb(cfg), type: 'number', suf: 'MB', attr: 'min="0" max="100" step="1"' }), { hint: '0 表示不设下限，最小单位 1 MB。单次选片上传不足该值时不记入统计与日志' })}</div>`, `<span class="switch ${creditOn ? 'on' : ''}" data-sw="browse"></span>`)}
         </div>`;
 }
 
