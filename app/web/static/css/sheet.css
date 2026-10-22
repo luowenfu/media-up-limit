@@ -52,7 +52,7 @@
 .fs-head .ic { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: #f1f5f9; color: var(--text-2); }
 .fs-head .ic svg { width: 15px; height: 15px; }
 .fs-head b { display: block; font-size: 14px; color: var(--text); }
-.fs-head small { font-size: 12px; color: var(--text-2); }
+.fs-head small { font-size: 12px; color: var(--text-3); }
 .fs-head .r { margin-left: auto; }
 .def-rows { display: flex; flex-direction: column; gap: 18px; }
 .def-row { display: grid; grid-template-columns: 44px minmax(188px, 240px) minmax(0, 1fr); gap: 10px; align-items: center; }
@@ -72,7 +72,7 @@
 .q-head { padding: 12px 0 7px; }
 .q-head .q-title { display: flex; align-items: center; gap: 4px; }
 .q-head .t b { display: block; font-size: 13.5px; font-weight: 650; color: var(--text); }
-.q-head .t small { font-size: 12px; color: var(--text-2); }
+.q-head .t small { font-size: 12px; color: var(--text-3); }
 .fl .req { color: var(--danger); }
 .fl .opt { margin-left: auto; font-weight: 500; color: var(--text-3); }
 .inp {
@@ -144,7 +144,7 @@ html[data-scheme="dark"] .inp.bad:focus-within {
 .sw-row:first-child { border-top: 0; padding-top: 2px; }
 .sw-row .t { flex: 1; min-width: 0; }
 .sw-row .t b { display: block; font-size: 13.5px; font-weight: 650; color: var(--text); }
-.sw-row .t small { font-size: 12px; color: var(--text-2); }
+.sw-row .t small { font-size: 12px; color: var(--text-3); }
 .sw-row.disabled { opacity: .45; pointer-events: none; }
 .switch { cursor: pointer; flex-shrink: 0; }
 .switch.on { background: var(--sheet-accent, var(--accent)); }
@@ -179,7 +179,7 @@ html[data-scheme="dark"] .inp.bad:focus-within {
 .plan-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
 #nextPlan { border-color: #bfdbfe; background: #f5f9ff; }
 .plan-head b { font-size: 13.5px; color: var(--text); }
-.plan-head small { font-size: 12px; color: var(--text-2); }
+.plan-head small { font-size: 12px; color: var(--text-3); }
 .plan-head .r { margin-left: auto; }
 .link-danger { font-size: 12.5px; font-weight: 600; color: var(--danger); }
 .link-danger:hover { text-decoration: underline; }
@@ -212,7 +212,7 @@ html[data-scheme="dark"] .inp.bad:focus-within {
 .plan-add:hover { border-color: #3b82f6; background: #eff6ff; }
 .plan-add .ic { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; background: #dbeafe; color: #2563eb; font-size: 20px; font-weight: 600; }
 .plan-add b { display: block; font-size: 13.5px; color: var(--text); }
-.plan-add small { font-size: 12px; color: var(--text-2); }
+.plan-add small { font-size: 12px; color: var(--text-3); }
 
 /* 大开关卡片 */
 .big-toggle { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 14px; border: 1.5px solid var(--line); background: #fff; cursor: pointer; transition: border-color .15s, background .15s; }
@@ -222,7 +222,7 @@ html[data-scheme="dark"] .inp.bad:focus-within {
 .big-toggle .ic svg { width: 15px; height: 15px; }
 .big-toggle .t { flex: 1; }
 .big-toggle .t b { display: block; font-size: 14px; color: var(--text); }
-.big-toggle .t small { font-size: 12.5px; color: var(--text-2); }
+.big-toggle .t small { font-size: 12.5px; color: var(--text-3); }
 .big-toggle .badge { height: 22px; padding: 0 8px; border-radius: 7px; font-size: 11px; font-weight: 800; line-height: 22px; background: #fef3c7; color: #b45309; }
 .sub-panel { margin-top: 14px; }
 .file-list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
