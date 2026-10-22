@@ -130,10 +130,10 @@
 .kv-row .quota-btn {
     flex: none; display: inline-flex; align-items: center; justify-content: center;
     height: 26px; padding: 0 10px; border-radius: 8px;
-    border: 1px solid var(--line); background: var(--emby-soft); color: var(--emby);
-    font-size: 12px; font-weight: 700;
+    border: 0; background: var(--emby-soft); color: var(--emby);
+    font-size: 12px; font-weight: 650;
 }
-.kv-row .quota-btn:hover { background: var(--emby); color: #fff; }
+.kv-row .quota-btn:hover { background: rgba(16, 185, 129, .22); color: var(--emby); }
 
 .toggle {
     margin-left: auto; display: inline-grid; grid-template-columns: 1fr 1fr;
@@ -255,21 +255,21 @@
 
 .dev.quota-open { overflow-anchor: none; }
 .quota-mask,
-.quota-drawer { position: absolute; left: 0; right: 0; z-index: 6; }
+.quota-drawer { position: absolute; left: 0; right: 0; z-index: 6; top: var(--qd-top, 0px); }
 .quota-mask {
-    top: 0; bottom: 0;
+    bottom: 0;
     background: rgba(15, 23, 42, .45);
     opacity: 0; pointer-events: none;
     transition: opacity .2s;
 }
 .quota-drawer {
-    top: 20%; bottom: 0; z-index: 7;
+    bottom: 0; z-index: 7;
     display: flex; flex-direction: column;
     height: auto; min-height: 0;
     padding: 8px 0 0;
     background: var(--card);
     border-top: 1px solid var(--line);
-    border-radius: 20px 20px 0 0;
+    border-radius: 0;
     box-shadow: 0 -18px 40px rgba(15, 23, 42, .22);
     transform: translateY(105%);
     transition: transform .22s ease;

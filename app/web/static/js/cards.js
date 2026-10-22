@@ -204,7 +204,7 @@ function quotaRow(u) {
     const over = limit > 0 && meter >= limit;
     const pct = limit > 0 ? Math.min(100, meter / limit * 100) : 0;
     const cap = limit > 0 ? quotaGb(limit) : '不限';
-    const viaLabel = u.via === 'total' ? '随总额度' : (u.via === 'all' ? '随每人额度' : '随独立额度');
+    const viaLabel = { total: '随总额度', all: '随每人额度', own: '随独立额度', none: '未设额度' }[u.via] || '未设额度';
     const via = `<span class="qd-chip">${viaLabel}</span>`;
     return `<article class="qd-row${over ? ' over' : ''}">
         <span class="qd-av">${esc(quotaMark(u.name))}</span>
@@ -260,6 +260,7 @@ export function embyCard(d, i, ord) {
     const styleBits = [];
     if (ord != null) styleBits.push(`--i:${ord}`);
     if (quotaOpen && state.quotaLockH) styleBits.push(`height:${state.quotaLockH}px`);
+    if (quotaOpen && state.quotaTop) styleBits.push(`--qd-top:${state.quotaTop}px`);
     const at = styleBits.length ? ` style="${styleBits.join(';')}"` : '';
     const see = d.quotaOn ? `<button type="button" class="quota-btn" data-quota-open="${esc(d.name)}">查询</button>` : '';
     return `<article${at} class="dev ${d.online ? '' : 'is-off'}${foldOpen('card') ? ' open' : ''}${quotaOpen ? ' quota-open' : ''}">

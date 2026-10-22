@@ -175,12 +175,16 @@ def cycle_used_by_user(
 
 
 def _quota_via(quota: dict, fold: str) -> str:
-    """own 独立额度，total 总额度，all 每人额度。"""
+    """own 独立额度，total 总额度，all 每人额度，none 没设额度。"""
     if listed_limit_gb(quota, fold) is not None:
         return 'own'
     if is_total_mode(quota):
-        return 'total'
-    return 'all'
+        if float((quota or {}).get('total_limit_gb') or 0) > 0:
+            return 'total'
+        return 'none'
+    if float((quota or {}).get('default_limit_gb') or 0) > 0:
+        return 'all'
+    return 'none'
 
 
 def _prefer_config_names(quota: dict, names: Dict[str, str]) -> None:

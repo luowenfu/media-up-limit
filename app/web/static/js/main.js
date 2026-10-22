@@ -70,13 +70,21 @@ function openDevice(kind, dev, focus) {
     go({ view: kind, dev });
 }
 
+function quotaHeadOffset(card) {
+    const head = card.querySelector('.dev-head');
+    if (!head) return 0;
+    return Math.max(0, Math.round(head.getBoundingClientRect().bottom - card.getBoundingClientRect().top));
+}
+
 function closeQuotaDrawer() {
     state.quotaDrawer = '';
     state.quotaQuery = '';
     state.quotaLockH = 0;
+    state.quotaTop = 0;
     document.querySelectorAll('.dev').forEach(el => {
         el.classList.remove('quota-open');
         el.style.height = '';
+        el.style.removeProperty('--qd-top');
     });
 }
 
@@ -93,7 +101,9 @@ document.addEventListener('click', e => {
         if (open && card) {
             state.quotaDrawer = t.dataset.quotaOpen;
             state.quotaLockH = Math.round(card.offsetHeight);
+            state.quotaTop = quotaHeadOffset(card);
             card.style.height = `${state.quotaLockH}px`;
+            if (state.quotaTop) card.style.setProperty('--qd-top', `${state.quotaTop}px`);
             card.classList.add('quota-open');
             const input = card.querySelector('[data-quota-find]');
             if (input) { input.value = ''; input.focus({ preventScroll: true }); }
