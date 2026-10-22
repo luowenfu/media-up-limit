@@ -84,6 +84,15 @@
 }
 .inp:hover { border-color: #c9d2de; }
 .inp:focus-within { border-color: var(--sheet-accent, var(--qb)); box-shadow: 0 0 0 4px color-mix(in srgb, var(--sheet-accent, var(--qb)) 14%, transparent); }
+.inp.bad,
+.inp.bad:hover,
+.inp.bad:focus-within,
+html[data-scheme="dark"] .inp.bad,
+html[data-scheme="dark"] .inp.bad:hover,
+html[data-scheme="dark"] .inp.bad:focus-within {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger) 14%, transparent);
+}
 .inp input, .inp select { flex: 1; min-width: 0; height: 100%; padding: 0 12px; border: 0; outline: 0; background: transparent; font-size: 13.5px; color: var(--text); }
 .inp input::placeholder { color: #a8b3c2; }
 .inp input[type=number] { -moz-appearance: textfield; }

@@ -17,7 +17,7 @@ import {
     applyDelete, applyLimit, applyReset, openDelete, openLimit, openReset, openSessionMessage, refreshLimit, sendSessionMessage, switchLimitMode,
 } from './dialogs.js';
 import {
-    $, $$, busy, closeModal, closeSheet, reload, toast,
+    $, $$, busy, closeModal, closeSheet, markField, reload, toast,
 } from './ui.js';
 
 /* ---------- 流量块的上传 / 下载显隐 ---------- */
@@ -81,7 +81,10 @@ function runTest(t) {
 function saveSheet(t) {
     const sheet = $('#sheet');
     busy(t, '保存中…', async () => {
-        try { await sheet._onSave(sheet); } catch (e) { toast(e.message, 'err'); }
+        try { await sheet._onSave(sheet); } catch (e) {
+            if (e.field) markField(e.field);
+            toast(e.message, 'err');
+        }
     });
 }
 
@@ -217,13 +220,25 @@ export function uiClick(t, e, ctx) {
 }
 
 /** 输入联动：手动限速按钮可用性、规则刻度预览 */
+function clearBad(t) {
+    const box = t.closest?.('.inp.bad');
+    if (!box) return;
+    box.classList.remove('bad');
+    const err = box.closest('.qd-edit')?.querySelector('.qd-err');
+    if (!err) return;
+    err.remove();
+    state.quotaEditErr = '';
+}
+
 export function uiChange(t) {
+    clearBad(t);
     if (t.id === 'qMsgSel') onQuotaMsgChange(t);
     if (t.hasAttribute('data-anchor') && t.closest('#quotaPlan')) refreshQuotaMessages();
 }
 
 export function uiInput(e) {
     const t = e.target;
+    clearBad(t);
     if (t.id === 'limInp') refreshLimit();
     if (t.dataset.f === 'th') refreshScale(t.closest('.plan'));
     if (t.hasAttribute('data-anchor') && t.closest('#quotaPlan')) refreshQuotaMessages();

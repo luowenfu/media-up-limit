@@ -370,6 +370,15 @@
 .qd-edit-row .k { flex: none; font-size: 12px; font-weight: 700; color: var(--text-2); }
 .qd-edit-row .inp { flex: 1; min-width: 0; height: 34px; }
 .qd-edit .inp:focus-within { border-color: var(--emby); box-shadow: 0 0 0 3px var(--emby-soft); }
+.qd-edit .inp.bad,
+.qd-edit .inp.bad:hover,
+.qd-edit .inp.bad:focus-within,
+html[data-scheme="dark"] .qd-edit .inp.bad,
+html[data-scheme="dark"] .qd-edit .inp.bad:hover,
+html[data-scheme="dark"] .qd-edit .inp.bad:focus-within {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent);
+}
 .qd-save, .qd-cancel {
     flex: none; height: 34px; padding: 0 10px; border: 0; border-radius: 8px;
     font-size: 12px; font-weight: 650;

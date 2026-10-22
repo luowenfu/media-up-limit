@@ -22,7 +22,7 @@ import { bindRangePicker, closeRangePicker } from './range_picker.js';
 import { chartOrderPref, moveChartBlock } from './stats.js';
 import { saveOwnQuota } from './embyform.js';
 import {
-    $, busy, closeDrawer, closeModal, closeSheet, isPad, isPhone, toast,
+    $, busy, closeDrawer, closeModal, closeSheet, isPad, isPhone, markField, toast,
 } from './ui.js';
 
 const pad = n => String(n).padStart(2, '0');
@@ -152,7 +152,8 @@ async function commitQuotaEdit(btn) {
         state.quotaEditErr = e.message || '保存失败';
         const card = paintQuotaList();
         const input = card && card.querySelector('[data-quota-gb]');
-        if (input) input.focus({ preventScroll: true });
+        if (e.field && input) markField(input);
+        else if (input) input.focus({ preventScroll: true });
     }
 }
 

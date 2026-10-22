@@ -110,6 +110,32 @@ export const chkBox = (label, color, id) => `<div class="chk" id="${id}" style="
 export const val = (root, sel_) => (root.querySelector(sel_)?.value ?? '').trim();
 export const isOn = (root, sel_) => !!root.querySelector(sel_)?.classList.contains('on');
 
+/** 表单校验失败：带上出错的输入框，保存处用来标红 */
+export function fieldError(el, message) {
+    const err = new Error(message);
+    err.field = el || true;
+    return err;
+}
+
+/** 标红一个输入框，并滚到它。开始修改后由输入事件去掉 */
+export function markField(el) {
+    document.querySelectorAll('.inp.bad').forEach(node => node.classList.remove('bad'));
+    if (!el || typeof el.closest !== 'function' || !el.isConnected) return;
+    const box = el.classList.contains('inp') ? el : el.closest('.inp');
+    if (!box) return;
+    const pane = box.closest('.sheet-pane');
+    if (pane && !pane.classList.contains('on')) {
+        const sheet = pane.closest('#sheet');
+        sheet?.querySelectorAll('.sheet-pane').forEach(p => p.classList.toggle('on', p === pane));
+        sheet?.querySelectorAll('[data-stab]').forEach(b => b.classList.toggle('on', b.dataset.stab === pane.dataset.pane));
+    }
+    box.classList.add('bad');
+    const focus = box.querySelector('input, select, textarea');
+    if (!focus) return;
+    focus.focus({ preventScroll: true });
+    box.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
 /* ---------- 提示 ---------- */
 export function toast(msg, type = 'ok') {
     const el = document.createElement('div');

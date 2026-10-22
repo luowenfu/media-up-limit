@@ -7,7 +7,7 @@ import { esc } from './format.js';
 import { qbByName, embyByName } from './store.js';
 import { readSpeedKbps } from './plan.js';
 import {
-    $, $$, busy, chkBox, closeModal, inp, mTop, notice, openSmall, reload, toast,
+    $, $$, busy, chkBox, closeModal, inp, markField, mTop, notice, openSmall, reload, toast,
 } from './ui.js';
 
 const find = (kind, name) => (kind === 'qb' ? qbByName(name) : embyByName(name));
@@ -51,10 +51,12 @@ export function refreshLimit() {
 }
 
 export async function applyLimit(btn) {
+    const input = $('#limInp');
     let v;
     try {
-        v = readSpeedKbps($('#limInp').value);
+        v = readSpeedKbps(input.value, input);
     } catch (e) {
+        markField(e.field);
         toast(e.message, 'err');
         return;
     }

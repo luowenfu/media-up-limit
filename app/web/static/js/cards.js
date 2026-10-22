@@ -214,7 +214,7 @@ function quotaRow(u) {
                 <button type="button" class="qd-save" data-quota-save>保存</button>
                 <button type="button" class="qd-cancel" data-quota-cancel>取消</button>
             </div>
-            <small class="qd-hint">0 表示不限，最小单位 0.1，留空则取消独立额度</small>
+            <small class="qd-hint">0 表示不限，留空则取消</small>
             ${state.quotaEditErr ? `<small class="qd-err">${esc(state.quotaEditErr)}</small>` : ''}
         </div>` : '';
     return `<article class="qd-row${over ? ' over' : ''}${editing ? ' editing' : ''}">
