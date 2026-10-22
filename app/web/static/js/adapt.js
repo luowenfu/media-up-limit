@@ -126,25 +126,38 @@ function limitOf(rows, via) {
     return row ? Number(row.limit_gb) || 0 : 0;
 }
 
-function quotaRuleText(q) {
+function quotaRuleLabel(q, amount) {
     const rows = q.lookup || [];
     const each = Number(q.default_limit_gb) || limitOf(rows, 'all');
     const total = Number(q.total_limit_gb) || limitOf(rows, 'total');
-    if (q.mode === 'user') return each > 0 ? `按每人额度 ${quotaGb(each)}` : '仅独立额度';
-    return total > 0 ? `按总额度 ${quotaGb(total)}` : '仅独立额度';
+    if (q.mode === 'user') return each > 0 ? `按每人额度 ${amount(each)}` : '仅独立额度';
+    return total > 0 ? `按总额度 ${amount(total)}` : '仅独立额度';
+}
+
+function quotaRuleText(q) {
+    return quotaRuleLabel(q, quotaGb);
+}
+
+function quotaGbTight(gb) {
+    const n = Number(gb) || 0;
+    return n >= 1024 ? fmtGb(n).replace(/\s+/g, '') : `${trimNum(n)}GB`;
+}
+
+function embyWhen(q) {
+    const type = q.cycle_type;
+    if (!type) return q.type_label || '';
+    const n = Number(q.reset_anchor);
+    const anchor = Number.isFinite(n) ? n : 0;
+    if (type === 'week') return `每${WEEKDAYS[anchor] || '周一'}`;
+    if (type === 'day') return `每天 ${String(anchor).padStart(2, '0')}:00`;
+    return `每月 ${anchor || 1} 日`;
 }
 
 function embyPlanText(q) {
     if (!q || !q.enabled) return '未启用';
-    const type = q.cycle_type;
-    if (type) {
-        const n = Number(q.reset_anchor);
-        const anchor = Number.isFinite(n) ? n : 0;
-        if (type === 'week') return `每${WEEKDAYS[anchor] || '周一'}开始`;
-        if (type === 'day') return `每天 ${String(anchor).padStart(2, '0')}:00 开始`;
-        return `每月 ${anchor || 1} 日开始`;
-    }
-    return q.type_label || '未启用';
+    const when = embyWhen(q);
+    const rule = quotaRuleLabel(q, quotaGbTight);
+    return when ? `${when} • ${rule}` : rule;
 }
 
 function embyQuotaTexts(d) {
