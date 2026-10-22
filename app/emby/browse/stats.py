@@ -635,3 +635,53 @@ def _browse_cycle_stats(instance_name, user_name, periods, *, all_users=False):
         finally:
             conn.close()
     return result
+
+
+def get_user_upload_totals(instance_name, *, start, end, hourly=False,
+                           credit_browse=True) -> dict:
+    """所选时段内每个用户的上行合计（播放 + 可选选片）。键是用户名。"""
+    name = (instance_name or '').strip()
+    if not name or not start or not end:
+        return {}
+    start_s = db.traffic_db._normalize_range_start(start)
+    end_s = db.traffic_db._normalize_range_end_exclusive(end, hourly=hourly)
+    if not start_s or not end_s:
+        return {}
+    used = {}
+    db._ensure_emby_schema()
+    with db._lock:
+        conn = db.get_conn()
+        try:
+            c = conn.cursor()
+            c.execute('''
+                SELECT user_name, SUM(uploaded_bytes) AS total
+                FROM emby_playback_upload_hourly
+                WHERE instance_name = ? AND hour_start >= ? AND hour_start < ?
+                GROUP BY user_name
+            ''', (name, start_s, end_s))
+            for row in c.fetchall():
+                user = str(row['user_name'] or '').strip()
+                if user:
+                    used[user] = used.get(user, 0) + max(0, int(row['total'] or 0))
+            if credit_browse:
+                if hourly:
+                    c.execute('''
+                        SELECT user_name, SUM(uploaded_bytes) AS total
+                        FROM emby_browse_upload_hourly
+                        WHERE instance_name = ? AND hour_start >= ? AND hour_start < ?
+                        GROUP BY user_name
+                    ''', (name, start_s, end_s))
+                else:
+                    c.execute('''
+                        SELECT user_name, SUM(estimated_upload_bytes) AS total
+                        FROM emby_browse_upload_facts
+                        WHERE instance_name = ? AND stopped_at >= ? AND stopped_at < ?
+                        GROUP BY user_name
+                    ''', (name, start_s, end_s))
+                for row in c.fetchall():
+                    user = str(row['user_name'] or '').strip()
+                    if user:
+                        used[user] = used.get(user, 0) + max(0, int(row['total'] or 0))
+        finally:
+            conn.close()
+    return used

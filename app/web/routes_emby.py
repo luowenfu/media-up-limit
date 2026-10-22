@@ -206,18 +206,7 @@ def api_emby_sessions():
         return err
     try:
         instance_name = request.args.get('instance')
-        rows = []
-        with state.emby_monitor._config_lock:
-            clients = dict(state.emby_monitor.clients)
-        for name, client in clients.items():
-            if instance_name and name != instance_name:
-                continue
-            for session in client.get_normalized_sessions():
-                rows.append({
-                    'instance_name': name,
-                    **session,
-                })
-        rows.sort(key=lambda r: (r.get('instance_name', ''), r.get('user_name', '')))
+        rows = state.emby_monitor.get_cached_sessions(instance_name)
         return jsonify({'success': True, 'data': rows})
     except Exception as e:
         logger.error(f'API /emby/sessions 错误: {e}', exc_info=True)

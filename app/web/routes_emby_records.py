@@ -414,6 +414,28 @@ def api_emby_activity_log():
         return jsonify({'success': False, 'error': GENERIC_API_ERROR}), 500
 
 
+_USERS_CACHE_SECONDS = 30.0
+_users_cache = {}
+_users_cache_lock = threading.Lock()
+
+
+def _playback_users(instance_name):
+    """用户名单。30 秒内不重复请求 Emby；已删用户的清理交给定时同步。"""
+    now = time.monotonic()
+    with _users_cache_lock:
+        cached = _users_cache.get(instance_name)
+    if cached and now - cached[0] < _USERS_CACHE_SECONDS:
+        return cached[1], cached[2], None
+    client, err_resp = get_emby_client(instance_name)
+    if err_resp:
+        return None, None, err_resp
+    emby_user_sync.sync_deleted_users(instance_name, client)
+    users, source = emby_user_sync.list_instance_user_names(client, instance_name)
+    with _users_cache_lock:
+        _users_cache[instance_name] = (now, users, source)
+    return users, source, None
+
+
 @bp.route('/api/emby/playback-users')
 def api_emby_playback_users():
     err = emby_required()
@@ -425,11 +447,9 @@ def api_emby_playback_users():
             return jsonify({'success': False, 'error': '缺少 instance 参数'}), 400
         if not config_manager.get_emby_instance(instance_name, state.emby_monitor.config):
             return jsonify({'success': False, 'error': '设备不存在'}), 404
-        client, err_resp = get_emby_client(instance_name)
+        users, source, err_resp = _playback_users(instance_name)
         if err_resp:
             return err_resp
-        emby_user_sync.sync_deleted_users(instance_name, client, force=True)
-        users, source = emby_user_sync.list_instance_user_names(client, instance_name)
         return jsonify({'success': True, 'data': users, 'source': source})
     except Exception as e:
         logger.error(f'API /emby/playback-users 错误: {e}', exc_info=True)
@@ -448,112 +468,157 @@ def api_emby_playback_stats(instance_name, period):
         inst = config_manager.get_emby_instance(instance_name, state.emby_monitor.config)
         if not inst:
             return jsonify({'success': False, 'error': '设备不存在'}), 404
-        all_users = user_name == emby_traffic_db.PLAYBACK_ALL_USERS_TOKEN
-        import emby.browse.stats as browse_stats
-        credit_browse = browse_stats.resolve_instance_credit_browse(inst)
-        browse_kw = {'credit_browse': credit_browse}
-        if period == 'hourly':
-            hours = min(int(request.args.get('hours', 24)), 366)
-            if all_users:
-                data = browse_stats.get_combined_playback_upload_hourly_stats_all_users(
-                    instance_name, hours=hours,
-                    start=request.args.get('start'), end=request.args.get('end'),
-                    **browse_kw,
-                )
-            else:
-                data = browse_stats.get_combined_playback_upload_hourly_stats(
-                    instance_name, user_name, hours=hours,
-                    start=request.args.get('start'), end=request.args.get('end'),
-                    **browse_kw,
-                )
-        elif period == 'daily':
-            days = min(int(request.args.get('days', 31)), 366)
-            if all_users:
-                data = browse_stats.get_combined_playback_upload_daily_stats_all_users(
-                    instance_name, days=days,
-                    start=request.args.get('start'), end=request.args.get('end'),
-                    **browse_kw,
-                )
-            else:
-                data = browse_stats.get_combined_playback_upload_daily_stats(
-                    instance_name, user_name, days=days,
-                    start=request.args.get('start'), end=request.args.get('end'),
-                    **browse_kw,
-                )
-        elif period == 'monthly':
-            months = min(int(request.args.get('months', 12)), 60)
-            if all_users:
-                data = browse_stats.get_combined_playback_upload_monthly_stats_all_users(
-                    instance_name, months=months,
-                    start=request.args.get('start'), end=request.args.get('end'),
-                    **browse_kw,
-                )
-            else:
-                data = browse_stats.get_combined_playback_upload_monthly_stats(
-                    instance_name, user_name, months=months,
-                    start=request.args.get('start'), end=request.args.get('end'),
-                    **browse_kw,
-                )
-        elif period == 'weekly':
-            weeks = min(int(request.args.get('weeks', 12)), 104)
-            if all_users:
-                data = browse_stats.get_combined_playback_upload_weekly_stats_all_users(
-                    instance_name, weeks=weeks,
-                    start=request.args.get('start'), end=request.args.get('end'),
-                    **browse_kw,
-                )
-            else:
-                data = browse_stats.get_combined_playback_upload_weekly_stats(
-                    instance_name, user_name, weeks=weeks,
-                    start=request.args.get('start'), end=request.args.get('end'),
-                    **browse_kw,
-                )
-        elif period == 'yearly':
-            years = min(int(request.args.get('years', 5)), 20)
-            start_year = request.args.get('start_year')
-            end_year = request.args.get('end_year')
-            if all_users:
-                data = browse_stats.get_combined_playback_upload_yearly_stats_all_users(
-                    instance_name, years=years,
-                    start=request.args.get('start'), end=request.args.get('end'),
-                    start_year=int(start_year) if start_year else None,
-                    end_year=int(end_year) if end_year else None,
-                    **browse_kw,
-                )
-            else:
-                data = browse_stats.get_combined_playback_upload_yearly_stats(
-                    instance_name, user_name, years=years,
-                    start=request.args.get('start'), end=request.args.get('end'),
-                    start_year=int(start_year) if start_year else None,
-                    end_year=int(end_year) if end_year else None,
-                    **browse_kw,
-                )
-        elif period == 'cycle':
-            from core.config_manager import DEFAULT_CYCLE, get_global_config
-            from core.cycle import iter_cycle_periods
-            from zoneinfo import ZoneInfo
-            tz_name = get_global_config(state.emby_monitor.config).get(
-                'timezone', 'Asia/Shanghai',
-            )
-            try:
-                tz = ZoneInfo(tz_name)
-            except Exception:
-                tz = ZoneInfo('Asia/Shanghai')
-            count = min(int(request.args.get('cycles', 12)), 50)
-            periods = iter_cycle_periods(DEFAULT_CYCLE, tz, count=count)
-            if all_users:
-                data = browse_stats.get_combined_playback_upload_cycle_stats_all_users(
-                    instance_name, periods, **browse_kw,
-                )
-            else:
-                data = browse_stats.get_combined_playback_upload_cycle_stats(
-                    instance_name, user_name, periods, **browse_kw,
-                )
-        else:
+        data = _playback_stats_rows(inst, instance_name, period, user_name)
+        if data is None:
             return jsonify({'success': False, 'error': '播放用户统计暂不支持该周期'}), 400
         return jsonify({'success': True, 'data': data})
     except Exception as e:
         logger.error(f'API /emby/playback-stats 错误: {e}', exc_info=True)
+        return jsonify({'success': False, 'error': GENERIC_API_ERROR}), 500
+
+
+def _playback_stats_rows(inst, instance_name, period, user_name):
+    """按周期取某个用户（或全部用户）的上行统计，不支持的周期返回 None。"""
+    all_users = user_name == emby_traffic_db.PLAYBACK_ALL_USERS_TOKEN
+    import emby.browse.stats as browse_stats
+    credit_browse = browse_stats.resolve_instance_credit_browse(inst)
+    browse_kw = {'credit_browse': credit_browse}
+    if period == 'hourly':
+        hours = min(int(request.args.get('hours', 24)), 366)
+        if all_users:
+            data = browse_stats.get_combined_playback_upload_hourly_stats_all_users(
+                instance_name, hours=hours,
+                start=request.args.get('start'), end=request.args.get('end'),
+                **browse_kw,
+            )
+        else:
+            data = browse_stats.get_combined_playback_upload_hourly_stats(
+                instance_name, user_name, hours=hours,
+                start=request.args.get('start'), end=request.args.get('end'),
+                **browse_kw,
+            )
+    elif period == 'daily':
+        days = min(int(request.args.get('days', 31)), 366)
+        if all_users:
+            data = browse_stats.get_combined_playback_upload_daily_stats_all_users(
+                instance_name, days=days,
+                start=request.args.get('start'), end=request.args.get('end'),
+                **browse_kw,
+            )
+        else:
+            data = browse_stats.get_combined_playback_upload_daily_stats(
+                instance_name, user_name, days=days,
+                start=request.args.get('start'), end=request.args.get('end'),
+                **browse_kw,
+            )
+    elif period == 'monthly':
+        months = min(int(request.args.get('months', 12)), 60)
+        if all_users:
+            data = browse_stats.get_combined_playback_upload_monthly_stats_all_users(
+                instance_name, months=months,
+                start=request.args.get('start'), end=request.args.get('end'),
+                **browse_kw,
+            )
+        else:
+            data = browse_stats.get_combined_playback_upload_monthly_stats(
+                instance_name, user_name, months=months,
+                start=request.args.get('start'), end=request.args.get('end'),
+                **browse_kw,
+            )
+    elif period == 'weekly':
+        weeks = min(int(request.args.get('weeks', 12)), 104)
+        if all_users:
+            data = browse_stats.get_combined_playback_upload_weekly_stats_all_users(
+                instance_name, weeks=weeks,
+                start=request.args.get('start'), end=request.args.get('end'),
+                **browse_kw,
+            )
+        else:
+            data = browse_stats.get_combined_playback_upload_weekly_stats(
+                instance_name, user_name, weeks=weeks,
+                start=request.args.get('start'), end=request.args.get('end'),
+                **browse_kw,
+            )
+    elif period == 'yearly':
+        years = min(int(request.args.get('years', 5)), 20)
+        start_year = request.args.get('start_year')
+        end_year = request.args.get('end_year')
+        if all_users:
+            data = browse_stats.get_combined_playback_upload_yearly_stats_all_users(
+                instance_name, years=years,
+                start=request.args.get('start'), end=request.args.get('end'),
+                start_year=int(start_year) if start_year else None,
+                end_year=int(end_year) if end_year else None,
+                **browse_kw,
+            )
+        else:
+            data = browse_stats.get_combined_playback_upload_yearly_stats(
+                instance_name, user_name, years=years,
+                start=request.args.get('start'), end=request.args.get('end'),
+                start_year=int(start_year) if start_year else None,
+                end_year=int(end_year) if end_year else None,
+                **browse_kw,
+            )
+    elif period == 'cycle':
+        from core.config_manager import DEFAULT_CYCLE, get_global_config
+        from core.cycle import iter_cycle_periods
+        from zoneinfo import ZoneInfo
+        tz_name = get_global_config(state.emby_monitor.config).get(
+            'timezone', 'Asia/Shanghai',
+        )
+        try:
+            tz = ZoneInfo(tz_name)
+        except Exception:
+            tz = ZoneInfo('Asia/Shanghai')
+        count = min(int(request.args.get('cycles', 12)), 50)
+        periods = iter_cycle_periods(DEFAULT_CYCLE, tz, count=count)
+        if all_users:
+            data = browse_stats.get_combined_playback_upload_cycle_stats_all_users(
+                instance_name, periods, **browse_kw,
+            )
+        else:
+            data = browse_stats.get_combined_playback_upload_cycle_stats(
+                instance_name, user_name, periods, **browse_kw,
+            )
+    else:
+        return None
+    return data
+
+
+@bp.route('/api/emby/playback-user-ranks/<instance_name>/<period>')
+def api_emby_playback_user_ranks(instance_name, period):
+    """所选时段内每个用户的上行合计，一次查出（参数同 playback-stats，不带 user）。"""
+    err = emby_required()
+    if err:
+        return err
+    try:
+        inst = config_manager.get_emby_instance(instance_name, state.emby_monitor.config)
+        if not inst:
+            return jsonify({'success': False, 'error': '设备不存在'}), 404
+        if period not in ('hourly', 'daily', 'weekly', 'monthly', 'yearly'):
+            return jsonify({'success': False, 'error': '播放用户统计暂不支持该周期'}), 400
+        start = request.args.get('start')
+        end = request.args.get('end')
+        if not start or not end:
+            return jsonify({'success': False, 'error': '缺少起止时间'}), 400
+        users, _, err_resp = _playback_users(instance_name)
+        if err_resp:
+            return err_resp
+        import emby.browse.stats as browse_stats
+        totals = browse_stats.get_user_upload_totals(
+            instance_name, start=start, end=end, hourly=period == 'hourly',
+            credit_browse=browse_stats.resolve_instance_credit_browse(inst),
+        )
+        by_fold = {str(name).casefold(): amount for name, amount in totals.items()}
+        rank = []
+        for user in users:
+            amount = by_fold.get(str(user).casefold(), 0)
+            if amount > 0:
+                rank.append([user, amount])
+        rank.sort(key=lambda item: item[1], reverse=True)
+        return jsonify({'success': True, 'data': {'users': users, 'rank': rank}})
+    except Exception as e:
+        logger.error(f'API /emby/playback-user-ranks 错误: {e}', exc_info=True)
         return jsonify({'success': False, 'error': GENERIC_API_ERROR}), 500
 
 

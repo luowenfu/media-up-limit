@@ -178,10 +178,9 @@ function browseEvent(r) {
 }
 
 /** 正在播放的会话才带编码器名称，补到对应的播放记录上 */
-async function fillEncoder(rows) {
+function fillEncoder(rows) {
     if (!rows.length) return rows;
-    let live = [];
-    try { live = (await api.get('/api/emby/sessions')).data || []; } catch (e) { return rows; }
+    const live = embyList().flatMap(d => d.sessions || []);
     const byId = new Map(live.filter(s => s.id).map(s => [s.id, s]));
     return rows.map(r => {
         const s = byId.get(r.emby_session_id);
@@ -205,10 +204,10 @@ async function fillEncoder(rows) {
 async function loadEmby() {
     const names = state.eventsDevice ? [state.eventsDevice] : embyList().map(d => d.name);
     const [playback, ...browses] = await Promise.all([
-        api.get(`/api/emby/playback-records${q({ instance: state.eventsDevice, days: 90, limit: 5000 })}`).then(r => r.data || []).catch(() => []),
-        ...names.map(n => api.get(`/api/emby/browse-records${q({ instance: n, days: 90, limit: 5000 })}`).then(r => r.data || []).catch(() => [])),
+        api.get(`/api/emby/playback-records${q({ instance: state.eventsDevice, days: 90, limit: 3000 })}`).then(r => r.data || []).catch(() => []),
+        ...names.map(n => api.get(`/api/emby/browse-records${q({ instance: n, days: 90, limit: 3000 })}`).then(r => r.data || []).catch(() => [])),
     ]);
-    const plays = (await fillEncoder(playback)).map(playbackEvent);
+    const plays = fillEncoder(playback).map(playbackEvent);
     return [...plays, ...browses.flat().map(browseEvent)].filter(e => e.t);
 }
 

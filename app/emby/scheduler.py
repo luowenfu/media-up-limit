@@ -1360,6 +1360,20 @@ class EmbyMonitor:
         result.sort(key=lambda x: (x.get('display_priority', 500), x.get('name', '')))
         return result
 
+    def get_cached_sessions(self, instance_name: str = None) -> list:
+        """已缓存的播放会话，不现场请求 Emby。"""
+        with self._live_cache_lock:
+            cache = {k: dict(v) for k, v in self._live_cache.items()}
+        rows = []
+        for name, live in cache.items():
+            if instance_name and name != instance_name:
+                continue
+            for session in live.get('sessions') or []:
+                if isinstance(session, dict):
+                    rows.append({'instance_name': name, **session})
+        rows.sort(key=lambda r: (r.get('instance_name', ''), r.get('user_name', '')))
+        return rows
+
     def get_status_summary(self) -> list:
         return self.get_live_status_summary()
 

@@ -2,8 +2,9 @@
 
 import logging
 import os
+import time
 
-from flask import Flask, request
+from flask import Flask, g, request
 from flask_cors import CORS
 
 from web import state
@@ -32,6 +33,14 @@ for _bp in (auth_bp, qb_bp, qb_config_bp, settings_bp, emby_bp, emby_records_bp,
     app.register_blueprint(_bp)
 
 
+SLOW_REQUEST_SECONDS = 0.5
+
+
+@app.before_request
+def mark_request_start():
+    g.request_started = time.perf_counter()
+
+
 @app.after_request
 def add_no_cache_headers(response):
     if request.path.startswith('/static/img/'):
@@ -39,9 +48,20 @@ def add_no_cache_headers(response):
         response.headers.pop('Pragma', None)
         response.headers.pop('Expires', None)
     elif request.path.startswith('/static/') or request.path == '/favicon.ico':
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
+        # 每次带 ETag 问一下，没改动回 304，不重新下载
+        response.headers['Cache-Control'] = 'no-cache'
+        response.headers.pop('Pragma', None)
+        response.headers.pop('Expires', None)
+    return response
+
+
+@app.after_request
+def log_slow_request(response):
+    started = g.get('request_started')
+    if started is not None and not request.path.startswith('/static/'):
+        elapsed = time.perf_counter() - started
+        if elapsed >= SLOW_REQUEST_SECONDS:
+            logger.warning('慢请求 %s %s 用时 %.2f 秒', request.method, request.path, elapsed)
     return response
 
 
@@ -56,7 +76,7 @@ def run_web_server(host='0.0.0.0', port=8765):
     try:
         from waitress import serve
         logger.info('Web 服务: Waitress (生产模式)')
-        serve(app, host=host, port=port, threads=8, channel_timeout=120)
+        serve(app, host=host, port=port, threads=16, channel_timeout=120)
     except ImportError:
         logger.warning('未安装 waitress，使用 Flask 内置服务器（不建议生产环境）')
         app.run(host=host, port=port, debug=False, threaded=True)

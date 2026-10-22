@@ -323,17 +323,14 @@ export async function loadEmbyStats(name, range, anchor, user) {
 
 /** 用户流量排行：所选时段内每个用户的播放 + 选片上传 */
 async function loadUserRank(name, sp) {
-    let users = [];
     try {
-        users = (await api.get(`/api/emby/playback-users${q({ instance: name })}`)).data || [];
-    } catch (e) { return { users: [], rank: [] }; }
-    const rows = await Promise.all(users.map(async user => {
-        try {
-            const data = await fetchRows(`/api/emby/playback-stats/${enc(name)}`, sp, { user });
-            return [user, sum(data.map(r => Number(r.total_bytes) || 0))];
-        } catch (e) { return [user, 0]; }
-    }));
-    return { users, rank: rows.filter(r => r[1] > 0).sort((x, y) => y[1] - x[1]) };
+        const data = (await api.get(
+            `/api/emby/playback-user-ranks/${enc(name)}/${sp.period}${q(sp.params)}`,
+        )).data || {};
+        return { users: data.users || [], rank: data.rank || [] };
+    } catch (e) {
+        return { users: [], rank: [] };
+    }
 }
 
 /** 设备下拉里的当前设备：没选或已删除时取第一台 */
