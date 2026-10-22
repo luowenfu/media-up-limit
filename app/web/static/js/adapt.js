@@ -160,7 +160,7 @@ function embyPlanText(q) {
     if (!q || !q.enabled) return '未启用';
     const when = embyWhen(q);
     const rule = quotaRuleLabel(q, quotaGbTight, true);
-    return when ? `${when} • ${rule}` : rule;
+    return when ? `${when} 恢复 ${rule}` : rule;
 }
 
 function embyQuotaTexts(d) {
