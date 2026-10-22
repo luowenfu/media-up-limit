@@ -137,10 +137,6 @@ function quotaRuleLabel(q, amount, bare) {
     return total > 0 ? `${pool} ${amount(total)}` : none;
 }
 
-function quotaRuleText(q) {
-    return quotaRuleLabel(q, quotaGb);
-}
-
 function quotaGbTight(gb) {
     const n = Number(gb) || 0;
     return n >= 1024 ? fmtGb(n).replace(/\s+/g, '') : `${trimNum(n)}GB`;
@@ -174,7 +170,6 @@ function embyQuotaTexts(d) {
         dry: !!q.dry_run,
         cycle: q.range_label || '—',
         plan: embyPlanText(q),
-        rule: quotaRuleText(q),
         over: `${over}${q.dry_run ? '（只记录）' : ''}`,
         overs: quotaUsers(q.overs),
         lookup: quotaUsers(q.lookup),
@@ -211,7 +206,6 @@ export function embyVM(d, hist) {
         quotaDry: quota.dry,
         quotaCycle: quota.cycle,
         quotaPlan: quota.plan || '未启用',
-        quotaRule: quota.rule || '仅独立额度',
         quotaOver: quota.over,
         quotaOvers: quota.overs,
         quotaLookup: quota.lookup,
