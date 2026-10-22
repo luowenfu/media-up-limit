@@ -4,7 +4,7 @@ import * as api from './api.js';
 import { enc, q } from './api.js';
 import { ico } from './icons.js';
 import { esc } from './format.js';
-import { embyList } from './store.js';
+import { embyList, state } from './store.js';
 import { askPolicy } from './policy.js';
 import { anchorHtml, anchorsAttr, readPlan } from './plan.js';
 import {
@@ -85,7 +85,8 @@ function luckyPane(cfg) {
                 </div>
             </div>
             ${testRow([['luckyConn', '连通性测试', 'search'], ['luckyFlow', '流量接口测试', 'wave']])}`)}
-            ${fs('film', '统计口径', '', `<div class="sw-list">${swRow({ t: '「选片」流量计入统计', d: '浏览海报、详情页时产生的流量也计入用户', on: cfg.lucky_credit_browse_traffic !== false, name: 'browse' })}</div>`)}
+            ${fs('film', '选片流量', '', `<div class="sw-list">${swRow({ t: '「选片」流量计入统计', d: '浏览海报、详情页时产生的流量也计入用户', on: cfg.lucky_credit_browse_traffic !== false, name: 'browse' })}</div>
+            <div style="margin-top:12px">${fld('选片流量记录下限', inp({ id: 'sBrowse', val: browseMinMb(), type: 'number', suf: 'MB', attr: 'min="0" max="100" step="1"' }), { hint: '0 表示不设下限，最小单位 1 MB。单次选片上传不足该值时不记入统计与日志' })}</div>`)}
         </div>`;
 }
 
@@ -471,6 +472,21 @@ function chosenRules(root) {
     return rules;
 }
 
+function browseMinMb() {
+    const n = Number(state.global && state.global.emby_browse_upload_min_mb);
+    return Number.isFinite(n) ? n : 1;
+}
+
+function readBrowseMb(raw, el) {
+    const text = String(raw ?? '').trim();
+    if (text === '') throw fieldError(el, '请填写选片流量记录下限');
+    const n = Number(text);
+    if (!Number.isFinite(n)) throw fieldError(el, '请填写选片流量记录下限');
+    if (!Number.isInteger(n)) throw fieldError(el, '选片流量记录下限最小单位是 1 MB');
+    if (n < 0 || n > 100) throw fieldError(el, '选片流量记录下限须在 0～100 MB 之间');
+    return n;
+}
+
 function readForm(root, cfg) {
     const name = val(root, '#fName'), addr = cleanAddr(val(root, '#fAddr'));
     if (!name) throw new Error('请填写名称');
@@ -505,6 +521,8 @@ function readForm(root, cfg) {
 
 async function save(root, cfg, mode) {
     const payload = readForm(root, cfg);
+    const browseEl = root.querySelector('#sBrowse');
+    const browseMb = browseEl ? readBrowseMb(browseEl.value, browseEl) : null;
     const orig = cfg.name;
     const probe = mode === 'add'
         ? await api.get(`/api/emby/config/instances/orphan-check${q({ name: payload.name })}`)
@@ -516,6 +534,7 @@ async function save(root, cfg, mode) {
     }
     if (mode === 'add') await api.post('/api/emby/config/instances', payload);
     else await api.put(`/api/emby/config/instances/${enc(orig)}`, payload);
+    if (browseMb != null) await api.put('/api/config/global', { emby_browse_upload_min_mb: browseMb });
     closeSheet();
     toast(mode === 'add' ? '已添加 Emby 设备' : `已保存「${payload.name}」的设置`);
     reload();

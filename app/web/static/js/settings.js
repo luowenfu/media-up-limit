@@ -7,7 +7,7 @@ import { APP_VERSION } from './version.js';
 import { embyList, loadGlobal, qbList } from './store.js';
 import { openOrphans } from './orphans.js';
 import {
-    $, closeSheet, fieldError, fld, fs, inp, isOn, notice, openSheet, reload, segF, sel, stepper, swRow, toast, val,
+    $, closeSheet, fld, fs, inp, isOn, notice, openSheet, reload, segF, sel, stepper, swRow, toast, val,
 } from './ui.js';
 
 const ZONES = ['Asia/Shanghai', 'Asia/Hong_Kong', 'Asia/Tokyo', 'UTC'];
@@ -111,8 +111,7 @@ function systemPane(g) {
     </div>`)
         + fs('play', 'Emby 监控', '', `<div class="sw-list">
         ${swRow({ t: '开启 Emby 监控功能', d: locked ? '已存在 Emby 设备，需先删除全部 Emby 设备才能关闭' : '开启后可添加 Emby 设备，按用户统计播放与选片流量', on: g.emby_enabled, disabled: locked, name: 'emby' })}
-    </div>
-    <div style="margin-top:12px">${fld('选片流量记录下限', inp({ id: 'sBrowse', val: g.emby_browse_upload_min_mb, type: 'number', suf: 'MB', attr: 'min="0" max="100" step="1"' }), { hint: '0 表示不设下限，最小单位 1 MB。单次选片上传不足该值时不记入统计与日志' })}</div>`);
+    </div>`);
 }
 
 function viewDefaults(g) {
@@ -148,16 +147,6 @@ function dataPane(g, info) {
         + fs('db', '历史数据', '查看、导出或清理已删除设备保留下来的数据', `<button type="button" class="btn" data-orphans>${ico('db', 15)}管理历史数据</button><div id="orphanPanel" hidden></div>`);
 }
 
-function readBrowseMb(raw, el) {
-    const text = String(raw ?? '').trim();
-    if (text === '') throw fieldError(el, '请填写选片流量记录下限');
-    const n = Number(text);
-    if (!Number.isFinite(n)) throw fieldError(el, '请填写选片流量记录下限');
-    if (!Number.isInteger(n)) throw fieldError(el, '选片流量记录下限最小单位是 1 MB');
-    if (n < 0 || n > 100) throw fieldError(el, '选片流量记录下限须在 0～100 MB 之间');
-    return n;
-}
-
 async function save(root, g) {
     const refresh = parseInt(val(root, '#sRefresh'), 10);
     const years = parseInt(val(root, '#keepYears'), 10);
@@ -172,7 +161,6 @@ async function save(root, g) {
         default_pc_device: chosenView(root, 'data-pc-view') === 'merge' ? '' : val(root, '#sPcDev'),
         default_mobile_view: chosenView(root, 'data-mobile-view'),
         default_mobile_device: val(root, '#sMobileDev'),
-        emby_browse_upload_min_mb: readBrowseMb(val(root, '#sBrowse'), root.querySelector('#sBrowse')),
     };
     if (pass) payload.web_password = pass;
     const res = await api.put('/api/config/global', payload);
