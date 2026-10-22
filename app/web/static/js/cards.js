@@ -295,6 +295,7 @@ export function embyCard(d, i, ord) {
             <div class="dev-col">
                 ${liveBoxes(d, key)}
                 <div class="kv">
+                    <div class="kv-row">${I.play}<span class="k">当前播放</span><span class="v">${esc(d.playing)}</span></div>
                     <div class="kv-row">${ico('user', 16)}<span class="k">达量用户数</span><span class="v kv-over">${esc(d.quotaOver)}${see}</span></div>
                     <div class="kv-row">${I.cal}<span class="k">当前周期</span><span class="v num">${esc(d.quotaCycle)}</span></div>
                     <div class="kv-row">${I.loop}<span class="k">周期计划</span><span class="v">${esc(d.quotaPlan)}</span></div>
