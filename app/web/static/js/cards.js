@@ -252,7 +252,7 @@ export function quotaListHtml(d) {
 }
 
 function quotaDrawer(d) {
-    const meta = `当前周期：${esc(d.quotaCycle)} • ${esc(d.quotaRule || '仅独立额度')}${d.quotaDry ? ' • 只记录，不会停播' : ''}`;
+    const meta = `当前：${esc(d.quotaCycle)} • ${esc(d.quotaRule || '仅独立额度')}${d.quotaDry ? ' • 只记录，不会停播' : ''}`;
     return `<div class="quota-mask" data-quota-close></div>
         <div class="quota-drawer" role="dialog" aria-label="额度查询">
             <div class="qd-grip"></div>
