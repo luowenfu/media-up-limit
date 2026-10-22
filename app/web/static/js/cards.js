@@ -240,10 +240,10 @@ export function quotaListHtml(d) {
 function quotaDrawer(d) {
     const meta = `${esc(d.quotaCycle)}${d.quotaDry ? ' · 只记录，不会停播' : ''}`;
     return `<div class="quota-mask" data-quota-close></div>
-        <div class="quota-drawer" role="dialog" aria-label="额度">
+        <div class="quota-drawer" role="dialog" aria-label="额度查询">
             <div class="qd-grip"></div>
             <div class="qd-head">
-                <div class="qd-title"><b>额度</b><span class="qd-meta num">${meta}</span></div>
+                <div class="qd-title"><b>额度查询</b><span class="qd-meta num">${meta}</span></div>
                 <button type="button" class="qd-x" data-quota-close aria-label="关闭">${I.x}</button>
             </div>
             <div class="qd-search">${ico('search', 16)}<input type="search" data-quota-find placeholder="搜索用户名" value="${esc(state.quotaQuery || '')}" autocomplete="off" enterkeyhint="search"></div>
@@ -260,7 +260,7 @@ export function embyCard(d, i, ord) {
     if (ord != null) styleBits.push(`--i:${ord}`);
     if (quotaOpen && state.quotaLockH) styleBits.push(`height:${state.quotaLockH}px`);
     const at = styleBits.length ? ` style="${styleBits.join(';')}"` : '';
-    const see = d.quotaOn ? `<button type="button" class="mini-btn" data-quota-open="${esc(d.name)}">查看</button>` : '';
+    const see = d.quotaOn ? `<button type="button" class="quota-btn" data-quota-open="${esc(d.name)}">查询</button>` : '';
     return `<article${at} class="dev ${d.online ? '' : 'is-off'}${foldOpen('card') ? ' open' : ''}${quotaOpen ? ' quota-open' : ''}">
         ${foldHead('card', `${I.server}设备详情`)}
         <header class="dev-head emby">

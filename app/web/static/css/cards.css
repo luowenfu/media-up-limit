@@ -127,7 +127,13 @@
 .kv-row .k { color: var(--text-2); }
 .kv-row .v { margin-left: auto; font-weight: 600; color: var(--text-1); text-align: right; }
 .kv-row .v.kv-over { display: inline-flex; align-items: center; gap: 8px; }
-.kv-row .mini-btn { flex: none; border: 1px solid var(--line); background: var(--card); }
+.kv-row .quota-btn {
+    flex: none; display: inline-flex; align-items: center; justify-content: center;
+    height: 26px; padding: 0 10px; border-radius: 8px;
+    border: 1px solid var(--emby); background: var(--emby-soft); color: var(--emby);
+    font-size: 12px; font-weight: 700;
+}
+.kv-row .quota-btn:hover { background: var(--emby); color: #fff; }
 
 .toggle {
     margin-left: auto; display: inline-grid; grid-template-columns: 1fr 1fr;
@@ -257,9 +263,9 @@
     transition: opacity .2s;
 }
 .quota-drawer {
-    bottom: 0; z-index: 7;
+    top: 20%; bottom: 0; z-index: 7;
     display: flex; flex-direction: column;
-    height: 80%;
+    height: auto; min-height: 0;
     padding: 8px 0 0;
     background: var(--card);
     border-top: 1px solid var(--line);
@@ -302,8 +308,10 @@
 }
 .qd-search input::placeholder { color: var(--text-3); }
 .qd-list {
-    flex: 1; overflow: auto; min-height: 0; padding: 4px 16px 16px;
+    flex: 1 1 auto; overflow-x: hidden; overflow-y: auto; min-height: 0;
+    padding: 4px 16px 16px;
     overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
 }
 .qd-sec {
     margin: 4px 2px 8px; font-size: 12px; font-weight: 700; color: var(--text-3);
