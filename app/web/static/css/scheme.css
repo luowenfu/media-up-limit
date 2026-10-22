@@ -167,6 +167,7 @@ html[data-scheme="dark"] .notice { background: #172033; border-color: #2a3a5c; c
 html[data-scheme="dark"] .notice.warn { background: #2a2110; border-color: #6b4e12; color: #fcd34d; }
 html[data-scheme="dark"] .notice.danger { background: #2a1515; border-color: #7f1d1d; color: #fecaca; }
 html[data-scheme="dark"] .notice.ok { background: #06281f; border-color: #065f46; color: #a7f3d0; }
+html[data-scheme="dark"] .notice.emby { background: var(--emby-soft); border-color: color-mix(in srgb, var(--emby) 40%, transparent); color: var(--emby); }
 html[data-scheme="dark"] .block-swap:hover { background: #243044; color: var(--text); }
 html[data-scheme="dark"] .range-field { border-color: #334155; }
 html[data-scheme="dark"] .rp-pop { background: #1b2436; border-color: #243044; }

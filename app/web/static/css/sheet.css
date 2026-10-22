@@ -133,6 +133,7 @@ html[data-scheme="dark"] .inp.bad:focus-within {
 .notice.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
 .notice.danger { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
 .notice.ok { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+.notice.emby { background: var(--emby-soft); border-color: color-mix(in srgb, var(--emby) 28%, transparent); color: var(--emby); }
 .notice b { font-weight: 700; }
 
 .sw-list { display: flex; flex-direction: column; }

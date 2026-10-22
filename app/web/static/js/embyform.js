@@ -21,7 +21,7 @@ const splitLucky = url => {
 
 function connectionPane(cfg, mode, rank, count) {
     const edit = mode === 'edit';
-    return notice('', '<b>使用须知：</b>流量按十进制单位统计（1 GB = 1000 MB）；要准确统计外网流量，请开启 Lucky 反代模式；Emby 与本工具需处于同一时区。')
+    return notice('emby', '<b>使用须知：</b>流量按十进制单位统计（1 GB = 1000 MB）；要准确统计外网流量，请开启 Lucky 反代模式；Emby 与本工具需处于同一时区。')
         + fs('gear', '基础设置', '', `<div class="f-grid">
             ${fld('显示名称', inp({ id: 'fName', val: cfg.name || '', ph: '如：大富影库' }), { req: true, hint: `最多 ${NAME_MAX} 个字符` })}
             ${fld('设备序号', stepper(rank, 1, count, '', 'fRank'), { hint: `范围 1 – ${count}` })}
@@ -188,7 +188,7 @@ function quotaPane(cfg, users) {
     const msgOptions = QUOTA_PRESETS
         .map(([id, tpl]) => [id, tpl.replaceAll('{when}', whenNow)])
         .concat([[QUOTA_MSG_CUSTOM, '自定义']]);
-    return notice('', '<b>达量停播：</b>利用 Emby 官方接口控制播放会话；额度用完后再开始播放时将收到提示，5 秒后停止。需要开启「流量采集」里的 Lucky 反代模式，局域网播放不受影响。')
+    return notice('emby', '<b>达量停播：</b>利用 Emby 官方接口控制播放会话；额度用完后再开始播放时将收到提示，5 秒后停止。需要开启「流量采集」里的 Lucky 反代模式，局域网播放不受影响。')
         + fs('shield', '达量停播', '', `<div class="sw-list">
             ${swRow({ t: '启用达量停播', d: '总开关', on: !!qt.enabled, name: 'qEnable' })}
             ${swRow({ t: '只记录不执行', d: '到点只写系统日志，不发提示也不停止。确认用量准确后再关闭', on: qt.dry_run !== false, name: 'qDry' })}
@@ -585,7 +585,7 @@ export async function openEmbyForm(mode, name) {
     }
     const quotaHtml = mode === 'edit'
         ? quotaPane(cfg, quotaUsers)
-        : notice('', '保存设备后再设置达量停播规则');
+        : notice('emby', '保存设备后再设置达量停播规则');
     openSheet({
         kind: 'emby', icon: ico('play', 22),
         title: mode === 'edit' ? 'Emby 设置' : '添加 Emby 设备',
