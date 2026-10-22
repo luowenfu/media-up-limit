@@ -1367,8 +1367,48 @@ def get_web_username() -> str:
     return secrets_store.get_web_username()
 
 
+def normalize_user_quota(raw, *, strict: bool = False) -> dict:
+    """达量停播规则：开关、只记录不执行、周期、用户额度（GB）。
+
+    strict=True 时额度填错直接报错；否则静默丢弃无效行（读取旧配置用）。
+    """
+    raw = raw if isinstance(raw, dict) else {}
+    cycle = _validate_cycle(raw.get('cycle'))
+    cycle['reset_limit_kbps'] = 0
+    users = []
+    seen = set()
+    for row in raw.get('users') or []:
+        if not isinstance(row, dict):
+            continue
+        name = str(row.get('user_name') or '').strip()
+        if not name:
+            continue
+        try:
+            limit_gb = float(row.get('limit_gb'))
+        except (TypeError, ValueError):
+            limit_gb = 0.0
+        if not limit_gb > 0:
+            if strict:
+                raise ValueError(f'请填写用户「{name}」的额度（大于 0 的 GB 数）')
+            continue
+        fold = name.casefold()
+        if fold in seen:
+            if strict:
+                raise ValueError(f'用户「{name}」重复，请合并为一行')
+            continue
+        seen.add(fold)
+        users.append({'user_name': name, 'limit_gb': round(limit_gb, 2)})
+    return {
+        'enabled': bool(raw.get('enabled', False)),
+        'dry_run': bool(raw.get('dry_run', True)),
+        'cycle': cycle,
+        'users': users,
+    }
+
+
 def _migrate_emby_instance_fields(inst: dict) -> dict:
     item = dict(inst)
+    item['user_quota'] = normalize_user_quota(item.get('user_quota'))
     item['host'] = str(item.get('host', '')).strip()
     item['port'] = max(1, min(65535, _safe_int(item.get('port'), 8096)))
     item['use_https'] = bool(item.get('use_https', False))
@@ -1472,6 +1512,7 @@ def _validate_emby_instance(inst: dict, existing_names: list = None,
     result['lucky_credit_browse_traffic'] = bool(
         result.get('lucky_credit_browse_traffic', False),
     )
+    result['user_quota'] = normalize_user_quota(result.get('user_quota'), strict=True)
     stored_rules = _stored_lucky_rules(original_name or result['name'])
     if not stored_rules and (rule_key and sub_key):
         stored_rules = [{
@@ -1612,6 +1653,8 @@ def update_emby_instance(name: str, inst: dict) -> dict:
         raise ValueError('设备不存在')
     existing = instances[idx]
     inst = resolve_emby_credentials(inst, existing)
+    if 'user_quota' not in inst and existing.get('user_quota') is not None:
+        inst = {**inst, 'user_quota': existing.get('user_quota')}
     validated = _validate_emby_instance(
         inst, existing_names=names, original_name=name, require_lucky=True)
     if name != validated['name']:

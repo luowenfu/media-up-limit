@@ -6,8 +6,9 @@ import { ico } from './icons.js';
 import { esc } from './format.js';
 import { embyList } from './store.js';
 import { askPolicy } from './policy.js';
+import { anchorHtml, readPlan } from './plan.js';
 import {
-    closeSheet, fld, fs, inp, isOn, notice, openSheet, reload, stepper, swRow, testRow, toast, val,
+    closeSheet, fld, fs, inp, isOn, notice, openSheet, reload, segF, stepper, swRow, testRow, toast, val,
 } from './ui.js';
 
 const NAME_MAX = 10;
@@ -86,6 +87,84 @@ function luckyPane(cfg) {
             ${testRow([['luckyConn', '连通性测试', 'search'], ['luckyFlow', '流量接口测试', 'wave']])}`)}
             ${fs('film', '统计口径', '', `<div class="sw-list">${swRow({ t: '「选片」流量计入统计', d: '浏览海报、详情页时产生的流量也计入用户', on: cfg.lucky_credit_browse_traffic !== false, name: 'browse' })}</div>`)}
         </div>`;
+}
+
+/* ---------- 达量停播规则 ---------- */
+const CYC_LABEL = { month: '按月', week: '按周', day: '按天' };
+
+function quotaUserOptions(users, current) {
+    const names = [...users];
+    if (current && !names.some(n => n.toLowerCase() === current.toLowerCase())) names.unshift(current);
+    return ['<option value="">请选择用户</option>']
+        .concat(names.map(n => `<option value="${esc(n)}" ${n === current ? 'selected' : ''}>${esc(n)}</option>`))
+        .join('');
+}
+
+function quotaRow(users, row = {}) {
+    return `<div class="rule-row" data-quota-row>
+        <div class="inp"><select data-q-user>${quotaUserOptions(users, row.user_name || '')}</select></div>
+        <div class="inp" style="flex:0 0 150px"><input type="number" min="0" step="any" data-q-gb value="${esc(row.limit_gb ?? '')}" placeholder="额度"><span class="suf">GB</span></div>
+        <button type="button" class="rule-x" data-quota-del aria-label="移除这个用户">${ico('x', 14)}</button>
+    </div>`;
+}
+
+function quotaPane(cfg, users) {
+    const qt = cfg.user_quota || {};
+    const cyc = qt.cycle || { type: 'month', reset_anchor: 1 };
+    const label = CYC_LABEL[cyc.type] || '按月';
+    const rows = (qt.users && qt.users.length ? qt.users : [{}]).map(r => quotaRow(users, r)).join('');
+    return notice('', '<b>达量停播：</b>用户本周期外网上行达到额度后，再开始播放时，3 秒后收到提示，再过 5 秒被停止。需要开启「流量采集」里的 Lucky 反代模式，局域网播放不受影响')
+        + fs('shield', '达量停播', '', `<div class="sw-list">
+            ${swRow({ t: '启用达量停播', d: '只对下面列出的用户生效，没列出的不限', on: !!qt.enabled, name: 'qEnable' })}
+            ${swRow({ t: '只记录不执行', d: '到点只写系统日志，不发提示也不停止。确认用量准确后再关闭', on: qt.dry_run !== false, name: 'qDry' })}
+        </div>`)
+        + fs('clock', '统计周期', '', `<div class="plan" id="quotaPlan"><div class="f-grid">
+            ${fld('周期类型', segF(['按月', '按周', '按天'], label, 'data-cyc'), { full: true })}
+            <div class="anchor">${anchorHtml(label, cyc.reset_anchor)}</div>
+        </div></div>`)
+        + fs('user', '用户额度', '', `<div class="rule-rows" id="qRows">${rows}</div>
+            <div class="hint-t">额度按本周期外网上行（播放，选片按「流量采集」里的设置）累计，单位 GB（1 GB = 1000 MB）。归属可能有些误差，额度请留余量</div>`,
+        `<button type="button" class="rule-add" data-quota-add aria-label="添加用户">${ico('plus', 14)}</button>`);
+}
+
+function readQuota(root) {
+    const rows = [...root.querySelectorAll('#qRows [data-quota-row]')].map(row => ({
+        user_name: row.querySelector('[data-q-user]').value,
+        limit_gb: row.querySelector('[data-q-gb]').value,
+    })).filter(r => r.user_name || String(r.limit_gb).trim());
+    rows.forEach(r => {
+        if (!r.user_name) throw new Error('请为每个额度选择用户');
+        if (!(parseFloat(r.limit_gb) > 0)) throw new Error(`请填写用户「${r.user_name}」的额度`);
+        r.limit_gb = parseFloat(r.limit_gb);
+    });
+    const enabled = isOn(root, '[data-sw="qEnable"]');
+    if (enabled && !rows.length) throw new Error('启用达量停播前，请至少添加一个用户额度');
+    return {
+        enabled,
+        dry_run: isOn(root, '[data-sw="qDry"]'),
+        cycle: readPlan(root.querySelector('#quotaPlan')).cycle,
+        users: rows,
+    };
+}
+
+/** 点 + 加一行用户额度 */
+export function addQuotaRow() {
+    const root = document.getElementById('sheet');
+    const box = root && root.querySelector('#qRows');
+    if (!box) return;
+    box.insertAdjacentHTML('beforeend', quotaRow(root._quotaUsers || []));
+}
+
+export function removeQuotaRow(btn) {
+    const box = btn.closest('#qRows');
+    const row = btn.closest('[data-quota-row]');
+    if (!box || !row) return;
+    if (box.querySelectorAll('[data-quota-row]').length <= 1) {
+        row.querySelector('[data-q-user]').value = '';
+        row.querySelector('[data-q-gb]').value = '';
+        return;
+    }
+    row.remove();
 }
 
 const luckyOn = root => root.querySelector('[data-lucky]').classList.contains('on');
@@ -185,6 +264,10 @@ function readForm(root, cfg) {
         traffic_collect_mode: lucky ? 'lucky' : '',
     };
     if (root.querySelector('#fKey').value) p.api_key = root.querySelector('#fKey').value;
+    if (root.querySelector('#quotaPlan')) {
+        p.user_quota = readQuota(root);
+        if (p.user_quota.enabled && !lucky) throw new Error('启用达量停播需要先开启 Lucky 反代模式');
+    }
     if (!lucky) return p;
     if (!cleanAddr(val(root, '#lAddr'))) throw new Error('请填写 Lucky 管理地址');
     p.lucky_base_url = luckyUrl(root);
@@ -274,6 +357,13 @@ export async function openEmbyForm(mode, name) {
         try { cfg = (await api.get(`/api/emby/config/instances/${enc(name)}`)).data; } catch (e) { toast(e.message, 'err'); return; }
         rank = Math.max(1, embyList().findIndex(d => d.name === name) + 1);
     }
+    let quotaUsers = [];
+    if (mode === 'edit') {
+        try { quotaUsers = (await api.get(`/api/emby/playback-users${q({ instance: name })}`)).data || []; } catch (e) { quotaUsers = []; }
+    }
+    const quotaHtml = mode === 'edit'
+        ? quotaPane(cfg, quotaUsers)
+        : notice('', '保存设备后再设置达量停播规则');
     openSheet({
         kind: 'emby', icon: ico('play', 22),
         title: mode === 'edit' ? 'Emby 设置' : '添加 Emby 设备',
@@ -283,8 +373,10 @@ export async function openEmbyForm(mode, name) {
         tabs: [
             { label: '基础与连接', icon: 'link', html: connectionPane(cfg, mode, rank, count) },
             { label: '流量采集', icon: 'wave', html: luckyPane(cfg) },
+            { label: '达量停播规则', icon: 'shield', html: quotaHtml },
         ],
         onSave: root => save(root, cfg, mode),
         tests: makeTests(cfg),
     });
+    document.getElementById('sheet')._quotaUsers = quotaUsers;
 }

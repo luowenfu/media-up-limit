@@ -7,7 +7,7 @@ import { esc } from './format.js';
 import { deviceUrl } from './adapt.js';
 import { state, qbByName, embyByName } from './store.js';
 import { openQbForm } from './qbform.js';
-import { addLuckyRuleRow, openEmbyForm, removeLuckyRuleRow } from './embyform.js';
+import { addLuckyRuleRow, addQuotaRow, openEmbyForm, removeLuckyRuleRow, removeQuotaRow } from './embyform.js';
 import { anchorHtml, refreshScale, ruleRow } from './plan.js';
 import { openMergeEditor, refreshMergeEditor, saveMerge, toggleAll } from './merge.js';
 import {
@@ -111,6 +111,8 @@ function formControl(t) {
     }
     if (t.hasAttribute('data-rule-add')) { addLuckyRuleRow(); return true; }
     if (t.hasAttribute('data-rule-del')) { removeLuckyRuleRow(t); return true; }
+    if (t.hasAttribute('data-quota-add')) { addQuotaRow(); return true; }
+    if (t.hasAttribute('data-quota-del')) { removeQuotaRow(t); return true; }
     if (t.matches('[data-lucky]')) {
         const on = !t.classList.contains('on');
         t.classList.toggle('on', on);

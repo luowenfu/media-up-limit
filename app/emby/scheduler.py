@@ -17,6 +17,7 @@ import emby.traffic.playback as emby_playback_traffic
 import emby.traffic.tick_audit as emby_traffic_tick_audit
 import emby.user_sync as emby_user_sync
 from emby.client import EmbyClient
+from emby.quota.enforcer import QuotaEnforcer
 from emby.lucky.api import (
     LuckyClient,
     calc_conn_traffic_deltas,
@@ -198,6 +199,7 @@ class EmbyInstanceWorker:
         self._pending_lucky_snapshot: Optional[dict] = None
         self._upload_miss_ticks: Dict[str, int] = {}
         self._upload_anomaly_ids: Set[str] = set()
+        self._quota_enforcer = QuotaEnforcer(name)
 
     def start(self):
         if self._running:
@@ -454,6 +456,10 @@ class EmbyInstanceWorker:
             if isinstance(s, dict) and EmbyClient.is_current_playback_session(s)
         ]
         self._last_sessions = open_sessions
+        try:
+            self._quota_enforcer.on_tick(client, inst_cfg, open_sessions)
+        except Exception as e:
+            logger.error(f'[Emby:{self.name}] 达量停播处理异常: {e}', exc_info=True)
         return open_sessions
 
     def _tick(self, full: bool):

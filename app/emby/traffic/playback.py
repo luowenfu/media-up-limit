@@ -594,6 +594,12 @@ def _snapshot_upload_buckets(name: str) -> tuple:
         )
 
 
+def peek_upload_bucket(name: str) -> Dict[str, int]:
+    """播放累计桶快照（只读）。"""
+    bucket, _ = _snapshot_upload_buckets((name or '').strip())
+    return bucket
+
+
 def _segment_traffic_key(record: dict) -> str:
     persist = playback_accumulator_key(record) or str(
         record.get('upload_accumulator_key') or '',
