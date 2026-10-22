@@ -193,22 +193,33 @@ function quotaRemain(u) {
     return quotaGb(u.remainGb);
 }
 
+function quotaMark(name) {
+    const s = String(name || '').trim();
+    return s ? s.slice(0, 1).toUpperCase() : '?';
+}
+
 function quotaRow(u) {
     const limit = u.limitGb;
     const meter = u.meterGb != null ? u.meterGb : u.usedGb;
     const over = limit > 0 && meter >= limit;
     const pct = limit > 0 ? Math.min(100, meter / limit * 100) : 0;
-    const note = u.via === 'total' ? '<div class="qd-note">剩余随总额度</div>' : '';
     const cap = limit > 0 ? quotaGb(limit) : '不限';
-    return `<div class="qd-row">
-        <div class="qd-top"><b>${esc(u.name)}</b><span class="num qd-remain${over ? ' over' : ''}">剩余 ${esc(quotaRemain(u))}</span></div>
+    const via = u.via === 'total' ? '<span class="qd-chip">随总额度</span>' : '';
+    return `<article class="qd-row${over ? ' over' : ''}">
+        <span class="qd-av">${esc(quotaMark(u.name))}</span>
+        <div class="qd-name"><b>${esc(u.name)}</b>${via}</div>
+        <div class="qd-remain${over ? ' over' : ''}"><b class="num">${esc(quotaRemain(u))}</b><small>剩余</small></div>
         <div class="qd-sub num">目前 ${esc(quotaGb(u.usedGb))} · 额度 ${esc(cap)}</div>
-        ${limit > 0 ? `<div class="qd-bar"><i class="${over ? 'over' : 'ok'}" style="width:${pct.toFixed(1)}%"></i></div>` : ''}
-        ${note}
-    </div>`;
+        ${limit > 0 ? `<div class="qd-bar"><i style="width:${pct.toFixed(1)}%"></i></div>` : ''}
+    </article>`;
 }
 
-function quotaDrawer(d) {
+function quotaEmpty(text) {
+    return `<div class="qd-empty"><span>${ico('user', 22)}</span><b>${text}</b></div>`;
+}
+
+/** 抽屉里的名单。搜索时只改这块，不重绘整张卡片 */
+export function quotaListHtml(d) {
     const query = String(state.quotaQuery || '').trim().toLowerCase();
     const searching = query.length > 0;
     const rows = searching
@@ -217,18 +228,26 @@ function quotaDrawer(d) {
     const empty = String(d.quotaOver || '').startsWith('全部用户')
         ? '总额度已到，当前没有可列出的用户'
         : '本周期还没有达量用户';
-    const body = searching && !rows.length
-        ? '<div class="qd-empty">没有这个用户</div>'
-        : (rows.length ? rows.map(quotaRow).join('') : `<div class="qd-empty">${empty}</div>`);
+    const label = searching
+        ? (rows.length ? `找到 ${rows.length} 人` : '')
+        : (rows.length ? `达量用户 · ${rows.length}` : '');
+    const body = rows.length
+        ? rows.map(quotaRow).join('')
+        : quotaEmpty(searching ? '没有这个用户' : empty);
+    return `${label ? `<div class="qd-sec">${label}</div>` : ''}${body}`;
+}
+
+function quotaDrawer(d) {
     const meta = `${esc(d.quotaCycle)}${d.quotaDry ? ' · 只记录，不会停播' : ''}`;
-    const title = searching ? '剩余额度' : '达量用户';
-    const count = !searching && rows.length ? `<span class="qd-count">${rows.length} 人</span>` : '';
     return `<div class="quota-mask" data-quota-close></div>
-        <div class="quota-drawer" role="dialog" aria-label="${title}">
-            <div class="qd-head"><b>${title}</b>${count}<button type="button" class="x-btn" data-quota-close aria-label="关闭">${I.x}</button></div>
-            <div class="qd-meta num">${meta}</div>
-            <div class="qd-search">${ico('search', 15)}<input type="search" data-quota-find placeholder="搜索用户名" value="${esc(state.quotaQuery || '')}" autocomplete="off"></div>
-            <div class="qd-list">${body}</div>
+        <div class="quota-drawer" role="dialog" aria-label="额度">
+            <div class="qd-grip"></div>
+            <div class="qd-head">
+                <div class="qd-title"><b>额度</b><span class="qd-meta num">${meta}</span></div>
+                <button type="button" class="qd-x" data-quota-close aria-label="关闭">${I.x}</button>
+            </div>
+            <div class="qd-search">${ico('search', 16)}<input type="search" data-quota-find placeholder="搜索用户名" value="${esc(state.quotaQuery || '')}" autocomplete="off" enterkeyhint="search"></div>
+            <div class="qd-list">${quotaListHtml(d)}</div>
         </div>`;
 }
 
@@ -236,8 +255,11 @@ function quotaDrawer(d) {
 export function embyCard(d, i, ord) {
     const has = d.sessions.length > 0;
     const key = 'e' + i;
-    const at = ord == null ? '' : ` style="--i:${ord}"`;
     const quotaOpen = d.quotaOn && state.quotaDrawer === d.name;
+    const styleBits = [];
+    if (ord != null) styleBits.push(`--i:${ord}`);
+    if (quotaOpen && state.quotaLockH) styleBits.push(`height:${state.quotaLockH}px`);
+    const at = styleBits.length ? ` style="${styleBits.join(';')}"` : '';
     const see = d.quotaOn ? `<button type="button" class="mini-btn" data-quota-open="${esc(d.name)}">查看</button>` : '';
     return `<article${at} class="dev ${d.online ? '' : 'is-off'}${foldOpen('card') ? ' open' : ''}${quotaOpen ? ' quota-open' : ''}">
         ${foldHead('card', `${I.server}设备详情`)}

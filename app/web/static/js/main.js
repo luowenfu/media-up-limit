@@ -6,14 +6,14 @@ import './evwrap.js';
 import * as api from './api.js';
 import { exportLogs, loadMoreLogs, logListHtml } from './syslogs.js';
 import {
-    state, loadGlobal, loadPrefs, loadStatus, navCollapsed, pageSnapshot, pickLanding, refreshLive,
+    embyByName, state, loadGlobal, loadPrefs, loadStatus, navCollapsed, pageSnapshot, pickLanding, refreshLive,
     rememberPage, restorePage, savePrefs, syncMerge,
 } from './store.js';
 import {
     fixRoute, isListView, rememberPart, render, refreshLogsInPlace, revealSection, syncDetailFold, toggleMetricsDock, toggleNavGroup, togglePadSide,
 } from './shell.js';
 import { uiChange, uiClick, uiInput, relockTiles } from './interact.js';
-import { toggleReveal } from './cards.js';
+import { quotaListHtml, toggleReveal } from './cards.js';
 import { openSettings } from './settings.js';
 import { toggleScheme } from './theme.js';
 import { openChooser } from './dialogs.js';
@@ -70,27 +70,33 @@ function openDevice(kind, dev, focus) {
     go({ view: kind, dev });
 }
 
+function closeQuotaDrawer() {
+    state.quotaDrawer = '';
+    state.quotaQuery = '';
+    state.quotaLockH = 0;
+    document.querySelectorAll('.dev').forEach(el => {
+        el.classList.remove('quota-open');
+        el.style.height = '';
+    });
+}
+
 /* ---------- 点击 ---------- */
 document.addEventListener('click', e => {
     if (e.target.closest('.rp-pop, [data-range-open]')) return;
     const t = e.target.closest('button, .switch, .chk, .me-item, [data-lucky], [data-close], [data-lim-mode], [data-hidelan], [data-open-dev], [data-quota-close]');
     if (!t) return;
-    if (t.closest('[data-quota-close]')) {
-        state.quotaDrawer = '';
-        state.quotaQuery = '';
-        document.querySelectorAll('.dev.quota-open').forEach(el => el.classList.remove('quota-open'));
-        return;
-    }
+    if (t.closest('[data-quota-close]')) { closeQuotaDrawer(); return; }
     if (t.dataset.quotaOpen) {
         const card = t.closest('.dev');
         const open = !(card && card.classList.contains('quota-open'));
-        state.quotaDrawer = open ? t.dataset.quotaOpen : '';
-        state.quotaQuery = '';
-        document.querySelectorAll('.dev.quota-open').forEach(el => el.classList.remove('quota-open'));
+        closeQuotaDrawer();
         if (open && card) {
+            state.quotaDrawer = t.dataset.quotaOpen;
+            state.quotaLockH = Math.round(card.offsetHeight);
+            card.style.height = `${state.quotaLockH}px`;
             card.classList.add('quota-open');
             const input = card.querySelector('[data-quota-find]');
-            if (input) { input.value = ''; input.focus(); }
+            if (input) { input.value = ''; input.focus({ preventScroll: true }); }
         }
         return;
     }
@@ -191,8 +197,13 @@ document.addEventListener('input', e => {
     uiInput(e);
     if (e.target.hasAttribute('data-quota-find')) {
         state.quotaQuery = e.target.value;
+        const card = e.target.closest('.dev');
         clearTimeout(quotaTimer);
-        quotaTimer = setTimeout(() => render(), 80);
+        quotaTimer = setTimeout(() => {
+            const list = card && card.querySelector('.qd-list');
+            const dev = embyByName(state.quotaDrawer);
+            if (list && dev) list.innerHTML = quotaListHtml(dev);
+        }, 60);
         return;
     }
     if (e.target.id === 'logQuery') {
@@ -218,11 +229,7 @@ document.addEventListener('keydown', e => {
         if (document.querySelector('.rp-pop')) { closeRangePicker(true); return; }
         if (e.target.closest?.('[data-quota-find]') && e.target.value) return;
         closeModal(); closeSheet();
-        if (state.quotaDrawer) {
-            state.quotaDrawer = '';
-            state.quotaQuery = '';
-            document.querySelectorAll('.dev.quota-open').forEach(el => el.classList.remove('quota-open'));
-        }
+        if (state.quotaDrawer) closeQuotaDrawer();
         return;
     }
     if (e.key === 'Enter' && (e.target.id === 'stFrom' || e.target.id === 'stTo')) {

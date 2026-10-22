@@ -40,6 +40,7 @@ export const state = {
     ready: false,
     quotaDrawer: '',
     quotaQuery: '',
+    quotaLockH: 0,
 };
 
 const HIST_LEN = 24;
