@@ -192,6 +192,7 @@ class EmbyClient:
         self.lucky_credit_browse_traffic = bool(
             config.get('lucky_credit_browse_traffic', False),
         )
+        self.browse_upload_min_mb = config.get('browse_upload_min_mb', 1.0)
         quota = config.get('user_quota')
         self.user_quota = quota if isinstance(quota, dict) else {}
 

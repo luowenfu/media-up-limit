@@ -118,6 +118,16 @@ function formControl(t) {
             dep.classList.toggle('disabled', !t.classList.contains('on'));
             if (!t.classList.contains('on')) dep.querySelector('.switch').classList.remove('on');
         }
+        if (name === 'browse') {
+            const input = t.closest('#sheet')?.querySelector('#sBrowse');
+            const box = input?.closest('.inp');
+            const on = t.classList.contains('on');
+            if (input) {
+                input.disabled = !on;
+                input.readOnly = !on;
+            }
+            if (box) box.classList.toggle('ro', !on);
+        }
         return true;
     }
     if (t.hasAttribute('data-lucky-add')) { addLuckyRuleRow(); return true; }

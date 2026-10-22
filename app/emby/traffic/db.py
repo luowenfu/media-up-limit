@@ -2448,17 +2448,12 @@ def list_browse_upload_records(
     instance_name: str,
     limit: int = 200,
     *,
-    min_upload_bytes: int = None,
     since: str = None,
 ) -> list:
-    """选片流量入库记录（用户视角日志数据源）。"""
-    import core.config_manager as config_manager
+    """选片流量入库记录。下限只在入库时判断，列出时不再重滤。"""
     name = (instance_name or '').strip()
     if not name:
         return []
-    if min_upload_bytes is None:
-        min_upload_bytes = config_manager.emby_browse_upload_min_bytes()
-    min_upload_bytes = max(0, int(min_upload_bytes or 0))
     limit = max(1, min(int(limit or 200), 5000))
     since_s = str(since or '').strip()
     _ensure_emby_schema()
@@ -2473,9 +2468,8 @@ def list_browse_upload_records(
                        device_name, client, client_ip, production_year
                 FROM emby_browse_upload_facts
                 WHERE instance_name = ?
-                  AND estimated_upload_bytes >= ?
             '''
-            params = [name, min_upload_bytes]
+            params = [name]
             if since_s:
                 sql += ' AND stopped_at >= ?'
                 params.append(since_s)
@@ -3010,11 +3004,8 @@ def save_browse_upload_fact(instance_name: str, segment_id: int,
                             production_year: int = None,
                             min_upload_bytes: int = None) -> bool:
     """选片段结束时写入事实表并累加小时聚合。"""
-    import core.config_manager as config_manager
     name = (instance_name or '').strip()
-    if min_upload_bytes is None:
-        min_upload_bytes = config_manager.emby_browse_upload_min_bytes()
-    min_upload_bytes = max(0, int(min_upload_bytes or 0))
+    min_upload_bytes = 0 if min_upload_bytes is None else max(0, int(min_upload_bytes or 0))
     if not name or not user_name or int(upload_bytes or 0) < min_upload_bytes:
         return False
     stopped_s = _normalize_stopped_at(stopped_at)

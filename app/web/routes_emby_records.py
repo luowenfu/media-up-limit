@@ -350,7 +350,10 @@ def api_emby_browse_records():
         instance_name = request.args.get('instance')
         if not instance_name:
             return jsonify({'success': False, 'error': '请选择设备'}), 400
-        if not config_manager.get_emby_instance(instance_name, state.emby_monitor.config):
+        inst = config_manager.get_emby_instance(
+            instance_name, state.emby_monitor.config,
+        )
+        if not inst:
             return jsonify({'success': False, 'error': '设备不存在'}), 404
         days = _optional_query_days()
         limit = min(int(request.args.get('limit', 200)), 5000)
@@ -359,13 +362,10 @@ def api_emby_browse_records():
             since = (emby_traffic_db._now() - timedelta(days=days)).strftime(
                 '%Y-%m-%d %H:%M:%S',
             )
-        global_cfg = config_manager.get_global_config(state.emby_monitor.config)
-        min_bytes = config_manager.emby_browse_upload_min_bytes(global_cfg)
-        min_mb = config_manager.clamp_emby_browse_upload_min_mb(
-            global_cfg.get('emby_browse_upload_min_mb', 1.0),
-        )
+        min_mb = config_manager.instance_browse_upload_min_mb(inst)
+        min_bytes = config_manager.instance_browse_upload_min_bytes(inst)
         records = emby_traffic_db.list_browse_upload_records(
-            instance_name, limit=limit, min_upload_bytes=min_bytes, since=since,
+            instance_name, limit=limit, since=since,
         )
         return jsonify({
             'success': True,

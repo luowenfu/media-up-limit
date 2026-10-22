@@ -43,7 +43,7 @@ _orphan_bucket_since: Dict[str, Dict[str, float]] = {}
 _offline_since: Dict[str, Optional[float]] = {}
 _next_segment_id: Dict[str, int] = {}
 _tick_logged: Set[str] = set()
-_tick_min_upload_bytes: int = DEFAULT_MIN_BROWSE_UPLOAD_BYTES
+_min_upload_bytes: Dict[str, int] = {}
 
 
 def _utc_now_iso() -> str:
@@ -835,7 +835,8 @@ def _settle_browse_session(
         )
         return
 
-    min_bytes = max(0, int(_tick_min_upload_bytes))
+    with _lock:
+        min_bytes = max(0, int(_min_upload_bytes.get(name, DEFAULT_MIN_BROWSE_UPLOAD_BYTES)))
     if upload_int < min_bytes:
         emby_playback_traffic.pop_browse_session_meta(name, sid)
         for key in used_keys:
@@ -1046,10 +1047,10 @@ def tick(
     min_upload_bytes: Optional[int] = None,
 ) -> None:
     """每个采集 tick：同步 Lucky 选片入账状态并兜底结算。"""
-    global _tick_min_upload_bytes
-    if min_upload_bytes is not None:
-        _tick_min_upload_bytes = max(0, int(min_upload_bytes))
     name = (instance_name or '').strip()
+    if name and min_upload_bytes is not None:
+        with _lock:
+            _min_upload_bytes[name] = max(0, int(min_upload_bytes))
     if not name or not credit_enabled:
         return
 
@@ -1169,5 +1170,6 @@ def clear_instance(instance_name: str, *, flush: bool = True) -> None:
         _orphan_bucket_since.pop(name, None)
         _offline_since.pop(name, None)
         _next_segment_id.pop(name, None)
+        _min_upload_bytes.pop(name, None)
     import emby.browse.continuous as emby_continuous_playback
     emby_continuous_playback.clear_instance(name)

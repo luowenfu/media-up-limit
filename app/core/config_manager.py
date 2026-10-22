@@ -124,6 +124,7 @@ DEFAULT_EMBY_INSTANCE = {
     'lucky_rule_label': '',
     'lucky_frontend_host': '',
     'lucky_credit_browse_traffic': False,
+    'browse_upload_min_mb': 1.0,
 }
 
 
@@ -449,8 +450,16 @@ def _normalize_config(cfg: dict) -> dict:
         legacy_reset_day = _safe_int(global_cfg.get('reset_day'), 1)
         result['global'].update(global_cfg)
         emby_instances = cfg.get('emby_instances') or []
+        browse_fallback = clamp_emby_browse_upload_min_mb(
+            global_cfg.get(
+                'emby_browse_upload_min_mb',
+                DEFAULT_GLOBAL['emby_browse_upload_min_mb'],
+            ),
+        )
         for i, item in enumerate(emby_instances):
-            emby_instances[i] = _migrate_emby_instance_fields(dict(item))
+            emby_instances[i] = _migrate_emby_instance_fields(
+                dict(item), browse_min_mb=browse_fallback,
+            )
         result['emby_instances'] = emby_instances
         if 'emby_enabled' not in global_cfg and emby_instances:
             result['global']['emby_enabled'] = True
@@ -724,20 +733,20 @@ def clamp_emby_browse_upload_min_mb(value, *, strict: bool = False) -> float:
         mb = float(value)
     except (TypeError, ValueError):
         if strict:
-            raise ValueError('请填写选片流量记录下限')
+            raise ValueError('请填写「选片流量」记录下限')
         mb = float(DEFAULT_GLOBAL['emby_browse_upload_min_mb'])
     if mb != mb or mb in (float('inf'), float('-inf')):
         if strict:
-            raise ValueError('请填写选片流量记录下限')
+            raise ValueError('请填写「选片流量」记录下限')
         mb = float(DEFAULT_GLOBAL['emby_browse_upload_min_mb'])
     if strict:
         if abs(mb - round(mb)) > 1e-6:
-            raise ValueError('选片流量记录下限最小单位是 1 MB')
+            raise ValueError('「选片流量」记录下限最小单位是 1 MB')
         whole = int(round(mb))
         lo = int(EMBY_BROWSE_UPLOAD_MIN_MB_MIN)
         hi = int(EMBY_BROWSE_UPLOAD_MIN_MB_MAX)
         if whole < lo or whole > hi:
-            raise ValueError(f'选片流量记录下限须在 {lo}～{hi} MB 之间')
+            raise ValueError(f'「选片流量」记录下限须在 {lo}～{hi} MB 之间')
         return float(whole)
     mb = max(
         EMBY_BROWSE_UPLOAD_MIN_MB_MIN,
@@ -752,6 +761,18 @@ def emby_browse_upload_min_bytes(global_cfg: dict = None) -> int:
         cfg.get('emby_browse_upload_min_mb', DEFAULT_GLOBAL['emby_browse_upload_min_mb']),
     )
     return int(mb * 1024 * 1024)
+
+
+def instance_browse_upload_min_mb(inst: dict = None) -> float:
+    """这台设备的选片记录下限。没有单独保存时用默认 1 MB。"""
+    raw = DEFAULT_EMBY_INSTANCE['browse_upload_min_mb']
+    if isinstance(inst, dict) and inst.get('browse_upload_min_mb') is not None:
+        raw = inst.get('browse_upload_min_mb')
+    return clamp_emby_browse_upload_min_mb(raw)
+
+
+def instance_browse_upload_min_bytes(inst: dict = None) -> int:
+    return int(instance_browse_upload_min_mb(inst) * 1024 * 1024)
 
 
 def clamp_emby_preplay_burst_mbps(value, *, strict: bool = False) -> float:
@@ -1501,7 +1522,7 @@ def normalize_user_quota(raw, *, strict: bool = False) -> dict:
     }
 
 
-def _migrate_emby_instance_fields(inst: dict) -> dict:
+def _migrate_emby_instance_fields(inst: dict, browse_min_mb=None) -> dict:
     item = dict(inst)
     item['user_quota'] = normalize_user_quota(item.get('user_quota'))
     item['host'] = str(item.get('host', '')).strip()
@@ -1526,6 +1547,13 @@ def _migrate_emby_instance_fields(inst: dict) -> dict:
     item['lucky_rule_label'] = str(item.get('lucky_rule_label', '') or '').strip()
     item['lucky_frontend_host'] = str(item.get('lucky_frontend_host', '') or '').strip()
     item['lucky_credit_browse_traffic'] = bool(item.get('lucky_credit_browse_traffic', False))
+    if 'browse_upload_min_mb' in inst and inst.get('browse_upload_min_mb') is not None:
+        browse_src = inst.get('browse_upload_min_mb')
+    elif browse_min_mb is not None:
+        browse_src = browse_min_mb
+    else:
+        browse_src = DEFAULT_EMBY_INSTANCE['browse_upload_min_mb']
+    item['browse_upload_min_mb'] = clamp_emby_browse_upload_min_mb(browse_src)
     return item
 
 
@@ -1546,7 +1574,8 @@ def _validate_emby_instance(inst: dict, existing_names: list = None,
                               require_name: bool = True,
                               require_api_key: bool = True,
                               require_lucky: bool = False,
-                              require_host: bool = True) -> dict:
+                              require_host: bool = True,
+                              browse_min_strict: bool = False) -> dict:
     result = {**DEFAULT_EMBY_INSTANCE, **inst}
     result['name'] = str(result.get('name', '')).strip()
     host, port = _parse_host_port(
@@ -1606,6 +1635,10 @@ def _validate_emby_instance(inst: dict, existing_names: list = None,
     ).strip()
     result['lucky_credit_browse_traffic'] = bool(
         result.get('lucky_credit_browse_traffic', False),
+    )
+    result['browse_upload_min_mb'] = clamp_emby_browse_upload_min_mb(
+        result.get('browse_upload_min_mb'),
+        strict=browse_min_strict,
     )
     result['user_quota'] = normalize_user_quota(result.get('user_quota'), strict=True)
     stored_rules = _stored_lucky_rules(original_name or result['name'])
@@ -1733,7 +1766,10 @@ def add_emby_instance(inst: dict) -> dict:
     instances = config.get('emby_instances', [])
     names = [i['name'] for i in instances]
     inst = resolve_emby_credentials(inst)
-    validated = _validate_emby_instance(inst, existing_names=names, require_lucky=True)
+    validated = _validate_emby_instance(
+        inst, existing_names=names, require_lucky=True,
+        browse_min_strict='browse_upload_min_mb' in inst,
+    )
     config.setdefault('emby_instances', []).append(validated)
     save_config(config)
     return validated
@@ -1748,10 +1784,21 @@ def update_emby_instance(name: str, inst: dict) -> dict:
         raise ValueError('设备不存在')
     existing = instances[idx]
     inst = resolve_emby_credentials(inst, existing)
+    browse_min_explicit = 'browse_upload_min_mb' in inst
     if 'user_quota' not in inst and existing.get('user_quota') is not None:
         inst = {**inst, 'user_quota': existing.get('user_quota')}
+    if not browse_min_explicit:
+        inst = {
+            **inst,
+            'browse_upload_min_mb': existing.get(
+                'browse_upload_min_mb',
+                DEFAULT_EMBY_INSTANCE['browse_upload_min_mb'],
+            ),
+        }
     validated = _validate_emby_instance(
-        inst, existing_names=names, original_name=name, require_lucky=True)
+        inst, existing_names=names, original_name=name, require_lucky=True,
+        browse_min_strict=browse_min_explicit,
+    )
     if name != validated['name']:
         secrets_store.rename_emby_api_key(name, validated['name'])
     instances[idx] = validated

@@ -19,11 +19,9 @@ from web.common import GENERIC_API_ERROR
 logger = logging.getLogger(__name__)
 bp = Blueprint('routes_emby', __name__)
 
-def _emby_debug_traffic_config_payload(global_cfg: dict = None) -> dict:
+def _emby_debug_traffic_config_payload(global_cfg: dict = None,
+                                      inst: dict = None) -> dict:
     cfg = dict(global_cfg or {})
-    browse_min_mb = config_manager.clamp_emby_browse_upload_min_mb(
-        cfg.get('emby_browse_upload_min_mb', 1.0),
-    )
     preplay_burst_mbps = config_manager.clamp_emby_preplay_burst_mbps(
         cfg.get('emby_preplay_burst_mbps', 1.5),
     )
@@ -32,14 +30,19 @@ def _emby_debug_traffic_config_payload(global_cfg: dict = None) -> dict:
             cfg.get('emby_preplay_burst_window_seconds', 3),
         )
     )
-    return {
+    payload = {
         'preplay_burst_mbps': preplay_burst_mbps,
         'preplay_burst_window_seconds': preplay_burst_window_seconds,
-        'browse_upload_min_mb': browse_min_mb,
-        'browse_upload_min_bytes': config_manager.emby_browse_upload_min_bytes(
-            {'emby_browse_upload_min_mb': browse_min_mb},
-        ),
     }
+    if isinstance(inst, dict):
+        payload['instance'] = inst.get('name') or ''
+        payload['browse_upload_min_mb'] = (
+            config_manager.instance_browse_upload_min_mb(inst)
+        )
+        payload['browse_upload_min_bytes'] = (
+            config_manager.instance_browse_upload_min_bytes(inst)
+        )
+    return payload
 
 
 @bp.route('/api/emby/status')
@@ -117,9 +120,17 @@ def api_emby_debug_traffic_config_get():
         return err
     try:
         global_cfg = config_manager.get_global_config(state.emby_monitor.config)
+        instance_name = (request.args.get('instance') or '').strip()
+        inst = None
+        if instance_name:
+            inst = config_manager.get_emby_instance(
+                instance_name, state.emby_monitor.config,
+            )
+            if not inst:
+                return jsonify({'success': False, 'error': '设备不存在'}), 404
         return jsonify({
             'success': True,
-            'data': _emby_debug_traffic_config_payload(global_cfg),
+            'data': _emby_debug_traffic_config_payload(global_cfg, inst),
         })
     except Exception as e:
         logger.error(f'API GET /emby/debug-traffic-config 错误: {e}', exc_info=True)
@@ -136,10 +147,24 @@ def api_emby_debug_traffic_config_update():
         if not isinstance(data, dict):
             return jsonify({'success': False, 'error': '请求无效'}), 400
 
+        instance_name = str(
+            data.get('instance') or request.args.get('instance') or '',
+        ).strip()
+        if 'browse_upload_min_mb' in data and not instance_name:
+            return jsonify({'success': False, 'error': '请指定设备'}), 400
+        saved_inst = None
+        if 'browse_upload_min_mb' in data:
+            existing = config_manager.get_emby_instance(instance_name)
+            if not existing:
+                return jsonify({'success': False, 'error': '设备不存在'}), 404
+            updated = dict(existing)
+            updated['browse_upload_min_mb'] = data.get('browse_upload_min_mb')
+            saved_inst = config_manager.update_emby_instance(instance_name, updated)
+            if state.emby_monitor and not state.emby_monitor.reload_config():
+                return jsonify({'success': False, 'error': 'Emby 配置应用失败'}), 500
+
         current_global = config_manager.get_global_config(state.monitor.config)
         merged_global = dict(current_global)
-        if 'browse_upload_min_mb' in data:
-            merged_global['emby_browse_upload_min_mb'] = data.get('browse_upload_min_mb')
         if 'preplay_burst_mbps' in data:
             merged_global['emby_preplay_burst_mbps'] = data.get(
                 'preplay_burst_mbps',
@@ -149,18 +174,20 @@ def api_emby_debug_traffic_config_update():
                 'preplay_burst_window_seconds',
             )
 
-        validated, full_config = config_manager.update_global(
-            merged_global, base_config=state.monitor.config,
-        )
-        if not state.monitor.apply_config(full_config, refresh_status=False):
-            return jsonify({'success': False, 'error': '配置应用失败'}), 500
-        if state.emby_monitor and not state.emby_monitor.apply_config(full_config):
-            return jsonify({'success': False, 'error': 'Emby 配置应用失败'}), 500
+        validated = current_global
+        if 'preplay_burst_mbps' in data or 'preplay_burst_window_seconds' in data:
+            validated, full_config = config_manager.update_global(
+                merged_global, base_config=state.monitor.config,
+            )
+            if not state.monitor.apply_config(full_config, refresh_status=False):
+                return jsonify({'success': False, 'error': '配置应用失败'}), 500
+            if state.emby_monitor and not state.emby_monitor.apply_config(full_config):
+                return jsonify({'success': False, 'error': 'Emby 配置应用失败'}), 500
 
         return jsonify({
             'success': True,
             'message': '调试参数已保存并应用',
-            'data': _emby_debug_traffic_config_payload(validated),
+            'data': _emby_debug_traffic_config_payload(validated, saved_inst),
         })
     except ValueError as e:
         return jsonify({'success': False, 'error': str(e)}), 400

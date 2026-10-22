@@ -752,9 +752,11 @@ class EmbyInstanceWorker:
                         api_online=api_online,
                         credit_enabled=True,
                         analysis=lucky_analysis,
-                        min_upload_bytes=getattr(
-                            self.monitor, 'browse_upload_min_bytes', None,
-                        ),
+                        min_upload_bytes=config_manager.instance_browse_upload_min_bytes({
+                            'browse_upload_min_mb': getattr(
+                                client, 'browse_upload_min_mb', None,
+                            ),
+                        }),
                     )
                 except Exception as e:
                     logger.warning(
@@ -1011,9 +1013,6 @@ class EmbyMonitor:
             )
         except Exception as e:
             logger.debug(f'推流突发识别阈值配置同步失败: {e}')
-        self.browse_upload_min_bytes = config_manager.emby_browse_upload_min_bytes(
-            self.global_cfg,
-        )
         tz_name = self.global_cfg.get('timezone', 'Asia/Shanghai')
         try:
             self.timezone = ZoneInfo(tz_name)
