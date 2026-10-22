@@ -197,9 +197,10 @@ function quotaPane(cfg, users) {
             ${fld('周期类型', segF(['按月', '按周', '按天'], label, 'data-cyc'), { full: true })}
             <div class="anchor">${anchorHtml(label, cyc.reset_anchor)}</div>
         </div></div>
-        <div class="f-grid q-msg">
-            ${fld(`<span class="pre-ic">${ico('msg', 14)}</span>提示文案`, sel(msgOptions, msgSel, 'qMsgSel'), { full: true })}
-            <div class="full" id="qMsgBox" style="${msgSel === QUOTA_MSG_CUSTOM ? '' : 'display:none'}">
+        <div class="q-msg">
+            <div class="fs-head"><span class="ic">${ico('msg', 16)}</span><div><b>提示文案</b></div></div>
+            ${sel(msgOptions, msgSel, 'qMsgSel')}
+            <div id="qMsgBox" style="${msgSel === QUOTA_MSG_CUSTOM ? '' : 'display:none'}">
                 ${inp({ id: 'qMsgText', val: msgSel === QUOTA_MSG_CUSTOM ? msgText : '', ph: `最多 ${QUOTA_MSG_MAX} 个字` })}
                 <div class="hint-t" id="qMsgHint">${quotaWhenHint(whenNow)}</div>
             </div>
@@ -216,8 +217,10 @@ function quotaPane(cfg, users) {
                 <div id="qList">
                     <div class="line-open"></div>
                     <div class="q-head">
-                        <div class="t"><b>用户独立额度</b><small>优先级高于全部用户</small></div>
-                        <button type="button" class="rule-add" data-quota-add aria-label="添加用户">${ico('plus', 14)}</button>
+                        <div class="t">
+                            <div class="q-title"><b>用户独立额度</b><button type="button" class="rule-add" data-quota-add aria-label="添加用户">${ico('plus', 14)}</button></div>
+                            <small>优先级高于全部用户</small>
+                        </div>
                     </div>
                     <div class="rule-rows" id="qRows">${rows}</div>
                     <div class="hint-t">额度填 0 表示不限，例如管理员</div>
