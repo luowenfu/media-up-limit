@@ -23,12 +23,29 @@ _SUMMARY_TTL_SECONDS = 10.0
 
 
 def user_limit_gb(quota: dict, user_name: str) -> float:
-    """该用户适用的额度（GB）。单独设置优先，否则用「全部用户」额度。0 表示不限。"""
+    """按用户模式下该用户适用的额度（GB）。「全部用户」打开时人人同额，否则按单独设置。0 表示不限。"""
+    quota = quota or {}
+    if quota.get('all_users'):
+        return max(0.0, float(quota.get('default_limit_gb') or 0))
     fold = str(user_name or '').strip().casefold()
-    for row in (quota or {}).get('users') or []:
+    for row in quota.get('users') or []:
         if str(row.get('user_name') or '').strip().casefold() == fold:
             return max(0.0, float(row.get('limit_gb') or 0))
-    return max(0.0, float((quota or {}).get('default_limit_gb') or 0))
+    return 0.0
+
+
+def is_total_mode(quota: dict) -> bool:
+    return (quota or {}).get('mode') == 'total'
+
+
+def has_any_limit(quota: dict) -> bool:
+    """当前规则下是否设了有效额度。"""
+    quota = quota or {}
+    if is_total_mode(quota):
+        return float(quota.get('total_limit_gb') or 0) > 0
+    if quota.get('all_users'):
+        return float(quota.get('default_limit_gb') or 0) > 0
+    return any(float(u.get('limit_gb') or 0) > 0 for u in quota.get('users') or [])
 
 
 def _live_bytes(bucket: dict, user_fold: str, user_ids: set) -> int:
@@ -68,6 +85,26 @@ def cycle_used_bytes(
     return settled + live
 
 
+def cycle_total_bytes(
+    instance_name: str,
+    cycle: dict,
+    *,
+    credit_browse: bool,
+    tz=None,
+) -> int:
+    """当前周期内所有用户合计的上行字节数（已结算 + 实时累加器，选片按设备设置计入）。"""
+    settled = cycle_used_by_user(instance_name, cycle, credit_browse=credit_browse, tz=tz,
+                                 include_live=False)
+    total = sum(settled.values())
+    total += sum(max(0, int(v or 0)) for v in emby_playback_traffic.peek_upload_bucket(instance_name).values())
+    if credit_browse:
+        total += sum(
+            max(0, int(v or 0))
+            for v in emby_playback_traffic.peek_browse_upload_bucket(instance_name).values()
+        )
+    return total
+
+
 def _sum_by_user(cursor, sql: str, params: tuple, into: Dict[str, int]) -> None:
     cursor.execute(sql, params)
     for row in cursor.fetchall():
@@ -82,10 +119,11 @@ def cycle_used_by_user(
     *,
     credit_browse: bool,
     tz=None,
+    include_live: bool = True,
 ) -> Dict[str, int]:
     """当前周期内每个用户的上行字节数（小写用户名为键）。
 
-    只含已结算数据和播放实时累加器，选片的实时部分不含，用于卡片统计，不用于拦截。
+    含已结算数据和播放实时累加器（include_live=False 时只含已结算），选片的实时部分不含。
     """
     period = iter_cycle_periods(cycle, tz or traffic_db.get_config_timezone(), count=1)[0]
     start_s = period['cycle_start'].strftime('%Y-%m-%d %H:%M:%S')
@@ -111,10 +149,11 @@ def cycle_used_by_user(
                 ''', (instance_name, start_s, end_s), used)
         finally:
             conn.close()
-    for key, amount in emby_playback_traffic.peek_upload_bucket(instance_name).items():
-        fold = user_from_persist_key(key)
-        if fold:
-            used[fold] = used.get(fold, 0) + max(0, int(amount or 0))
+    if include_live:
+        for key, amount in emby_playback_traffic.peek_upload_bucket(instance_name).items():
+            fold = user_from_persist_key(key)
+            if fold:
+                used[fold] = used.get(fold, 0) + max(0, int(amount or 0))
     return used
 
 
@@ -145,16 +184,24 @@ def quota_summary(
         'dry_run': bool(quota.get('dry_run', True)),
         'type_label': TYPE_LABELS.get(str(cycle.get('type') or 'month'), '按月'),
         'range_label': '',
+        'mode': 'total' if is_total_mode(quota) else 'user',
         'over_count': 0,
+        'total_reached': False,
     }
     try:
         period = iter_cycle_periods(cycle, traffic_db.get_config_timezone(), count=1)[0]
         value['range_label'] = period['period']
-        used = cycle_used_by_user(instance_name, cycle, credit_browse=credit_browse)
-        for fold, amount in used.items():
-            limit_gb = user_limit_gb(quota, fold)
-            if limit_gb > 0 and amount >= limit_gb * GB:
-                value['over_count'] += 1
+        if is_total_mode(quota):
+            limit_gb = float(quota.get('total_limit_gb') or 0)
+            if limit_gb > 0:
+                total = cycle_total_bytes(instance_name, cycle, credit_browse=credit_browse)
+                value['total_reached'] = total >= limit_gb * GB
+        else:
+            used = cycle_used_by_user(instance_name, cycle, credit_browse=credit_browse)
+            for fold, amount in used.items():
+                limit_gb = user_limit_gb(quota, fold)
+                if limit_gb > 0 and amount >= limit_gb * GB:
+                    value['over_count'] += 1
     except Exception:
         logger.warning(f'[Emby:{instance_name}] 达量用户数统计失败', exc_info=True)
     with _summary_lock:

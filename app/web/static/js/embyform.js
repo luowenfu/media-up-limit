@@ -8,7 +8,7 @@ import { embyList } from './store.js';
 import { askPolicy } from './policy.js';
 import { anchorHtml, anchorsAttr, readPlan } from './plan.js';
 import {
-    closeSheet, fld, fs, inp, isOn, notice, openSheet, reload, segF, stepper, swRow, testRow, toast, val,
+    closeSheet, fld, fs, inp, isOn, notice, openSheet, reload, sel, segF, stepper, swRow, testRow, toast, val,
 } from './ui.js';
 
 const NAME_MAX = 10;
@@ -91,6 +91,14 @@ function luckyPane(cfg) {
 
 /* ---------- 达量停播规则 ---------- */
 const CYC_LABEL = { month: '按月', week: '按周', day: '按天' };
+const QUOTA_MSG_MAX = 60;
+const QUOTA_MSG_CUSTOM = '__custom__';
+// 预设提示文案（值即发送的文字）
+const QUOTA_MSG_PRESETS = [
+    '本周期上行流量已达额度，播放将在 5 秒后停止',
+    '流量额度已用完，5 秒后将停止播放，请下个周期再看',
+    '服务器流量已达上限，播放即将停止',
+].map(t => [t, t]);
 
 function quotaUserOptions(users, current) {
     const names = [...users];
@@ -113,20 +121,61 @@ function quotaPane(cfg, users) {
     const cyc = qt.cycle || { type: 'month', reset_anchor: 1 };
     const label = CYC_LABEL[cyc.type] || '按月';
     const rows = (qt.users && qt.users.length ? qt.users : [{}]).map(r => quotaRow(users, r)).join('');
-    return notice('', '<b>达量停播：</b>用户本周期外网上行达到额度后，再开始播放时，3 秒后收到提示，再过 5 秒被停止。需要开启「流量采集」里的 Lucky 反代模式，局域网播放不受影响')
+    const isTotal = qt.mode === 'total';
+    const allUsers = qt.all_users === true || (qt.all_users === undefined && qt.default_limit_gb > 0);
+    const msgText = String(qt.message_text || '');
+    const preset = QUOTA_MSG_PRESETS.find(([v]) => v === msgText);
+    const msgSel = !msgText ? QUOTA_MSG_PRESETS[0][0] : preset ? preset[0] : QUOTA_MSG_CUSTOM;
+    return notice('', '<b>达量停播：</b>额度用完后再开始播放，3 秒后收到提示，再过 5 秒被停止。需要开启「流量采集」里的 Lucky 反代模式，局域网播放不受影响')
         + fs('shield', '达量停播', '', `<div class="sw-list">
-            ${swRow({ t: '启用达量停播', d: '只对设了额度的用户生效，没设额度的用户不限', on: !!qt.enabled, name: 'qEnable' })}
+            ${swRow({ t: '启用达量停播', d: '额度用完后，再开播的用户会被停播', on: !!qt.enabled, name: 'qEnable' })}
             ${swRow({ t: '只记录不执行', d: '到点只写系统日志，不发提示也不停止。确认用量准确后再关闭', on: qt.dry_run !== false, name: 'qDry' })}
         </div>`)
         + fs('clock', '统计周期', '', `<div class="plan" id="quotaPlan" ${anchorsAttr(label, cyc.reset_anchor)}><div class="f-grid">
             ${fld('周期类型', segF(['按月', '按周', '按天'], label, 'data-cyc'), { full: true })}
             <div class="anchor">${anchorHtml(label, cyc.reset_anchor)}</div>
         </div></div>`)
-        + fs('user', '全部用户', '每位用户各自累计，达到这个额度就停播', `${inp({ id: 'qDefault', type: 'number', val: qt.default_limit_gb > 0 ? qt.default_limit_gb : '', ph: '留空表示不限', suf: 'GB', attr: 'min="0" step="any"' })}
-            <div class="hint-t">下面单独设置的用户按各自的额度，不受这个额度影响。额度按本周期外网上行累计（选片是否计入见「流量采集」），1 GB = 1000 MB。用量归属可能有些误差，额度请留余量</div>`)
-        + fs('user', '单独设置', '优先于「全部用户」的额度', `<div class="rule-rows" id="qRows">${rows}</div>
-            <div class="hint-t">额度填 0 表示不限，例如管理员不受「全部用户」额度限制</div>`,
-        `<button type="button" class="rule-add" data-quota-add aria-label="添加用户">${ico('plus', 14)}</button>`);
+        + fs('msg', '提示文案', '开播后发给用户的消息', `<div class="f-grid">
+            ${fld('文案', sel(QUOTA_MSG_PRESETS.concat([[QUOTA_MSG_CUSTOM, '自定义']]), msgSel, 'qMsgSel'), { full: true })}
+            <div class="full" id="qMsgBox" style="${msgSel === QUOTA_MSG_CUSTOM ? '' : 'display:none'}">
+                ${inp({ id: 'qMsgText', val: msgSel === QUOTA_MSG_CUSTOM ? msgText : '', ph: `最多 ${QUOTA_MSG_MAX} 个字` })}
+            </div>
+        </div>`)
+        + fs('sum', '额度规则', '二选一，额度按本周期外网上行累计', `${segF(['按总额度', '按用户'], isTotal ? '按总额度' : '按用户', 'data-qmode')}
+            <div class="sub-panel" id="qTotalPane" style="${isTotal ? '' : 'display:none'}">
+                ${fld('总额度', inp({ id: 'qTotal', type: 'number', val: qt.total_limit_gb > 0 ? qt.total_limit_gb : '', ph: '所有用户合计', suf: 'GB', attr: 'min="0" step="any"' }), { hint: '所有用户本周期上行合计达到后，之后开播的每个用户都会被停播' })}
+            </div>
+            <div class="sub-panel" id="qUserPane" style="${isTotal ? 'display:none' : ''}">
+                <div class="sw-list"><div class="sw-row">
+                    <div class="t"><b>全部用户</b><small>打开后每位用户各自累计，用同一个额度</small></div>
+                    <div class="inp" id="qDefaultBox" style="flex:0 0 150px;${allUsers ? '' : 'display:none'}"><input id="qDefault" type="number" min="0" step="any" value="${esc(qt.default_limit_gb > 0 ? qt.default_limit_gb : '')}" placeholder="每人额度"><span class="suf">GB</span></div>
+                    <span class="switch ${allUsers ? 'on' : ''}" data-sw="qAll"></span>
+                </div></div>
+                <div id="qList" style="${allUsers ? 'display:none' : ''}">
+                    <div class="fl">单独设置<button type="button" class="rule-add" data-quota-add aria-label="添加用户">${ico('plus', 14)}</button></div>
+                    <div class="rule-rows" id="qRows">${rows}</div>
+                    <div class="hint-t">额度填 0 表示不限，例如管理员</div>
+                </div>
+            </div>
+            <div class="hint-t">1 GB = 1000 MB。用量归属可能有些误差，额度请留余量；选片流量是否计入见「流量采集」</div>`);
+}
+
+/** 按当前选择显示 / 收起额度规则的各块 */
+export function refreshQuotaView(root = document.getElementById('sheet')) {
+    if (!root || !root.querySelector('#quotaPlan')) return;
+    const total = root.querySelector('[data-qmode].on')?.dataset.qmode === '按总额度';
+    const all = isOn(root, '[data-sw="qAll"]');
+    const show = (sel_, on) => { root.querySelector(sel_).style.display = on ? '' : 'none'; };
+    show('#qTotalPane', total);
+    show('#qUserPane', !total);
+    show('#qDefaultBox', all);
+    show('#qList', !all);
+}
+
+/** 提示文案下拉变化：选「自定义」时显示输入框 */
+export function onQuotaMsgChange(select) {
+    const box = select.closest('#sheet')?.querySelector('#qMsgBox');
+    if (box) box.style.display = select.value === QUOTA_MSG_CUSTOM ? '' : 'none';
 }
 
 function readQuota(root) {
@@ -134,24 +183,40 @@ function readQuota(root) {
         user_name: row.querySelector('[data-q-user]').value,
         limit_gb: row.querySelector('[data-q-gb]').value,
     })).filter(r => r.user_name || String(r.limit_gb).trim());
-    rows.forEach(r => {
-        if (!r.user_name) throw new Error('请为每个额度选择用户');
-        const gb = parseFloat(r.limit_gb);
-        if (!(gb >= 0)) throw new Error(`请填写用户「${r.user_name}」的额度（0 表示不限）`);
-        r.limit_gb = gb;
-    });
-    const defaultGb = parseFloat(val(root, '#qDefault')) || 0;
-    if (defaultGb < 0) throw new Error('「全部用户」额度不能小于 0');
+    const total = root.querySelector('[data-qmode].on')?.dataset.qmode === '按总额度';
+    const allUsers = isOn(root, '[data-sw="qAll"]');
     const enabled = isOn(root, '[data-sw="qEnable"]');
-    if (enabled && !(defaultGb > 0 || rows.some(r => r.limit_gb > 0))) {
-        throw new Error('启用达量停播前，请设置「全部用户」额度，或给某个用户设置额度');
+    // 收起的那一块不校验，但仍保存，切回来还在
+    if (!total && !allUsers) {
+        rows.forEach(r => {
+            if (!r.user_name) throw new Error('请为每个额度选择用户');
+            if (!(parseFloat(r.limit_gb) >= 0)) throw new Error(`请填写用户「${r.user_name}」的额度（0 表示不限）`);
+        });
     }
+    const users = rows
+        .filter(r => r.user_name && parseFloat(r.limit_gb) >= 0)
+        .map(r => ({ user_name: r.user_name, limit_gb: parseFloat(r.limit_gb) }));
+    const totalGb = parseFloat(val(root, '#qTotal')) || 0;
+    const defaultGb = parseFloat(val(root, '#qDefault')) || 0;
+    if (enabled) {
+        if (total && !(totalGb > 0)) throw new Error('启用达量停播前，请设置总额度');
+        if (!total && allUsers && !(defaultGb > 0)) throw new Error('启用达量停播前，请设置「全部用户」额度');
+        if (!total && !allUsers && !users.some(u => u.limit_gb > 0)) throw new Error('启用达量停播前，请至少给一个用户设置额度');
+    }
+    const sel_ = val(root, '#qMsgSel');
+    const message = sel_ === QUOTA_MSG_CUSTOM ? val(root, '#qMsgText') : sel_;
+    if (sel_ === QUOTA_MSG_CUSTOM && !message) throw new Error('请填写自定义提示文案');
+    if (message.length > QUOTA_MSG_MAX) throw new Error(`提示文案最多 ${QUOTA_MSG_MAX} 个字`);
     return {
         enabled,
         dry_run: isOn(root, '[data-sw="qDry"]'),
         cycle: readPlan(root.querySelector('#quotaPlan')).cycle,
+        message_text: message,
+        mode: total ? 'total' : 'user',
+        total_limit_gb: totalGb,
+        all_users: allUsers,
         default_limit_gb: defaultGb,
-        users: rows,
+        users,
     };
 }
 

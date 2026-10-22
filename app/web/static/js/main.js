@@ -12,7 +12,7 @@ import {
 import {
     fixRoute, isListView, rememberPart, render, refreshLogsInPlace, revealSection, syncDetailFold, toggleMetricsDock, toggleNavGroup, togglePadSide,
 } from './shell.js';
-import { uiClick, uiInput, relockTiles } from './interact.js';
+import { uiChange, uiClick, uiInput, relockTiles } from './interact.js';
 import { toggleReveal } from './cards.js';
 import { openSettings } from './settings.js';
 import { toggleScheme } from './theme.js';
@@ -160,6 +160,7 @@ async function logout() {
 /* ---------- 下拉与输入 ---------- */
 document.addEventListener('change', e => {
     const t = e.target;
+    uiChange(t);
     if (t.id === 'stUser') { state.statsUser = t.value === '__all_users__' ? '' : t.value; render(); }
     else if (t.id === 'evUser') { state.eventsUser = t.value; render(); }
     else if (t.id === 'evDays') { state.eventsDays = +t.value; render(); }

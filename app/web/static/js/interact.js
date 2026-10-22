@@ -7,7 +7,10 @@ import { esc } from './format.js';
 import { deviceUrl } from './adapt.js';
 import { state, qbByName, embyByName } from './store.js';
 import { openQbForm } from './qbform.js';
-import { addLuckyRuleRow, addQuotaRow, openEmbyForm, removeLuckyRuleRow, removeQuotaRow } from './embyform.js';
+import {
+    addLuckyRuleRow, addQuotaRow, onQuotaMsgChange, openEmbyForm, refreshQuotaView,
+    removeLuckyRuleRow, removeQuotaRow,
+} from './embyform.js';
 import { refreshScale, ruleRow, switchCycleType } from './plan.js';
 import { openMergeEditor, refreshMergeEditor, saveMerge, toggleAll } from './merge.js';
 import {
@@ -98,11 +101,13 @@ function formControl(t) {
             if (hint) hint.textContent = t.dataset.msgStyle === 'dialog' ? '持续显示，用户需自行关闭' : '短暂显示，3秒后自动消失';
         }
         if (t.dataset.cyc) switchCycleType(t.closest('.plan'), prevCyc, t.dataset.cyc);
+        if (t.dataset.qmode) refreshQuotaView();
         return true;
     }
     if (t.matches('.switch')) {
         t.classList.toggle('on');
         const name = t.dataset.sw;
+        if (name === 'qAll') refreshQuotaView();
         const dep = name && t.closest('.sw-list').querySelector(`[data-dep="${name}"]`);
         if (dep) {
             dep.classList.toggle('disabled', !t.classList.contains('on'));
@@ -209,6 +214,10 @@ export function uiClick(t, e, ctx) {
 }
 
 /** 输入联动：手动限速按钮可用性、规则刻度预览 */
+export function uiChange(t) {
+    if (t.id === 'qMsgSel') onQuotaMsgChange(t);
+}
+
 export function uiInput(e) {
     const t = e.target;
     if (t.id === 'limInp') refreshLimit();

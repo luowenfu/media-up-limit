@@ -11,7 +11,9 @@ import time
 from typing import Callable, Dict, Optional
 
 from emby.client import REMOTE_CONTROL_CLOSED_ERROR
-from emby.quota.usage import GB as _GB, cycle_used_bytes, user_limit_gb
+from emby.quota.usage import (
+    GB as _GB, cycle_total_bytes, cycle_used_bytes, has_any_limit, is_total_mode, user_limit_gb,
+)
 from emby.traffic.filter import is_wan_playback_session
 
 logger = logging.getLogger(__name__)
@@ -53,11 +55,13 @@ class QuotaEnforcer:
         instance_name: str,
         *,
         usage_fn: Optional[Callable[..., int]] = None,
+        total_fn: Optional[Callable[..., int]] = None,
         clock: Callable[[], float] = time.monotonic,
         dispatch: Callable[[Callable[[], None]], None] = _thread_dispatch,
     ):
         self.instance_name = instance_name
         self._usage_fn = usage_fn
+        self._total_fn = total_fn
         self._clock = clock
         self._dispatch = dispatch
         self._lock = threading.RLock()
@@ -72,6 +76,10 @@ class QuotaEnforcer:
             credit_browse=credit_browse, user_ids=user_ids,
         ))
 
+    def _total_used_bytes(self, quota: dict, credit_browse: bool) -> int:
+        fn = self._total_fn or cycle_total_bytes
+        return int(fn(self.instance_name, quota.get('cycle') or {}, credit_browse=credit_browse))
+
     def on_tick(self, client, inst_cfg: dict, sessions: list) -> None:
         """每个采集周期调用一次。sessions 为当前在线的播放会话（含暂停）。"""
         now = self._clock()
@@ -80,12 +88,11 @@ class QuotaEnforcer:
         with self._lock:
             self._purge(present, now)
             quota = (inst_cfg or {}).get('user_quota') or {}
-            has_limits = bool(quota.get('users')) or float(quota.get('default_limit_gb') or 0) > 0
             active = (
                 self._baselined
                 and bool(quota.get('enabled'))
                 and str((inst_cfg or {}).get('traffic_collect_mode') or '') == 'lucky'
-                and has_limits
+                and has_any_limit(quota)
             )
             credit_browse = (
                 str((inst_cfg or {}).get('traffic_collect_mode') or '') == 'lucky'
@@ -120,7 +127,11 @@ class QuotaEnforcer:
         }
         if not active:
             return entry
-        limit_gb = user_limit_gb(quota, entry['user'])
+        total_mode = is_total_mode(quota)
+        if total_mode:
+            limit_gb = float(quota.get('total_limit_gb') or 0)
+        else:
+            limit_gb = user_limit_gb(quota, entry['user'])
         if not limit_gb > 0:
             return entry
         user_ids = {
@@ -128,7 +139,10 @@ class QuotaEnforcer:
             if str(s.get('user_name') or '').strip().casefold() == entry['user'].casefold()
         }
         try:
-            used = self._used_bytes(entry['user'], quota, credit_browse, user_ids)
+            if total_mode:
+                used = self._total_used_bytes(quota, credit_browse)
+            else:
+                used = self._used_bytes(entry['user'], quota, credit_browse, user_ids)
         except Exception:
             logger.warning(
                 f'[Emby:{self.instance_name}] 达量停播：读取 {entry["user"]} 的用量失败',
@@ -138,7 +152,11 @@ class QuotaEnforcer:
         limit_bytes = limit_gb * _GB
         if used < limit_bytes:
             return entry
-        detail = f'{entry["user"]} 本周期已用 {_fmt_gb(used)}，额度 {limit_gb:g} GB'
+        if total_mode:
+            detail = (f'{entry["user"]} 开播，全部用户本周期合计已用 {_fmt_gb(used)}，'
+                      f'总额度 {limit_gb:g} GB')
+        else:
+            detail = f'{entry["user"]} 本周期已用 {_fmt_gb(used)}，额度 {limit_gb:g} GB'
         if not session.get('supports_remote_control'):
             logger.warning(
                 f'[Emby:{self.instance_name}] 达量停播：{detail}，'
@@ -154,6 +172,7 @@ class QuotaEnforcer:
         logger.info(f'[Emby:{self.instance_name}] 达量停播：{detail}，已排期提示并停止')
         entry['stage'] = _PENDING
         entry['detail'] = detail
+        entry['text'] = str(quota.get('message_text') or '').strip() or MESSAGE_TEXT
         return entry
 
     def _advance(self, client, now: float) -> None:
@@ -168,7 +187,7 @@ class QuotaEnforcer:
 
     def _send_message(self, client, key: str, entry: dict) -> None:
         result = client.send_session_message(
-            entry['sid'], MESSAGE_TEXT,
+            entry['sid'], entry.get('text') or MESSAGE_TEXT,
             header=MESSAGE_HEADER, timeout_ms=MESSAGE_TIMEOUT_MS,
         )
         if result.get('ok'):
