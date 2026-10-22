@@ -23,15 +23,13 @@ _SUMMARY_TTL_SECONDS = 10.0
 
 
 def user_limit_gb(quota: dict, user_name: str) -> float:
-    """按用户模式下该用户适用的额度（GB）。「全部用户」打开时人人同额，否则按单独设置。0 表示不限。"""
+    """按用户模式下该用户适用的额度（GB）。用户独立额度优先，否则用全部用户额度。0 表示不限。"""
     quota = quota or {}
-    if quota.get('all_users'):
-        return max(0.0, float(quota.get('default_limit_gb') or 0))
     fold = str(user_name or '').strip().casefold()
     for row in quota.get('users') or []:
         if str(row.get('user_name') or '').strip().casefold() == fold:
             return max(0.0, float(row.get('limit_gb') or 0))
-    return 0.0
+    return max(0.0, float(quota.get('default_limit_gb') or 0))
 
 
 def is_total_mode(quota: dict) -> bool:
@@ -43,8 +41,8 @@ def has_any_limit(quota: dict) -> bool:
     quota = quota or {}
     if is_total_mode(quota):
         return float(quota.get('total_limit_gb') or 0) > 0
-    if quota.get('all_users'):
-        return float(quota.get('default_limit_gb') or 0) > 0
+    if float(quota.get('default_limit_gb') or 0) > 0:
+        return True
     return any(float(u.get('limit_gb') or 0) > 0 for u in quota.get('users') or [])
 
 

@@ -1375,7 +1375,7 @@ def normalize_user_quota(raw, *, strict: bool = False) -> dict:
     """达量停播规则：开关、只记录不执行、周期、提示文案、额度规则（GB）。
 
     额度规则二选一：mode=total 按总额度（所有用户合计）；
-    mode=user 按用户，all_users 打开时每人用 default_limit_gb，关闭时按 users 逐个设置。
+    mode=user 按用户：没单独列出的用 default_limit_gb，列出的按各自额度，优先于全部用户。
     单个用户额度 0 表示不限。strict=True 时填错直接报错；否则静默丢弃无效行（读取旧配置用）。
     """
     raw = raw if isinstance(raw, dict) else {}
@@ -1432,11 +1432,8 @@ def normalize_user_quota(raw, *, strict: bool = False) -> dict:
     if strict and enabled:
         if mode == 'total' and not total_gb > 0:
             raise ValueError('启用达量停播前，请设置总额度')
-        if mode == 'user':
-            if all_users and not default_gb > 0:
-                raise ValueError('启用达量停播前，请设置「全部用户」额度')
-            if not all_users and not any(u['limit_gb'] > 0 for u in users):
-                raise ValueError('启用达量停播前，请至少给一个用户设置额度')
+        if mode == 'user' and not (default_gb > 0 or any(u['limit_gb'] > 0 for u in users)):
+            raise ValueError('启用达量停播前，请设置「全部用户」额度，或给某个用户设置额度')
     return {
         'enabled': enabled,
         'dry_run': bool(raw.get('dry_run', True)),

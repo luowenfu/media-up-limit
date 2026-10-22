@@ -110,7 +110,6 @@ function formControl(t) {
     if (t.matches('.switch')) {
         t.classList.toggle('on');
         const name = t.dataset.sw;
-        if (name === 'qAll') refreshQuotaView();
         const dep = name && t.closest('.sw-list').querySelector(`[data-dep="${name}"]`);
         if (dep) {
             dep.classList.toggle('disabled', !t.classList.contains('on'));

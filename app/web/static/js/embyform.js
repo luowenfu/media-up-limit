@@ -181,7 +181,6 @@ function quotaPane(cfg, users) {
     const label = CYC_LABEL[cyc.type] || '按月';
     const rows = (qt.users && qt.users.length ? qt.users : [{}]).map(r => quotaRow(users, r)).join('');
     const isTotal = qt.mode === 'total';
-    const allUsers = qt.all_users === true || (qt.all_users === undefined && qt.default_limit_gb > 0);
     const msgText = String(qt.message_text || '');
     const stored = OLD_QUOTA_PRESETS[msgText] || msgText;
     const msgSel = QUOTA_PRESETS.some(([id]) => id === stored) || !stored ? (stored || 'preset:1') : QUOTA_MSG_CUSTOM;
@@ -199,7 +198,7 @@ function quotaPane(cfg, users) {
             <div class="anchor">${anchorHtml(label, cyc.reset_anchor)}</div>
         </div></div>
         <div class="f-grid q-msg">
-            ${fld('提示文案', sel(msgOptions, msgSel, 'qMsgSel'), { full: true })}
+            ${fld(`<span class="pre-ic">${ico('msg', 14)}</span>提示文案`, sel(msgOptions, msgSel, 'qMsgSel'), { full: true })}
             <div class="full" id="qMsgBox" style="${msgSel === QUOTA_MSG_CUSTOM ? '' : 'display:none'}">
                 ${inp({ id: 'qMsgText', val: msgSel === QUOTA_MSG_CUSTOM ? msgText : '', ph: `最多 ${QUOTA_MSG_MAX} 个字` })}
                 <div class="hint-t" id="qMsgHint">${quotaWhenHint(whenNow)}</div>
@@ -211,13 +210,12 @@ function quotaPane(cfg, users) {
             </div>
             <div class="sub-panel" id="qUserPane" style="${isTotal ? 'display:none' : ''}">
                 <div class="sw-list"><div class="sw-row">
-                    <div class="t"><b>全部用户</b><small>打开后每位用户各自累计，用同一个额度</small></div>
+                    <div class="t"><b>全部用户</b><small>每位用户各自累计，用同一个额度</small></div>
                     <div class="inp" id="qDefaultBox" style="flex:0 0 150px"><input id="qDefault" type="number" min="0" step="any" value="${esc(qt.default_limit_gb > 0 ? qt.default_limit_gb : '')}" placeholder="每人额度"><span class="suf">GB</span></div>
-                    <span class="switch ${allUsers ? 'on' : ''}" data-sw="qAll"></span>
                 </div></div>
-                <div id="qList" style="${allUsers ? 'display:none' : ''}">
+                <div id="qList">
                     <div class="line-open"></div>
-                    <div class="fl">单独设置<button type="button" class="rule-add" data-quota-add aria-label="添加用户">${ico('plus', 14)}</button></div>
+                    <div class="fl">用户独立额度<span class="sub">优先级高于全部用户</span><button type="button" class="rule-add" data-quota-add aria-label="添加用户">${ico('plus', 14)}</button></div>
                     <div class="rule-rows" id="qRows">${rows}</div>
                     <div class="hint-t">额度填 0 表示不限，例如管理员</div>
                 </div>
@@ -229,11 +227,9 @@ function quotaPane(cfg, users) {
 export function refreshQuotaView(root = document.getElementById('sheet')) {
     if (!root || !root.querySelector('#quotaPlan')) return;
     const total = root.querySelector('[data-qmode].on')?.dataset.qmode === '按总额度';
-    const all = isOn(root, '[data-sw="qAll"]');
     const show = (sel_, on) => { root.querySelector(sel_).style.display = on ? '' : 'none'; };
     show('#qTotalPane', total);
     show('#qUserPane', !total);
-    show('#qList', !all);
 }
 
 /** 自定义文案下方的提示：变量和当前会换成的时间都带底色 */
@@ -270,10 +266,8 @@ function readQuota(root) {
         limit_gb: row.querySelector('[data-q-gb]').value,
     })).filter(r => r.user_name || String(r.limit_gb).trim());
     const total = root.querySelector('[data-qmode].on')?.dataset.qmode === '按总额度';
-    const allUsers = isOn(root, '[data-sw="qAll"]');
     const enabled = isOn(root, '[data-sw="qEnable"]');
-    // 收起的那一块不校验，但仍保存，切回来还在
-    if (!total && !allUsers) {
+    if (!total) {
         rows.forEach(r => {
             if (!r.user_name) throw new Error('请为每个额度选择用户');
             if (!(parseFloat(r.limit_gb) >= 0)) throw new Error(`请填写用户「${r.user_name}」的额度（0 表示不限）`);
@@ -286,8 +280,9 @@ function readQuota(root) {
     const defaultGb = parseFloat(val(root, '#qDefault')) || 0;
     if (enabled) {
         if (total && !(totalGb > 0)) throw new Error('启用达量停播前，请设置总额度');
-        if (!total && allUsers && !(defaultGb > 0)) throw new Error('启用达量停播前，请设置「全部用户」额度');
-        if (!total && !allUsers && !users.some(u => u.limit_gb > 0)) throw new Error('启用达量停播前，请至少给一个用户设置额度');
+        if (!total && !(defaultGb > 0 || users.some(u => u.limit_gb > 0))) {
+            throw new Error('启用达量停播前，请设置「全部用户」额度，或给某个用户设置额度');
+        }
     }
     const sel_ = val(root, '#qMsgSel');
     const message = sel_ === QUOTA_MSG_CUSTOM ? val(root, '#qMsgText') : sel_;
@@ -300,7 +295,7 @@ function readQuota(root) {
         message_text: message,
         mode: total ? 'total' : 'user',
         total_limit_gb: totalGb,
-        all_users: allUsers,
+        all_users: false,
         default_limit_gb: defaultGb,
         users,
     };
