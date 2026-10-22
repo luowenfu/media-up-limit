@@ -170,7 +170,7 @@ function quotaUserOptions(users, current) {
 function quotaRow(users, row = {}) {
     return `<div class="rule-row" data-quota-row>
         <div class="inp"><select data-q-user>${quotaUserOptions(users, row.user_name || '')}</select></div>
-        <div class="inp" style="flex:0 0 150px"><input type="number" min="0" step="any" data-q-gb value="${esc(row.limit_gb ?? '')}" placeholder="0 为不限"><span class="suf">GB</span></div>
+        <div class="inp" style="flex:0 0 150px"><input type="number" min="0" step="0.1" data-q-gb value="${esc(row.limit_gb ?? '')}" placeholder="0 为不限"><span class="suf">GB</span></div>
         <button type="button" class="rule-x" data-quota-del aria-label="移除这个用户">${ico('x', 14)}</button>
     </div>`;
 }
@@ -213,8 +213,8 @@ function quotaPane(cfg, users) {
                         <small id="qDefSub">${isTotal ? '所有用户合计达到后，没单独设置的都会停播' : '每位用户各自累计，用同一个额度，没单独设置的都会停播'}</small>
                     </div>
                     <div class="q-def-inps">
-                        <div class="inp" id="qTotalBox" style="${isTotal ? '' : 'display:none'}"><input id="qTotal" type="number" min="0" step="any" value="${esc(qt.total_limit_gb > 0 ? qt.total_limit_gb : '')}" placeholder="所有用户合计"><span class="suf">GB</span></div>
-                        <div class="inp" id="qDefaultBox" style="${isTotal ? 'display:none' : ''}"><input id="qDefault" type="number" min="0" step="any" value="${esc(qt.default_limit_gb > 0 ? qt.default_limit_gb : '')}" placeholder="每人额度"><span class="suf">GB</span></div>
+                        <div class="inp" id="qTotalBox" style="${isTotal ? '' : 'display:none'}"><input id="qTotal" type="number" min="0" step="0.1" value="${esc(qt.total_limit_gb > 0 ? qt.total_limit_gb : '')}" placeholder="所有用户合计"><span class="suf">GB</span></div>
+                        <div class="inp" id="qDefaultBox" style="${isTotal ? 'display:none' : ''}"><input id="qDefault" type="number" min="0" step="0.1" value="${esc(qt.default_limit_gb > 0 ? qt.default_limit_gb : '')}" placeholder="每人额度"><span class="suf">GB</span></div>
                         <span class="q-x-slot" aria-hidden="true"></span>
                     </div>
                 </div>
@@ -276,6 +276,17 @@ export function onQuotaMsgChange(select) {
     refreshQuotaMessages(root);
 }
 
+/** 额度按 0.1 GB 为单位。空着当 0。不合步进返回 null 的是非法数字。 */
+function readQuotaGb(raw) {
+    const text = String(raw ?? '').trim();
+    if (text === '') return 0;
+    const n = Number(text);
+    if (!Number.isFinite(n) || n < 0) return null;
+    const stepped = Math.round(n * 10) / 10;
+    if (Math.abs(n - stepped) > 1e-4) throw new Error('额度最小单位是 0.1 GB');
+    return stepped;
+}
+
 function readQuota(root) {
     const rows = [...root.querySelectorAll('#qRows [data-quota-row]')].map(row => ({
         user_name: row.querySelector('[data-q-user]').value,
@@ -285,13 +296,15 @@ function readQuota(root) {
     const enabled = isOn(root, '[data-sw="qEnable"]');
     rows.forEach(r => {
         if (!r.user_name) throw new Error('请为每个额度选择用户');
-        if (!(parseFloat(r.limit_gb) >= 0)) throw new Error(`请填写用户「${r.user_name}」的额度（0 表示不限）`);
+        if (!String(r.limit_gb).trim() || readQuotaGb(r.limit_gb) == null) throw new Error(`请填写用户「${r.user_name}」的额度（0 表示不限）`);
     });
     const users = rows
-        .filter(r => r.user_name && parseFloat(r.limit_gb) >= 0)
-        .map(r => ({ user_name: r.user_name, limit_gb: parseFloat(r.limit_gb) }));
-    const totalGb = parseFloat(val(root, '#qTotal')) || 0;
-    const defaultGb = parseFloat(val(root, '#qDefault')) || 0;
+        .filter(r => r.user_name && readQuotaGb(r.limit_gb) != null)
+        .map(r => ({ user_name: r.user_name, limit_gb: readQuotaGb(r.limit_gb) }));
+    const totalGb = readQuotaGb(val(root, '#qTotal'));
+    const defaultGb = readQuotaGb(val(root, '#qDefault'));
+    if (totalGb == null) throw new Error('请填写总额度（0 表示不限）');
+    if (defaultGb == null) throw new Error('请填写每人额度（0 表示不限）');
     if (enabled) {
         if (total && !(totalGb > 0 || users.some(u => u.limit_gb > 0))) {
             throw new Error('启用达量停播前，请设置总额度，或给某个用户设置额度');
@@ -331,9 +344,8 @@ export async function saveOwnQuota(instanceName, userName, raw) {
     const text = String(raw ?? '').trim();
     let limit = null;
     if (text !== '') {
-        limit = Number(text);
-        if (!Number.isFinite(limit) || limit < 0) throw new Error('请填写额度（0 表示不限）');
-        limit = Math.round(limit * 100) / 100;
+        limit = readQuotaGb(text);
+        if (limit == null) throw new Error('请填写额度（0 表示不限）');
     }
     const got = await api.get(`/api/emby/config/instances/${enc(instanceName)}`);
     const inst = got.data || {};

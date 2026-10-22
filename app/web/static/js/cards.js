@@ -210,11 +210,11 @@ function quotaRow(u) {
     const editor = editing ? `<div class="qd-edit">
             <div class="qd-edit-row">
                 <span class="k">独立额度</span>
-                <div class="inp"><input type="number" min="0" step="any" inputmode="decimal" data-quota-gb value="${esc(state.quotaDraft ?? '')}" placeholder="留空则取消"><span class="suf">GB</span></div>
+                <div class="inp"><input type="number" min="0" step="0.1" inputmode="decimal" data-quota-gb value="${esc(state.quotaDraft ?? '')}" placeholder="留空则取消"><span class="suf">GB</span></div>
                 <button type="button" class="qd-save" data-quota-save>保存</button>
                 <button type="button" class="qd-cancel" data-quota-cancel>取消</button>
             </div>
-            <small class="qd-hint">0 表示不限，留空则取消独立额度</small>
+            <small class="qd-hint">0 表示不限，最小单位 0.1，留空则取消独立额度</small>
             ${state.quotaEditErr ? `<small class="qd-err">${esc(state.quotaEditErr)}</small>` : ''}
         </div>` : '';
     return `<article class="qd-row${over ? ' over' : ''}${editing ? ' editing' : ''}">

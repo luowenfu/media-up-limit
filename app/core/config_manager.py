@@ -1394,7 +1394,10 @@ def normalize_user_quota(raw, *, strict: bool = False) -> dict:
             if strict:
                 raise ValueError(f'{label}不能小于 0')
             return 0.0
-        return value
+        stepped = round(value * 10) / 10
+        if strict and abs(value - stepped) > 1e-4:
+            raise ValueError('额度最小单位是 0.1 GB')
+        return stepped
 
     default_gb = _gb('default_limit_gb', '每人额度')
     total_gb = _gb('total_limit_gb', '总额度')
@@ -1422,13 +1425,17 @@ def normalize_user_quota(raw, *, strict: bool = False) -> dict:
             if strict:
                 raise ValueError(f'请填写用户「{name}」的额度（GB 数，0 表示不限）')
             continue
+        stepped = round(limit_gb * 10) / 10
+        if strict and abs(limit_gb - stepped) > 1e-4:
+            raise ValueError('额度最小单位是 0.1 GB')
+        limit_gb = stepped
         fold = name.casefold()
         if fold in seen:
             if strict:
                 raise ValueError(f'用户「{name}」重复，请合并为一行')
             continue
         seen.add(fold)
-        users.append({'user_name': name, 'limit_gb': round(limit_gb, 2)})
+        users.append({'user_name': name, 'limit_gb': round(limit_gb, 1)})
     enabled = bool(raw.get('enabled', False))
     if strict and enabled:
         if mode == 'total' and not (total_gb > 0 or any(u['limit_gb'] > 0 for u in users)):
@@ -1441,9 +1448,9 @@ def normalize_user_quota(raw, *, strict: bool = False) -> dict:
         'cycle': cycle,
         'message_text': message_text,
         'mode': mode,
-        'total_limit_gb': round(total_gb, 2),
+        'total_limit_gb': round(total_gb, 1),
         'all_users': all_users,
-        'default_limit_gb': round(default_gb, 2),
+        'default_limit_gb': round(default_gb, 1),
         'users': users,
     }
 
