@@ -88,7 +88,7 @@ export const planHtml = o => {
     <div class="f-grid">
         ${fld('周期类型', segF(['按月', '按周', '按天'], label, 'data-cyc'), { full: true })}
         <div class="anchor">${anchorHtml(label, c.reset_anchor)}</div>
-        ${fld('周期恢复后限速至', inp({ val: c.reset_limit_kbps || 0, type: 'number', suf: 'KB/s', attr: 'data-reset min="0" step="1"' }), { hint: '0 表示不限速' })}
+        ${fld('周期恢复后限速至', inp({ val: c.reset_limit_kbps || 0, type: 'number', suf: 'KB/s', attr: 'data-reset min="0" step="1"' }), { hint: '0 表示不限速，最小单位 1 KB/s' })}
     </div>
     <div class="rules-head"><b>规则</b><small>周期内上传达到阈值后，按对应速度限速</small></div>
     ${o.next ? '' : `<div class="scale" data-used="${o.used || 0}">${scaleHtml(rules.map(r => +r.th || 0), o.used)}</div>`}

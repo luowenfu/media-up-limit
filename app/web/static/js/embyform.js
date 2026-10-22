@@ -226,7 +226,7 @@ function quotaPane(cfg, users) {
                     </div>
                 </div>
                 <div class="rule-rows" id="qRows">${rows}</div>
-                <div class="hint-t">例如管理员</div>
+                <div class="hint-t">最小单位 0.1 GB，例如管理员</div>
             </div>`);
 }
 

@@ -112,7 +112,7 @@ function systemPane(g) {
         + fs('play', 'Emby 监控', '', `<div class="sw-list">
         ${swRow({ t: '开启 Emby 监控功能', d: locked ? '已存在 Emby 设备，需先删除全部 Emby 设备才能关闭' : '开启后可添加 Emby 设备，按用户统计播放与选片流量', on: g.emby_enabled, disabled: locked, name: 'emby' })}
     </div>
-    <div style="margin-top:12px">${fld('选片流量记录下限', inp({ id: 'sBrowse', val: g.emby_browse_upload_min_mb, type: 'number', suf: 'MB', attr: 'min="0" max="100" step="1"' }), { hint: '0 表示不设下限。单次选片上传不足该值时不记入统计与日志' })}</div>`);
+    <div style="margin-top:12px">${fld('选片流量记录下限', inp({ id: 'sBrowse', val: g.emby_browse_upload_min_mb, type: 'number', suf: 'MB', attr: 'min="0" max="100" step="1"' }), { hint: '0 表示不设下限，最小单位 1 MB。单次选片上传不足该值时不记入统计与日志' })}</div>`);
 }
 
 function viewDefaults(g) {
