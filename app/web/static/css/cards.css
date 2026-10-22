@@ -151,7 +151,6 @@
 .tile-v span::before { content: ""; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; }
 .tile-v .u::before { border-bottom: 5px solid var(--qb-2); }
 .tile-v .d::before { border-top: 5px solid var(--emby-2); }
-.tiles-note { margin-top: 8px; text-align: center; font-size: 11.5px; color: var(--text-3); }
 .sec-title { white-space: nowrap; }
 .sec-title .more.lg { flex-shrink: 0; gap: 12px; }
 .lg-btn {

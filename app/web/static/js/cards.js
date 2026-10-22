@@ -295,14 +295,12 @@ export function embyCard(d, i, ord) {
             <div class="dev-col">
                 ${liveBoxes(d, key)}
                 <div class="kv">
-                    <div class="kv-row">${I.play}<span class="k">当前播放</span><span class="v">${esc(d.playing)}</span></div>
                     <div class="kv-row">${ico('user', 16)}<span class="k">达量用户数</span><span class="v kv-over">${esc(d.quotaOver)}${see}</span></div>
                     <div class="kv-row">${I.cal}<span class="k">当前周期</span><span class="v num">${esc(d.quotaCycle)}</span></div>
                     <div class="kv-row">${I.loop}<span class="k">周期计划</span><span class="v">${esc(d.quotaPlan)}</span></div>
                 </div>
                 <h4 class="sec-title">${I.wave}流量统计${legend(key)}</h4>
                 ${tiles(d.traffic, key)}
-                <div class="tiles-note">按用户统计外网流量</div>
             </div>
             <div class="dev-col" style="display:flex;flex-direction:column">
                 <h4 class="sec-title">${I.play}当前播放会话
