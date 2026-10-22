@@ -206,19 +206,18 @@ function quotaPane(cfg, users) {
             </div>
         </div>`)
         + fs('sum', '额度设置', '', `${segF(['按总额度', '按用户'], isTotal ? '按总额度' : '按用户', 'data-qmode')}
-            <div class="sub-panel" id="qTotalPane" style="${isTotal ? '' : 'display:none'}">
-                <div class="sw-list"><div class="sw-row">
-                    <div class="t"><b>总额度</b><small>所有用户合计达到后，没单独设置的都会停播</small></div>
-                    <div class="inp" style="flex:0 0 150px"><input id="qTotal" type="number" min="0" step="any" value="${esc(qt.total_limit_gb > 0 ? qt.total_limit_gb : '')}" placeholder="所有用户合计"><span class="suf">GB</span></div>
-                </div></div>
-            </div>
-            <div class="sub-panel" id="qUserPane" style="${isTotal ? 'display:none' : ''}">
-                <div class="sw-list"><div class="sw-row">
-                    <div class="t"><b>全部用户</b><small>每位用户各自累计，用同一个额度</small></div>
-                    <div class="inp" id="qDefaultBox" style="flex:0 0 150px"><input id="qDefault" type="number" min="0" step="any" value="${esc(qt.default_limit_gb > 0 ? qt.default_limit_gb : '')}" placeholder="每人额度"><span class="suf">GB</span></div>
-                </div></div>
-            </div>
-            <div id="qList">
+            <div class="q-set">
+                <div class="sw-row">
+                    <div class="t">
+                        <b id="qDefTitle">${isTotal ? '总额度' : '全部用户'}</b>
+                        <small id="qDefSub">${isTotal ? '所有用户合计达到后，没单独设置的都会停播' : '每位用户各自累计，用同一个额度'}</small>
+                    </div>
+                    <div class="q-def-inps">
+                        <div class="inp" id="qTotalBox" style="${isTotal ? '' : 'display:none'}"><input id="qTotal" type="number" min="0" step="any" value="${esc(qt.total_limit_gb > 0 ? qt.total_limit_gb : '')}" placeholder="所有用户合计"><span class="suf">GB</span></div>
+                        <div class="inp" id="qDefaultBox" style="${isTotal ? 'display:none' : ''}"><input id="qDefault" type="number" min="0" step="any" value="${esc(qt.default_limit_gb > 0 ? qt.default_limit_gb : '')}" placeholder="每人额度"><span class="suf">GB</span></div>
+                        <span class="q-x-slot" aria-hidden="true"></span>
+                    </div>
+                </div>
                 <div class="line-open"></div>
                 <div class="q-head">
                     <div class="t">
@@ -232,14 +231,21 @@ function quotaPane(cfg, users) {
             <div class="hint-t">1 GB = 1000 MB。用量归属可能有些误差，额度请留余量；选片流量是否计入见「流量采集」</div>`);
 }
 
-/** 按当前选择显示 / 收起额度规则的各块 */
+/** 切换额度方式时，只换第一行的标题、说明和输入框，已填的数留着 */
 export function refreshQuotaView(root = document.getElementById('sheet')) {
     if (!root || !root.querySelector('#quotaPlan')) return;
     const total = root.querySelector('[data-qmode].on')?.dataset.qmode === '按总额度';
-    const show = (sel_, on) => { root.querySelector(sel_).style.display = on ? '' : 'none'; };
-    show('#qTotalPane', total);
-    show('#qUserPane', !total);
+    const title = root.querySelector('#qDefTitle');
+    const desc = root.querySelector('#qDefSub');
+    const totalBox = root.querySelector('#qTotalBox');
+    const defaultBox = root.querySelector('#qDefaultBox');
     const sub = root.querySelector('#qOwnSub');
+    if (title) title.textContent = total ? '总额度' : '全部用户';
+    if (desc) desc.textContent = total
+        ? '所有用户合计达到后，没单独设置的都会停播'
+        : '每位用户各自累计，用同一个额度';
+    if (totalBox) totalBox.style.display = total ? '' : 'none';
+    if (defaultBox) defaultBox.style.display = total ? 'none' : '';
     if (sub) sub.textContent = total ? '优先级高于总额度' : '优先级高于全部用户';
 }
 

@@ -65,6 +65,10 @@
 .f-grid .full { grid-column: 1 / -1; min-width: 0; }
 .f-grid.c3 { grid-template-columns: 1.2fr 1fr 1fr; }
 .fl { display: flex; align-items: center; gap: 4px; margin-bottom: 7px; font-size: 12.5px; font-weight: 650; color: var(--text-1); }
+.q-set { margin-top: 14px; }
+.q-def-inps { display: flex; align-items: center; gap: 8px; flex: none; }
+.q-def-inps .inp { flex: 0 0 150px; }
+.q-x-slot { width: 36px; flex: none; }
 .q-head { padding: 12px 0 7px; }
 .q-head .q-title { display: flex; align-items: center; gap: 4px; }
 .q-head .t b { display: block; font-size: 13.5px; font-weight: 650; color: var(--text); }
