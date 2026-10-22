@@ -107,7 +107,7 @@ function formControl(t) {
         if (t.dataset.qmode) refreshQuotaView();
         return true;
     }
-    if (t.matches('.switch')) {
+    if (t.matches('.switch') && !t.closest('[data-lucky]')) {
         t.classList.toggle('on');
         const name = t.dataset.sw;
         const dep = name && t.closest('.sw-list').querySelector(`[data-dep="${name}"]`);
@@ -117,14 +117,15 @@ function formControl(t) {
         }
         return true;
     }
-    if (t.hasAttribute('data-rule-add') && !t.closest('.plan')) { addLuckyRuleRow(); return true; }
-    if (t.hasAttribute('data-rule-del')) { removeLuckyRuleRow(t); return true; }
+    if (t.hasAttribute('data-lucky-add')) { addLuckyRuleRow(); return true; }
+    if (t.hasAttribute('data-lucky-del')) { removeLuckyRuleRow(t); return true; }
     if (t.hasAttribute('data-quota-add')) { addQuotaRow(); return true; }
     if (t.hasAttribute('data-quota-del')) { removeQuotaRow(t); return true; }
-    if (t.matches('[data-lucky]')) {
-        const on = !t.classList.contains('on');
-        t.classList.toggle('on', on);
-        t.querySelector('.switch').classList.toggle('on', on);
+    const lucky = t.closest('[data-lucky]');
+    if (lucky) {
+        const on = !lucky.classList.contains('on');
+        lucky.classList.toggle('on', on);
+        lucky.querySelector('.switch').classList.toggle('on', on);
         $('#luckyOn').style.display = on ? '' : 'none';
         $('#luckyOff').style.display = on ? 'none' : '';
         return true;

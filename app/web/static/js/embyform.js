@@ -55,7 +55,7 @@ function ruleOptions(cands, selectedIdx, keepLabel) {
 
 function ruleRow(cands, selectedIdx, keepLabel) {
     const keep = keepLabel ? ` data-keep="${esc(keepLabel)}"` : '';
-    return `<div class="rule-row"><div class="inp"><select data-rule${keep}>${ruleOptions(cands, selectedIdx, keepLabel)}</select></div><button type="button" class="rule-x" data-rule-del aria-label="移除这条反代">${ico('x', 14)}</button></div>`;
+    return `<div class="rule-row"><div class="inp"><select data-rule${keep}>${ruleOptions(cands, selectedIdx, keepLabel)}</select></div><button type="button" class="rule-x" data-lucky-del aria-label="移除这条反代">${ico('x', 14)}</button></div>`;
 }
 
 function luckyPane(cfg) {
@@ -79,7 +79,7 @@ function luckyPane(cfg) {
                     ${swRow({ t: '验证 SSL 证书', d: '自签名证书请保持关闭', dep: 'lhttps', disabled: !lk.https, on: lk.https && cfg.lucky_verify_ssl })}
                 </div></div>
                 <div class="full">
-                    <div class="fl">反代规则<span class="req">*</span><button type="button" class="rule-add" data-rule-add aria-label="添加反代规则">${ico('plus', 14)}</button></div>
+                    <div class="fl">反代规则<span class="req">*</span><button type="button" class="rule-add" data-lucky-add aria-label="添加反代规则">${ico('plus', 14)}</button></div>
                     <div class="rule-rows" id="lRules">${rows}</div>
                     <div class="hint-t">连通性测试会自动加入指向这台 Emby 的反代。点 + 可以再加一条，每条单独选择</div>
                 </div>
