@@ -15,6 +15,7 @@ import {
 } from './store.js';
 import { $, $$, isPad, isPhone } from './ui.js';
 import { ensureSidebar } from './theme.js';
+import { toTopMark, toTopStick } from './totop.js';
 
 export const NAMES = { qb: 'qBittorrent', emby: 'Emby', merge: '合并视图' };
 const TITLES = { merge: '合并视图', qb: 'qBittorrent', emby: 'Emby', syslogs: '系统日志' };
@@ -518,27 +519,33 @@ function paint(list) {
     });
 }
 
-function holdScroll(y) {
+/** 重绘后拉回原滚动位置。点过回到顶部就留在顶上，不要拉回旧位置。 */
+function holdScroll(y, mark) {
     if (y == null) return;
-    const back = () => window.scrollTo(0, y);
+    const top = mark !== toTopMark();
+    if (top && !toTopStick()) return;
+    const back = () => {
+        if (top ? toTopStick() : mark === toTopMark()) window.scrollTo(0, top ? 0 : y);
+    };
     back();
     requestAnimationFrame(() => { back(); requestAnimationFrame(back); });
 }
 
 export async function render({ soft = false } = {}) {
     const mine = ++seq;
+    const mark = toTopMark();
     const y = layoutKey() === lastLayout ? window.scrollY : null;
     fixRoute();
     renderChrome();
     const list = parts(soft);
     paint(list);
-    holdScroll(y);
+    holdScroll(y, mark);
     const pending = list.filter(p => p.load);
     if (pending.length) {
         const done = await Promise.all(pending.map(p => p.load()));
         if (mine !== seq) return;
         paint(list.map(p => (p.load ? { id: p.id, html: done[pending.indexOf(p)] } : { id: p.id })));
-        holdScroll(y);
+        holdScroll(y, mark);
     }
     if (mine !== seq) return;
     bindChart(state.view === 'emby' ? 'emby' : 'qb');

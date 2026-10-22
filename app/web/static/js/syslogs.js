@@ -6,6 +6,7 @@ import { I } from './icons.js';
 import { esc, ymd } from './format.js';
 import { state } from './store.js';
 import { toast } from './ui.js';
+import { toTopMark, toTopStick } from './totop.js';
 
 const LV = { DEBUG: 'DEBUG', INFO: 'INFO', WARNING: 'WARN', WARN: 'WARN', ERROR: 'ERROR', CRITICAL: 'ERROR' };
 const SRC_NAME = { sys: '系统', qb: 'qB', emby: 'Emby' };
@@ -149,6 +150,7 @@ export async function loadMoreLogs() {
     if (!logState.hasMore || logState.loading) return;
     logState.loading = true;
     const y = window.scrollY;
+    const mark = toTopMark();
     const btn = document.querySelector('[data-log-more]');
     if (btn) { btn.disabled = true; btn.textContent = '加载中…'; }
     try {
@@ -160,7 +162,8 @@ export async function loadMoreLogs() {
         updateLogMeta();
         const more = document.querySelector('[data-log-more]');
         if (more) { more.disabled = false; more.textContent = '加载更多'; }
-        window.scrollTo(0, y);
+        if (mark === toTopMark()) window.scrollTo(0, y);
+        else if (toTopStick()) window.scrollTo(0, 0);
     } catch (e) {
         toast(e.message || '加载失败', 'err');
         if (btn && btn.isConnected) { btn.disabled = false; btn.textContent = '加载更多'; }
@@ -172,6 +175,7 @@ export async function loadMoreLogs() {
 /** 后台刷新只把新日志接到最前面；人已经往下滚动时，眼前的内容不挪动 */
 export async function syncLogs() {
     if (logState.loading || !document.querySelector('#logList')) return;
+    const mark = toTopMark();
     const page = await fetchPage(0, state.logSrc);
     if (!page.raw.length) { logState.hasMore = false; updateLogMeta(); return; }
     const anchor = logState.anchor;
@@ -195,7 +199,8 @@ export async function syncLogs() {
     }
     updateLogMeta();
     const h1 = logs ? logs.offsetHeight : h0;
-    window.scrollTo(0, y > 0 ? y + Math.max(0, h1 - h0) : 0);
+    if (mark === toTopMark()) window.scrollTo(0, y > 0 ? y + Math.max(0, h1 - h0) : 0);
+    else if (toTopStick()) window.scrollTo(0, 0);
 }
 
 export function filterLogs(lv, query) {
