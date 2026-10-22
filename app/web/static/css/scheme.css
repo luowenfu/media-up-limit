@@ -16,11 +16,15 @@ html[data-scheme="dark"] {
     --emby: #34d399;
     --emby-2: #6ee7b7;
     --emby-soft: rgba(16, 185, 129, .18);
+    /* 选中块和打开的开关用实色，浅色字在上面才看得清 */
+    --accent-on: #2563eb;
     --merge-soft: #1e293b;
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, .35);
     --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 28px -12px rgba(0, 0, 0, .65);
     --shadow-lg: 0 24px 50px -18px rgba(0, 0, 0, .7);
 }
+html[data-scheme="dark"] body[data-theme="emby"] { --accent-on: #059669; }
+html[data-scheme="dark"] body[data-theme="merge"] { --accent-on: #64748b; }
 html[data-scheme="dark"],
 html[data-scheme="dark"] body { background-color: var(--bg); }
 
@@ -93,7 +97,13 @@ html[data-scheme="dark"] .fs {
     background: #1b2436;
     color: var(--text-1);
 }
-html[data-scheme="dark"] .def-row .seg-f button.on { background: #334155; color: #f8fafc; }
+html[data-scheme="dark"] .seg-f button.on,
+html[data-scheme="dark"] .tabs button.on,
+html[data-scheme="dark"] .toggle span.on,
+html[data-scheme="dark"] .def-row .seg-f button.on {
+    background: var(--sheet-accent, var(--accent-on));
+    color: #fff;
+}
 html[data-scheme="dark"] .dev-col + .dev-col { background: #101826; }
 html[data-scheme="dark"] .rule.hit { background: #2a1518; border-color: #7f1d1d; }
 html[data-scheme="dark"] .rule.cur {
@@ -266,6 +276,7 @@ html[data-scheme="dark"] .me-drag:hover,
 html[data-scheme="dark"] .me-t .eye-btn:hover,
 html[data-scheme="dark"] .me-t .eye-btn.on { background: #243044; color: var(--text-1); }
 html[data-scheme="dark"] .switch { background: #334155; }
+html[data-scheme="dark"] .switch.on { background: var(--sheet-accent, var(--accent-on)); }
 html[data-scheme="dark"] .btn:not(.primary):not(.danger):not(.warn):hover { background: #243044; border-color: #3b4c66; }
 html[data-scheme="dark"] .nav-dot.off { background: #475569; }
 html[data-scheme="dark"] .lg-btn.off::before { border-bottom-color: #475569; border-top-color: #475569; }
