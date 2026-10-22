@@ -8,9 +8,12 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from datetime import datetime
 from typing import Callable, Dict, Optional
 
+import qb.traffic_db as traffic_db
 from emby.client import REMOTE_CONTROL_CLOSED_ERROR
+from emby.quota.message import render_quota_message
 from emby.quota.usage import (
     GB as _GB, cycle_total_bytes, cycle_used_bytes, has_any_limit, is_total_mode, user_limit_gb,
 )
@@ -21,7 +24,6 @@ logger = logging.getLogger(__name__)
 MESSAGE_DELAY_SECONDS = 3.0
 STOP_DELAY_SECONDS = 5.0
 MESSAGE_HEADER = '达量停播'
-MESSAGE_TEXT = '本周期上行流量已达额度，播放将在 5 秒后停止'
 MESSAGE_TIMEOUT_MS = 5000
 # 会话短暂从列表消失后再出现，不当作新一次开播
 ABSENT_GRACE_SECONDS = 30.0
@@ -172,7 +174,9 @@ class QuotaEnforcer:
         logger.info(f'[Emby:{self.instance_name}] 达量停播：{detail}，已排期提示并停止')
         entry['stage'] = _PENDING
         entry['detail'] = detail
-        entry['text'] = str(quota.get('message_text') or '').strip() or MESSAGE_TEXT
+        entry['text'] = render_quota_message(
+            quota, datetime.now(traffic_db.get_config_timezone()),
+        )
         return entry
 
     def _advance(self, client, now: float) -> None:
@@ -187,7 +191,7 @@ class QuotaEnforcer:
 
     def _send_message(self, client, key: str, entry: dict) -> None:
         result = client.send_session_message(
-            entry['sid'], entry.get('text') or MESSAGE_TEXT,
+            entry['sid'], entry.get('text') or '',
             header=MESSAGE_HEADER, timeout_ms=MESSAGE_TIMEOUT_MS,
         )
         if result.get('ok'):

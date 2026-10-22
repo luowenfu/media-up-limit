@@ -93,12 +93,71 @@ function luckyPane(cfg) {
 const CYC_LABEL = { month: '按月', week: '按周', day: '按天' };
 const QUOTA_MSG_MAX = 60;
 const QUOTA_MSG_CUSTOM = '__custom__';
-// 预设提示文案（值即发送的文字）
-const QUOTA_MSG_PRESETS = [
-    '本周期上行流量已达额度，播放将在 5 秒后停止',
-    '流量额度已用完，5 秒后将停止播放，请下个周期再看',
-    '服务器流量已达上限，播放即将停止',
-].map(t => [t, t]);
+const WEEK_LABEL = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+// 模板要和 emby/quota/message.py 的 PRESETS 一致，{when} 在发送时按周期重算
+const QUOTA_PRESETS = [
+    ['preset:1', '本周期流量已用完，{when}恢复，播放将在 5 秒后停止'],
+    ['preset:2', '流量额度已用完，5 秒后停止播放，请{when}再看'],
+    ['preset:3', '服务器流量已达上限，请{when}再看'],
+];
+const OLD_QUOTA_PRESETS = {
+    '本周期上行流量已达额度，播放将在 5 秒后停止': 'preset:1',
+    '流量额度已用完，5 秒后将停止播放，请下个周期再看': 'preset:2',
+    '服务器流量已达上限，播放即将停止': 'preset:3',
+};
+
+function sameIsoWeek(a, b) {
+    const key = d => {
+        const utc = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        const day = utc.getUTCDay() || 7;
+        utc.setUTCDate(utc.getUTCDate() + 4 - day);
+        const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+        const week = Math.ceil((((utc - yearStart) / 86400000) + 1) / 7);
+        return `${utc.getUTCFullYear()}-${week}`;
+    };
+    return key(a) === key(b);
+}
+
+/** 下一周期起点。口径同 core.cycle.format_resume_when */
+function resumeWhen(cycle, now = new Date()) {
+    const type = cycle.type || 'month';
+    let anchor = parseInt(cycle.reset_anchor, 10);
+    if (type === 'week') anchor = Math.min(7, Math.max(1, anchor || 1));
+    else if (type === 'day') anchor = Math.min(23, Math.max(0, Number.isNaN(anchor) ? 0 : anchor));
+    else anchor = Math.min(28, Math.max(1, anchor || 1));
+    const end = nextCycleStart(now, type, anchor);
+    if (type === 'day') {
+        const today = end.getFullYear() === now.getFullYear()
+            && end.getMonth() === now.getMonth() && end.getDate() === now.getDate();
+        return `${today ? '今日' : '明日'}${end.getHours()}点`;
+    }
+    if (type === 'week') return `${sameIsoWeek(now, end) ? '本' : '下'}${WEEK_LABEL[anchor - 1]}`;
+    const thisMonth = end.getFullYear() === now.getFullYear() && end.getMonth() === now.getMonth();
+    return `${thisMonth ? '本月' : '下月'}${end.getDate()}日`;
+}
+
+function nextCycleStart(now, type, anchor) {
+    if (type === 'month') {
+        let y = now.getFullYear();
+        let m = now.getMonth();
+        if (now.getDate() < anchor) {
+            m -= 1;
+            if (m < 0) { m = 11; y -= 1; }
+        }
+        const end = new Date(y, m + 1, anchor);
+        return end;
+    }
+    if (type === 'week') {
+        const wd = (now.getDay() + 6) % 7;
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((wd - (anchor - 1) + 7) % 7));
+        return new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7);
+    }
+    const candidate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), anchor);
+    const start = now >= candidate
+        ? candidate
+        : new Date(candidate.getFullYear(), candidate.getMonth(), candidate.getDate() - 1, anchor);
+    return new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1, anchor);
+}
 
 function quotaUserOptions(users, current) {
     const names = [...users];
@@ -124,8 +183,11 @@ function quotaPane(cfg, users) {
     const isTotal = qt.mode === 'total';
     const allUsers = qt.all_users === true || (qt.all_users === undefined && qt.default_limit_gb > 0);
     const msgText = String(qt.message_text || '');
-    const preset = QUOTA_MSG_PRESETS.find(([v]) => v === msgText);
-    const msgSel = !msgText ? QUOTA_MSG_PRESETS[0][0] : preset ? preset[0] : QUOTA_MSG_CUSTOM;
+    const stored = OLD_QUOTA_PRESETS[msgText] || msgText;
+    const msgSel = QUOTA_PRESETS.some(([id]) => id === stored) || !stored ? (stored || 'preset:1') : QUOTA_MSG_CUSTOM;
+    const msgOptions = QUOTA_PRESETS
+        .map(([id, tpl]) => [id, tpl.replaceAll('{when}', resumeWhen(cyc))])
+        .concat([[QUOTA_MSG_CUSTOM, '自定义']]);
     return notice('', '<b>达量停播：</b>额度用完后再开始播放，3 秒后收到提示，再过 5 秒被停止。需要开启「流量采集」里的 Lucky 反代模式，局域网播放不受影响')
         + fs('shield', '达量停播', '', `<div class="sw-list">
             ${swRow({ t: '启用达量停播', d: '额度用完后，再开播的用户会被停播', on: !!qt.enabled, name: 'qEnable' })}
@@ -136,7 +198,7 @@ function quotaPane(cfg, users) {
             <div class="anchor">${anchorHtml(label, cyc.reset_anchor)}</div>
         </div></div>
         <div class="f-grid q-msg">
-            ${fld('提示文案', sel(QUOTA_MSG_PRESETS.concat([[QUOTA_MSG_CUSTOM, '自定义']]), msgSel, 'qMsgSel'), { full: true, hint: '开播后发给用户的消息' })}
+            ${fld('提示文案', sel(msgOptions, msgSel, 'qMsgSel'), { full: true, hint: '按当前周期算出恢复时间。按天为今日或明日几点，按周为本周或下周几，按月为本月或下月几日' })}
             <div class="full" id="qMsgBox" style="${msgSel === QUOTA_MSG_CUSTOM ? '' : 'display:none'}">
                 ${inp({ id: 'qMsgText', val: msgSel === QUOTA_MSG_CUSTOM ? msgText : '', ph: `最多 ${QUOTA_MSG_MAX} 个字` })}
             </div>
@@ -173,6 +235,18 @@ export function refreshQuotaView(root = document.getElementById('sheet')) {
     show('#qList', !all);
 }
 
+/** 周期类型或恢复日变了，下拉里的三句通用文案跟着换恢复时间 */
+export function refreshQuotaMessages(root = document.getElementById('sheet')) {
+    const select = root?.querySelector('#qMsgSel');
+    const plan = root?.querySelector('#quotaPlan');
+    if (!select || !plan) return;
+    const when = resumeWhen(readPlan(plan).cycle);
+    for (const opt of select.options) {
+        const preset = QUOTA_PRESETS.find(([id]) => id === opt.value);
+        if (preset) opt.textContent = preset[1].replaceAll('{when}', when);
+    }
+}
+
 /** 提示文案下拉变化：选「自定义」时显示输入框 */
 export function onQuotaMsgChange(select) {
     const box = select.closest('#sheet')?.querySelector('#qMsgBox');
@@ -207,7 +281,7 @@ function readQuota(root) {
     const sel_ = val(root, '#qMsgSel');
     const message = sel_ === QUOTA_MSG_CUSTOM ? val(root, '#qMsgText') : sel_;
     if (sel_ === QUOTA_MSG_CUSTOM && !message) throw new Error('请填写自定义提示文案');
-    if (message.length > QUOTA_MSG_MAX) throw new Error(`提示文案最多 ${QUOTA_MSG_MAX} 个字`);
+    if (sel_ === QUOTA_MSG_CUSTOM && message.length > QUOTA_MSG_MAX) throw new Error(`提示文案最多 ${QUOTA_MSG_MAX} 个字`);
     return {
         enabled,
         dry_run: isOn(root, '[data-sw="qDry"]'),

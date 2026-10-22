@@ -10,6 +10,7 @@ import logging
 
 from core.cycle import migrate_legacy_cycle, CYCLE_TYPES
 import core.secrets_store as secrets_store
+from emby.quota.message import PRESET_KEYS, normalize_message_choice
 from emby.lucky.api import (
     migrate_estimate_upload_flag,
     normalize_lucky_base_url,
@@ -1399,8 +1400,8 @@ def normalize_user_quota(raw, *, strict: bool = False) -> dict:
     mode = 'total' if raw.get('mode') == 'total' else 'user'
     # 旧配置没有 all_users：有「全部用户」额度就当作打开
     all_users = bool(raw.get('all_users', default_gb > 0))
-    message_text = str(raw.get('message_text') or '').strip()
-    if len(message_text) > QUOTA_MESSAGE_MAX:
+    message_text = normalize_message_choice(raw.get('message_text'))
+    if message_text not in PRESET_KEYS and len(message_text) > QUOTA_MESSAGE_MAX:
         if strict:
             raise ValueError(f'提示文案最多 {QUOTA_MESSAGE_MAX} 个字')
         message_text = message_text[:QUOTA_MESSAGE_MAX]

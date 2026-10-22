@@ -244,3 +244,20 @@ def get_next_cycle_switch_at(now: datetime, cycle: dict) -> datetime:
 
 def format_next_cycle_switch_label(now: datetime, cycle: dict) -> str:
     return get_next_cycle_switch_at(now, cycle).strftime('%Y-%m-%d %H:%M:%S')
+
+
+def format_resume_when(now: datetime, cycle: dict) -> str:
+    """下一周期起点的口语说法，用于达量停播提示。
+
+    按天：今日8点、明日0点。按周：本周五、下周一。按月：本月28日、下月1日。
+    """
+    cfg = _normalize_cycle(cycle)
+    end = get_next_cycle_switch_at(now, cfg)
+    if cfg['type'] == 'day':
+        day = '今日' if end.date() == now.date() else '明日'
+        return f'{day}{end.hour}点'
+    if cfg['type'] == 'week':
+        same_week = end.isocalendar()[:2] == now.isocalendar()[:2]
+        return ('本' if same_week else '下') + WEEKDAY_LABELS[cfg['reset_anchor']]
+    same_month = end.year == now.year and end.month == now.month
+    return f"{'本月' if same_month else '下月'}{end.day}日"

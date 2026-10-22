@@ -8,7 +8,7 @@ import { deviceUrl } from './adapt.js';
 import { state, qbByName, embyByName } from './store.js';
 import { openQbForm } from './qbform.js';
 import {
-    addLuckyRuleRow, addQuotaRow, onQuotaMsgChange, openEmbyForm, refreshQuotaView,
+    addLuckyRuleRow, addQuotaRow, onQuotaMsgChange, openEmbyForm, refreshQuotaMessages, refreshQuotaView,
     removeLuckyRuleRow, removeQuotaRow,
 } from './embyform.js';
 import { refreshScale, ruleRow, switchCycleType } from './plan.js';
@@ -100,7 +100,10 @@ function formControl(t) {
             const hint = $('#msgStyleHint');
             if (hint) hint.textContent = t.dataset.msgStyle === 'dialog' ? '持续显示，用户需自行关闭' : '短暂显示，3秒后自动消失';
         }
-        if (t.dataset.cyc) switchCycleType(t.closest('.plan'), prevCyc, t.dataset.cyc);
+        if (t.dataset.cyc) {
+            switchCycleType(t.closest('.plan'), prevCyc, t.dataset.cyc);
+            if (t.closest('#quotaPlan')) refreshQuotaMessages();
+        }
         if (t.dataset.qmode) refreshQuotaView();
         return true;
     }
@@ -216,10 +219,12 @@ export function uiClick(t, e, ctx) {
 /** 输入联动：手动限速按钮可用性、规则刻度预览 */
 export function uiChange(t) {
     if (t.id === 'qMsgSel') onQuotaMsgChange(t);
+    if (t.dataset.anchor && t.closest('#quotaPlan')) refreshQuotaMessages();
 }
 
 export function uiInput(e) {
     const t = e.target;
     if (t.id === 'limInp') refreshLimit();
     if (t.dataset.f === 'th') refreshScale(t.closest('.plan'));
+    if (t.dataset.anchor && t.closest('#quotaPlan')) refreshQuotaMessages();
 }
