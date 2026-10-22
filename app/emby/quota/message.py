@@ -32,10 +32,10 @@ def normalize_message_choice(raw) -> str:
 
 
 def render_quota_message(quota: dict, now: datetime) -> str:
-    """发出去的那一句。预设填上 now 对应的恢复时间，自定义原样返回。"""
+    """发出去的那一句。预设和自定义里的 {when} 都换成 now 对应的恢复时间。"""
     text = normalize_message_choice((quota or {}).get('message_text'))
-    template = PRESETS.get(text)
-    if template is None:
-        return text
+    template = PRESETS.get(text, text)
+    if '{when}' not in template:
+        return template
     when = format_resume_when(now, (quota or {}).get('cycle') or {})
-    return template.format(when=when)
+    return template.replace('{when}', when)

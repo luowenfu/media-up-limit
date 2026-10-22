@@ -202,6 +202,7 @@ function quotaPane(cfg, users) {
             ${fld('提示文案', sel(msgOptions, msgSel, 'qMsgSel'), { full: true, hint: '改周期类型或恢复时间，这句会跟着变' })}
             <div class="full" id="qMsgBox" style="${msgSel === QUOTA_MSG_CUSTOM ? '' : 'display:none'}">
                 ${inp({ id: 'qMsgText', val: msgSel === QUOTA_MSG_CUSTOM ? msgText : '', ph: `最多 ${QUOTA_MSG_MAX} 个字` })}
+                <div class="hint-t" id="qMsgHint">写上 {when}，发送时换成${esc(whenNow)}</div>
             </div>
         </div>`)
         + fs('sum', '额度规则', '二选一，额度按本周期外网上行累计', `${segF(['按总额度', '按用户'], isTotal ? '按总额度' : '按用户', 'data-qmode')}
@@ -247,6 +248,8 @@ export function refreshQuotaMessages(root) {
         const preset = QUOTA_PRESETS.find(([id]) => id === opt.value);
         if (preset) opt.text = preset[1].replaceAll('{when}', when);
     }
+    const hint = root.querySelector('#qMsgHint');
+    if (hint) hint.textContent = `写上 {when}，发送时换成${when}`;
 }
 
 /** 提示文案下拉变化：只有「自定义」才显示输入框 */
