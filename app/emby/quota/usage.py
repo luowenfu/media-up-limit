@@ -22,14 +22,23 @@ GB = 1000 ** 3
 _SUMMARY_TTL_SECONDS = 10.0
 
 
-def user_limit_gb(quota: dict, user_name: str) -> float:
-    """按用户模式下该用户适用的额度（GB）。用户独立额度优先，否则用全部用户额度。0 表示不限。"""
-    quota = quota or {}
+def listed_limit_gb(quota: dict, user_name: str) -> Optional[float]:
+    """用户独立额度。没单独列出返回 None，列出则返回额度，0 表示不限。"""
     fold = str(user_name or '').strip().casefold()
-    for row in quota.get('users') or []:
+    if not fold:
+        return None
+    for row in (quota or {}).get('users') or []:
         if str(row.get('user_name') or '').strip().casefold() == fold:
             return max(0.0, float(row.get('limit_gb') or 0))
-    return max(0.0, float(quota.get('default_limit_gb') or 0))
+    return None
+
+
+def user_limit_gb(quota: dict, user_name: str) -> float:
+    """按用户模式下该用户适用的额度（GB）。用户独立额度优先，否则用全部用户额度。0 表示不限。"""
+    own = listed_limit_gb(quota, user_name)
+    if own is not None:
+        return own
+    return max(0.0, float((quota or {}).get('default_limit_gb') or 0))
 
 
 def is_total_mode(quota: dict) -> bool:
@@ -40,7 +49,9 @@ def has_any_limit(quota: dict) -> bool:
     """当前规则下是否设了有效额度。"""
     quota = quota or {}
     if is_total_mode(quota):
-        return float(quota.get('total_limit_gb') or 0) > 0
+        if float(quota.get('total_limit_gb') or 0) > 0:
+            return True
+        return any(float(u.get('limit_gb') or 0) > 0 for u in quota.get('users') or [])
     if float(quota.get('default_limit_gb') or 0) > 0:
         return True
     return any(float(u.get('limit_gb') or 0) > 0 for u in quota.get('users') or [])
@@ -194,6 +205,16 @@ def quota_summary(
             if limit_gb > 0:
                 total = cycle_total_bytes(instance_name, cycle, credit_browse=credit_browse)
                 value['total_reached'] = total >= limit_gb * GB
+            value['has_own_limits'] = bool(quota.get('users'))
+            if value['has_own_limits']:
+                used = cycle_used_by_user(instance_name, cycle, credit_browse=credit_browse)
+                for fold, amount in used.items():
+                    own = listed_limit_gb(quota, fold)
+                    if own is None:
+                        if value['total_reached']:
+                            value['over_count'] += 1
+                    elif own > 0 and amount >= own * GB:
+                        value['over_count'] += 1
         else:
             used = cycle_used_by_user(instance_name, cycle, credit_browse=credit_browse)
             for fold, amount in used.items():

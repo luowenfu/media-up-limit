@@ -207,24 +207,27 @@ function quotaPane(cfg, users) {
         </div>`)
         + fs('sum', '额度设置', '', `${segF(['按总额度', '按用户'], isTotal ? '按总额度' : '按用户', 'data-qmode')}
             <div class="sub-panel" id="qTotalPane" style="${isTotal ? '' : 'display:none'}">
-                ${fld('总额度', inp({ id: 'qTotal', type: 'number', val: qt.total_limit_gb > 0 ? qt.total_limit_gb : '', ph: '所有用户合计', suf: 'GB', attr: 'min="0" step="any"' }), { hint: '所有用户本周期上行合计达到后，之后开播的每个用户都会被停播' })}
+                <div class="sw-list"><div class="sw-row">
+                    <div class="t"><b>总额度</b><small>所有用户合计达到后，没单独设置的都会停播</small></div>
+                    <div class="inp" style="flex:0 0 150px"><input id="qTotal" type="number" min="0" step="any" value="${esc(qt.total_limit_gb > 0 ? qt.total_limit_gb : '')}" placeholder="所有用户合计"><span class="suf">GB</span></div>
+                </div></div>
             </div>
             <div class="sub-panel" id="qUserPane" style="${isTotal ? 'display:none' : ''}">
                 <div class="sw-list"><div class="sw-row">
                     <div class="t"><b>全部用户</b><small>每位用户各自累计，用同一个额度</small></div>
                     <div class="inp" id="qDefaultBox" style="flex:0 0 150px"><input id="qDefault" type="number" min="0" step="any" value="${esc(qt.default_limit_gb > 0 ? qt.default_limit_gb : '')}" placeholder="每人额度"><span class="suf">GB</span></div>
                 </div></div>
-                <div id="qList">
-                    <div class="line-open"></div>
-                    <div class="q-head">
-                        <div class="t">
-                            <div class="q-title"><b>用户独立额度</b><button type="button" class="rule-add" data-quota-add aria-label="添加用户">${ico('plus', 14)}</button></div>
-                            <small>优先级高于全部用户</small>
-                        </div>
+            </div>
+            <div id="qList">
+                <div class="line-open"></div>
+                <div class="q-head">
+                    <div class="t">
+                        <div class="q-title"><b>用户独立额度</b><button type="button" class="rule-add" data-quota-add aria-label="添加用户">${ico('plus', 14)}</button></div>
+                        <small id="qOwnSub">${isTotal ? '优先级高于总额度' : '优先级高于全部用户'}</small>
                     </div>
-                    <div class="rule-rows" id="qRows">${rows}</div>
-                    <div class="hint-t">额度填 0 表示不限，例如管理员</div>
                 </div>
+                <div class="rule-rows" id="qRows">${rows}</div>
+                <div class="hint-t">额度填 0 表示不限，例如管理员</div>
             </div>
             <div class="hint-t">1 GB = 1000 MB。用量归属可能有些误差，额度请留余量；选片流量是否计入见「流量采集」</div>`);
 }
@@ -236,6 +239,8 @@ export function refreshQuotaView(root = document.getElementById('sheet')) {
     const show = (sel_, on) => { root.querySelector(sel_).style.display = on ? '' : 'none'; };
     show('#qTotalPane', total);
     show('#qUserPane', !total);
+    const sub = root.querySelector('#qOwnSub');
+    if (sub) sub.textContent = total ? '优先级高于总额度' : '优先级高于全部用户';
 }
 
 /** 自定义文案下方的提示：变量和当前会换成的时间都带底色 */
@@ -273,19 +278,19 @@ function readQuota(root) {
     })).filter(r => r.user_name || String(r.limit_gb).trim());
     const total = root.querySelector('[data-qmode].on')?.dataset.qmode === '按总额度';
     const enabled = isOn(root, '[data-sw="qEnable"]');
-    if (!total) {
-        rows.forEach(r => {
-            if (!r.user_name) throw new Error('请为每个额度选择用户');
-            if (!(parseFloat(r.limit_gb) >= 0)) throw new Error(`请填写用户「${r.user_name}」的额度（0 表示不限）`);
-        });
-    }
+    rows.forEach(r => {
+        if (!r.user_name) throw new Error('请为每个额度选择用户');
+        if (!(parseFloat(r.limit_gb) >= 0)) throw new Error(`请填写用户「${r.user_name}」的额度（0 表示不限）`);
+    });
     const users = rows
         .filter(r => r.user_name && parseFloat(r.limit_gb) >= 0)
         .map(r => ({ user_name: r.user_name, limit_gb: parseFloat(r.limit_gb) }));
     const totalGb = parseFloat(val(root, '#qTotal')) || 0;
     const defaultGb = parseFloat(val(root, '#qDefault')) || 0;
     if (enabled) {
-        if (total && !(totalGb > 0)) throw new Error('启用达量停播前，请设置总额度');
+        if (total && !(totalGb > 0 || users.some(u => u.limit_gb > 0))) {
+            throw new Error('启用达量停播前，请设置总额度，或给某个用户设置额度');
+        }
         if (!total && !(defaultGb > 0 || users.some(u => u.limit_gb > 0))) {
             throw new Error('启用达量停播前，请设置「全部用户」额度，或给某个用户设置额度');
         }

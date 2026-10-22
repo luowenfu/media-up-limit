@@ -82,8 +82,9 @@ function embyQuotaTexts(d) {
     const q = d.user_quota_status || {};
     if (!q.enabled) return { cycle: '未启用', over: '未启用' };
     const cycle = [q.type_label, q.range_label].filter(Boolean).join(' · ');
-    // 按总额度：达到后所有用户都被停播
-    const over = q.mode === 'total' && q.total_reached ? '全部用户' : `${q.over_count || 0} 人`;
+    // 按总额度且没有用户独立额度时，合计达到后所有用户都被停播
+    const over = q.mode === 'total' && q.total_reached && !q.has_own_limits
+        ? '全部用户' : `${q.over_count || 0} 人`;
     return { cycle, over: `${over}${q.dry_run ? '（只记录）' : ''}` };
 }
 

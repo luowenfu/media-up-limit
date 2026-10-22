@@ -15,7 +15,8 @@ import qb.traffic_db as traffic_db
 from emby.client import REMOTE_CONTROL_CLOSED_ERROR
 from emby.quota.message import render_quota_message
 from emby.quota.usage import (
-    GB as _GB, cycle_total_bytes, cycle_used_bytes, has_any_limit, is_total_mode, user_limit_gb,
+    GB as _GB, cycle_total_bytes, cycle_used_bytes, has_any_limit, is_total_mode,
+    listed_limit_gb, user_limit_gb,
 )
 from emby.traffic.filter import is_wan_playback_session
 
@@ -130,8 +131,13 @@ class QuotaEnforcer:
         if not active:
             return entry
         total_mode = is_total_mode(quota)
-        if total_mode:
+        # 按总额度时，单独列出的用户不看合计，只看自己的额度
+        own = listed_limit_gb(quota, entry['user']) if total_mode else None
+        use_total = total_mode and own is None
+        if use_total:
             limit_gb = float(quota.get('total_limit_gb') or 0)
+        elif total_mode:
+            limit_gb = own
         else:
             limit_gb = user_limit_gb(quota, entry['user'])
         if not limit_gb > 0:
@@ -141,7 +147,7 @@ class QuotaEnforcer:
             if str(s.get('user_name') or '').strip().casefold() == entry['user'].casefold()
         }
         try:
-            if total_mode:
+            if use_total:
                 used = self._total_used_bytes(quota, credit_browse)
             else:
                 used = self._used_bytes(entry['user'], quota, credit_browse, user_ids)
@@ -154,7 +160,7 @@ class QuotaEnforcer:
         limit_bytes = limit_gb * _GB
         if used < limit_bytes:
             return entry
-        if total_mode:
+        if use_total:
             detail = (f'{entry["user"]} 开播，全部用户本周期合计已用 {_fmt_gb(used)}，'
                       f'总额度 {limit_gb:g} GB')
         else:
