@@ -205,7 +205,7 @@ function quotaPane(cfg, users) {
                 <div class="hint-t" id="qMsgHint">${quotaWhenHint(whenNow)}</div>
             </div>
         </div>`)
-        + fs('sum', '额度设置', '', `${segF(['按总额度', '按用户'], isTotal ? '按总额度' : '按用户', 'data-qmode')}
+        + fs('sum', '额度设置', '用量归属可能有些误差，额度请留余量；选片流量是否计入见「流量采集」', `${segF(['按总额度', '按用户'], isTotal ? '按总额度' : '按用户', 'data-qmode')}
             <div class="q-set">
                 <div class="sw-row">
                     <div class="t">
@@ -227,8 +227,7 @@ function quotaPane(cfg, users) {
                 </div>
                 <div class="rule-rows" id="qRows">${rows}</div>
                 <div class="hint-t">额度填 0 表示不限，例如管理员</div>
-            </div>
-            <div class="hint-t">1 GB = 1000 MB。用量归属可能有些误差，额度请留余量；选片流量是否计入见「流量采集」</div>`);
+            </div>`);
 }
 
 /** 切换额度方式时，只换第一行的标题、说明和输入框，已填的数留着 */
