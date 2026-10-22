@@ -283,10 +283,15 @@
     background: var(--line); flex: none;
 }
 .qd-head {
-    display: flex; align-items: flex-start; gap: 8px;
-    padding: 0 12px 0 18px; flex: none;
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 12px 0 16px; flex: none;
 }
-.qd-title { min-width: 0; }
+.qd-ic {
+    width: 36px; height: 36px; border-radius: 12px; flex: none;
+    display: grid; place-items: center;
+    background: var(--emby-soft); color: var(--emby);
+}
+.qd-title { min-width: 0; flex: 1; }
 .qd-title b { display: block; font-size: 16px; line-height: 1.2; color: var(--text); }
 .qd-meta { display: block; margin-top: 3px; font-size: 12px; color: var(--text-3); }
 .qd-x {
