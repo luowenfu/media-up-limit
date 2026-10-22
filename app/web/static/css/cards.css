@@ -332,7 +332,7 @@
 }
 .qd-empty b { font-size: 13px; font-weight: 650; color: var(--text-2); }
 .qd-row {
-    display: grid; grid-template-columns: 36px minmax(0, 1fr) auto;
+    display: grid; grid-template-columns: 36px minmax(0, 1fr) auto auto;
     column-gap: 10px; row-gap: 2px; align-items: center;
     margin-bottom: 8px; padding: 12px;
     border-radius: 14px; background: var(--bg); border: 1px solid transparent;
@@ -357,6 +357,28 @@
     display: inline-flex; align-items: center;
 }
 .qd-remain { text-align: right; align-self: center; grid-column: 3; grid-row: 1 / span 2; }
+.qd-set {
+    grid-column: 4; grid-row: 1 / span 2; align-self: center; justify-self: end;
+    height: 28px; padding: 0 8px; border: 0; border-radius: 8px;
+    background: var(--emby-soft); color: var(--emby);
+    font-size: 12px; font-weight: 650; white-space: nowrap;
+}
+.qd-set:hover, .qd-set.on { background: rgba(16, 185, 129, .22); color: var(--emby); }
+.qd-edit { grid-column: 1 / -1; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.qd-edit-row { display: flex; align-items: center; gap: 8px; }
+.qd-edit-row .k { flex: none; font-size: 12px; font-weight: 700; color: var(--text-2); }
+.qd-edit-row .inp { flex: 1; min-width: 0; height: 34px; }
+.qd-edit .inp:focus-within { border-color: var(--emby); box-shadow: 0 0 0 3px var(--emby-soft); }
+.qd-save, .qd-cancel {
+    flex: none; height: 34px; padding: 0 10px; border: 0; border-radius: 8px;
+    font-size: 12px; font-weight: 650;
+}
+.qd-save { background: var(--emby-soft); color: var(--emby); }
+.qd-save:hover { background: rgba(16, 185, 129, .22); }
+.qd-cancel { background: var(--line-2); color: var(--text-2); }
+.qd-hint, .qd-err { display: block; margin-top: 6px; font-size: 11.5px; }
+.qd-hint { color: var(--text-3); }
+.qd-err { color: var(--danger); }
 .qd-remain b { display: block; font-size: 14px; font-weight: 750; color: var(--emby); letter-spacing: -.02em; }
 .qd-remain small { display: block; margin-top: 1px; font-size: 11px; font-weight: 650; color: var(--text-3); }
 .qd-remain.over b { color: var(--danger); }

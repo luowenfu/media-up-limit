@@ -317,6 +317,43 @@ function readQuota(root) {
     };
 }
 
+const QUOTA_KEEP = [
+    'name', 'host', 'port', 'use_https', 'verify_ssl', 'display_priority',
+    'wan_traffic_only', 'traffic_collect_mode', 'lucky_base_url', 'lucky_verify_ssl',
+    'lucky_rule_label', 'lucky_frontend_host', 'lucky_credit_browse_traffic',
+];
+
+/** 只改这一个用户的独立额度。留空表示取消，0 表示不限。 */
+export async function saveOwnQuota(instanceName, userName, raw) {
+    const shown = String(userName || '').trim();
+    const fold = shown.toLowerCase();
+    if (!shown) throw new Error('请选择用户');
+    const text = String(raw ?? '').trim();
+    let limit = null;
+    if (text !== '') {
+        limit = Number(text);
+        if (!Number.isFinite(limit) || limit < 0) throw new Error('请填写额度（0 表示不限）');
+        limit = Math.round(limit * 100) / 100;
+    }
+    const got = await api.get(`/api/emby/config/instances/${enc(instanceName)}`);
+    const inst = got.data || {};
+    const quota = { ...(inst.user_quota || {}) };
+    const users = (Array.isArray(quota.users) ? quota.users : []).map(row => ({ ...row }));
+    const idx = users.findIndex(row => String(row.user_name || '').trim().toLowerCase() === fold);
+    if (limit == null) {
+        if (idx >= 0) users.splice(idx, 1);
+    } else if (idx >= 0) {
+        users[idx] = { ...users[idx], user_name: users[idx].user_name || shown, limit_gb: limit };
+    } else {
+        users.push({ user_name: shown, limit_gb: limit });
+    }
+    quota.users = users;
+    const body = { name: inst.name || instanceName, user_quota: quota };
+    QUOTA_KEEP.forEach(key => { if (key in inst) body[key] = inst[key]; });
+    await api.put(`/api/emby/config/instances/${enc(instanceName)}`, body);
+    return limit == null ? 'clear' : 'set';
+}
+
 /** 点 + 加一行用户额度 */
 export function addQuotaRow() {
     const root = document.getElementById('sheet');

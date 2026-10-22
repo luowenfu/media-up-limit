@@ -20,8 +20,9 @@ import { openChooser } from './dialogs.js';
 import { normalizeDayRange, normalizeMonthRange, parseDay, parseMonth, quickPreset, visibleDayRange, visibleMonthRange } from './stats_data.js';
 import { bindRangePicker, closeRangePicker } from './range_picker.js';
 import { chartOrderPref, moveChartBlock } from './stats.js';
+import { saveOwnQuota } from './embyform.js';
 import {
-    $, closeDrawer, closeModal, closeSheet, isPad, isPhone, toast,
+    $, busy, closeDrawer, closeModal, closeSheet, isPad, isPhone, toast,
 } from './ui.js';
 
 const pad = n => String(n).padStart(2, '0');
@@ -76,11 +77,76 @@ function quotaHeadOffset(card) {
     return Math.max(0, Math.round(head.getBoundingClientRect().bottom - card.getBoundingClientRect().top));
 }
 
+function quotaCard() {
+    return document.querySelector('.dev.quota-open');
+}
+
+function paintQuotaList() {
+    const card = quotaCard();
+    const list = card && card.querySelector('.qd-list');
+    const dev = embyByName(state.quotaDrawer);
+    if (list && dev) list.innerHTML = quotaListHtml(dev);
+    return card;
+}
+
+function closeQuotaEdit() {
+    state.quotaEdit = '';
+    state.quotaDraft = '';
+    state.quotaEditErr = '';
+    paintQuotaList();
+}
+
+function openQuotaEdit(name) {
+    const dev = embyByName(state.quotaDrawer);
+    const fold = String(name || '').trim().toLowerCase();
+    const rows = [...(dev?.quotaLookup || []), ...(dev?.quotaOvers || [])];
+    const user = rows.find(u => String(u.name || '').trim().toLowerCase() === fold);
+    if (state.quotaEdit.toLowerCase() === fold) {
+        closeQuotaEdit();
+        return;
+    }
+    state.quotaEdit = name;
+    state.quotaDraft = user && user.via === 'own' ? String(user.limitGb) : '';
+    state.quotaEditErr = '';
+    const card = paintQuotaList();
+    const input = card && card.querySelector('[data-quota-gb]');
+    if (input) {
+        input.focus({ preventScroll: true });
+        input.closest('.qd-edit')?.scrollIntoView({ block: 'nearest' });
+    }
+}
+
+async function commitQuotaEdit(btn) {
+    const name = state.quotaEdit;
+    const devName = state.quotaDrawer;
+    if (!name || !devName) return;
+    const raw = state.quotaDraft;
+    try {
+        const how = await busy(btn, '保存', () => saveOwnQuota(devName, name, raw));
+        state.quotaEdit = '';
+        state.quotaDraft = '';
+        state.quotaEditErr = '';
+        toast(how === 'clear' ? `已取消「${name}」的独立额度` : `已保存「${name}」的独立额度`);
+        try {
+            await refreshLive();
+            render();
+        } catch (e) { /* 下一轮刷新会跟上 */ }
+    } catch (e) {
+        state.quotaEditErr = e.message || '保存失败';
+        const card = paintQuotaList();
+        const input = card && card.querySelector('[data-quota-gb]');
+        if (input) input.focus({ preventScroll: true });
+    }
+}
+
 function closeQuotaDrawer() {
     state.quotaDrawer = '';
     state.quotaQuery = '';
     state.quotaLockH = 0;
     state.quotaTop = 0;
+    state.quotaEdit = '';
+    state.quotaDraft = '';
+    state.quotaEditErr = '';
     document.querySelectorAll('.dev').forEach(el => {
         el.classList.remove('quota-open');
         el.style.height = '';
@@ -94,6 +160,9 @@ document.addEventListener('click', e => {
     const t = e.target.closest('button, .switch, .chk, .me-item, [data-lucky], [data-close], [data-lim-mode], [data-hidelan], [data-open-dev], [data-quota-close]');
     if (!t) return;
     if (t.closest('[data-quota-close]')) { closeQuotaDrawer(); return; }
+    if (t.dataset.quotaSet) { openQuotaEdit(t.dataset.quotaSet); return; }
+    if (t.hasAttribute('data-quota-cancel')) { closeQuotaEdit(); return; }
+    if (t.hasAttribute('data-quota-save')) { commitQuotaEdit(t); return; }
     if (t.dataset.quotaOpen) {
         const card = t.closest('.dev');
         const open = !(card && card.classList.contains('quota-open'));
@@ -205,15 +274,15 @@ let queryTimer = 0;
 let quotaTimer = 0;
 document.addEventListener('input', e => {
     uiInput(e);
+    if (e.target.hasAttribute('data-quota-gb')) {
+        state.quotaDraft = e.target.value;
+        return;
+    }
     if (e.target.hasAttribute('data-quota-find')) {
         state.quotaQuery = e.target.value;
         const card = e.target.closest('.dev');
         clearTimeout(quotaTimer);
-        quotaTimer = setTimeout(() => {
-            const list = card && card.querySelector('.qd-list');
-            const dev = embyByName(state.quotaDrawer);
-            if (list && dev) list.innerHTML = quotaListHtml(dev);
-        }, 60);
+        quotaTimer = setTimeout(() => { if (card && card.classList.contains('quota-open')) paintQuotaList(); }, 60);
         return;
     }
     if (e.target.id === 'logQuery') {
@@ -237,9 +306,21 @@ document.addEventListener('focusout', e => {
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
         if (document.querySelector('.rp-pop')) { closeRangePicker(true); return; }
+        if (e.target.closest?.('[data-quota-gb]')) {
+            e.preventDefault();
+            closeQuotaEdit();
+            return;
+        }
+        if (state.quotaEdit && !e.target.closest?.('[data-quota-find]')) { closeQuotaEdit(); return; }
         if (e.target.closest?.('[data-quota-find]') && e.target.value) return;
         closeModal(); closeSheet();
         if (state.quotaDrawer) closeQuotaDrawer();
+        return;
+    }
+    if (e.key === 'Enter' && e.target.hasAttribute?.('data-quota-gb')) {
+        e.preventDefault();
+        const btn = e.target.closest('.qd-edit')?.querySelector('[data-quota-save]');
+        if (btn) commitQuotaEdit(btn);
         return;
     }
     if (e.key === 'Enter' && (e.target.id === 'stFrom' || e.target.id === 'stTo')) {

@@ -206,12 +206,25 @@ function quotaRow(u) {
     const cap = limit > 0 ? quotaGb(limit) : '不限';
     const viaLabel = { total: '随总额度', all: '随每人额度', own: '随独立额度', none: '未设额度' }[u.via] || '未设额度';
     const via = `<span class="qd-chip">${viaLabel}</span>`;
-    return `<article class="qd-row${over ? ' over' : ''}">
+    const editing = !!state.quotaEdit && state.quotaEdit.toLowerCase() === String(u.name || '').trim().toLowerCase();
+    const editor = editing ? `<div class="qd-edit">
+            <div class="qd-edit-row">
+                <span class="k">独立额度</span>
+                <div class="inp"><input type="number" min="0" step="any" inputmode="decimal" data-quota-gb value="${esc(state.quotaDraft ?? '')}" placeholder="留空则取消"><span class="suf">GB</span></div>
+                <button type="button" class="qd-save" data-quota-save>保存</button>
+                <button type="button" class="qd-cancel" data-quota-cancel>取消</button>
+            </div>
+            <small class="qd-hint">0 表示不限，留空则取消独立额度</small>
+            ${state.quotaEditErr ? `<small class="qd-err">${esc(state.quotaEditErr)}</small>` : ''}
+        </div>` : '';
+    return `<article class="qd-row${over ? ' over' : ''}${editing ? ' editing' : ''}">
         <span class="qd-av">${esc(quotaMark(u.name))}</span>
         <div class="qd-name"><b>${esc(u.name)}</b>${via}</div>
         <div class="qd-remain${over ? ' over' : ''}"><b class="num">${esc(quotaRemain(u))}</b><small>剩余</small></div>
+        <button type="button" class="qd-set${editing ? ' on' : ''}" data-quota-set="${esc(u.name)}">额度设置</button>
         <div class="qd-sub num">目前 ${esc(quotaGb(u.usedGb))} · 额度 ${esc(cap)}</div>
         ${limit > 0 ? `<div class="qd-bar"><i style="width:${pct.toFixed(1)}%"></i></div>` : ''}
+        ${editor}
     </article>`;
 }
 
