@@ -1,6 +1,7 @@
 /* 设备卡片与设备管理页（markup 与改造计划原型一致） */
 
 import { I, ico } from './icons.js';
+import { quotaGb, quotaHit, quotaTip } from './adapt.js';
 import { esc, fmtBytes, fmtDuration, maskIp, splitSpeed } from './format.js';
 import { anomalyTip, foldHead, foldOpen, playMode, tipTag } from './events.js';
 import { state, qbList, embyList } from './store.js';
@@ -162,6 +163,7 @@ function sessionHtml(s, d) {
     const speed = `${sn} ${su}`;
     const anomaly = wan && !browse && !(Number(s.estimated_upload_bytes_live) > 0) && !!s.upload_anomaly;
     const mode = browse ? null : playMode(s);
+    const over = browse ? null : quotaHit(d.quotaOvers, s.user_name);
     const cmd = (act, label, icon) => `<button type="button" class="mini-btn icon" title="${label}" data-sess="${act}" data-sid="${esc(s.id)}" data-dev="${esc(d.name)}">${icon}</button>`;
     const remoteClosed = '控制通道关闭，请检查客户端是否支持。（SupportsRemoteControl=false）';
     const infoBtn = `<button type="button" class="mini-btn icon has-tip session-info" title="控制通道关闭">${I.info}<span class="ev-tip-src" hidden><div class="ev-note">${esc(remoteClosed)}</div></span></button>`;
@@ -175,7 +177,7 @@ function sessionHtml(s, d) {
     const poster = posterSrc ? `<img src="${esc(posterSrc)}" alt="" onerror="this.remove()">` : '';
     return `<div class="session"><div class="poster">▶${poster}</div><div class="session-main">
         <div class="session-title" title="${esc(sessionTitle(s))}">${esc(sessionTitle(s))}</div>
-        <div class="session-tags">${tipTag(who, wan ? 'who' : 'who lan', sessionUserTip(s))}${mode ? tipTag(mode.label, mode.cls, mode.tip) : ''}${browse ? '<span class="tag emby">选片</span>' : ''}</div>
+        <div class="session-tags">${tipTag(who, wan ? 'who' : 'who lan', sessionUserTip(s))}${over ? tipTag('达量', 'over', quotaTip(over)) : ''}${mode ? tipTag(mode.label, mode.cls, mode.tip) : ''}${browse ? '<span class="tag emby">选片</span>' : ''}</div>
         ${browse ? '' : `<div class="session-meter">
             ${wan ? `<div class="session-speed">${speed}</div><div class="session-up${anomaly ? ' warn has-tip' : ''}">${anomaly ? `上传 异常${anomalyTip()}` : `上传 ${fmtBytes(s.estimated_upload_bytes_live || 0, base)}`}</div>` : ''}
             <div class="ev-prog"><i style="width:${pct.toFixed(1)}%"></i></div>
@@ -186,12 +188,39 @@ function sessionHtml(s, d) {
 
 const emptySession = `<div class="session-empty"><div><div class="ico">${I.tv}</div></div><div><b>暂无活跃播放</b></div></div>`;
 
+function quotaRow(u) {
+    const pct = u.limitGb > 0 ? Math.min(100, u.usedGb / u.limitGb * 100) : 100;
+    const note = u.via === 'total' ? '<div class="qd-note">随总额度停播</div>' : '';
+    return `<div class="qd-row">
+        <div class="qd-top"><b>${esc(u.name)}</b><span class="num">目前 ${esc(quotaGb(u.usedGb))} · 额度 ${esc(quotaGb(u.limitGb))}</span></div>
+        <div class="qd-bar"><i style="width:${pct.toFixed(1)}%"></i></div>
+        ${note}
+    </div>`;
+}
+
+function quotaDrawer(d) {
+    const rows = d.quotaOvers || [];
+    const empty = String(d.quotaOver || '').startsWith('全部用户')
+        ? '总额度已到，当前没有可列出的用户'
+        : '本周期还没有达量用户';
+    const body = rows.length ? rows.map(quotaRow).join('') : `<div class="qd-empty">${empty}</div>`;
+    const meta = `${esc(d.quotaCycle)}${d.quotaDry ? ' · 只记录，不会停播' : ''}`;
+    return `<div class="quota-mask" data-quota-close></div>
+        <div class="quota-drawer" role="dialog" aria-label="达量用户">
+            <div class="qd-head"><b>达量用户</b>${rows.length ? `<span class="qd-count">${rows.length} 人</span>` : ''}<button type="button" class="x-btn" data-quota-close aria-label="关闭">${I.x}</button></div>
+            <div class="qd-meta num">${meta}</div>
+            <div class="qd-list">${body}</div>
+        </div>`;
+}
+
 /* ---------- Emby 卡片 ---------- */
 export function embyCard(d, i, ord) {
     const has = d.sessions.length > 0;
     const key = 'e' + i;
     const at = ord == null ? '' : ` style="--i:${ord}"`;
-    return `<article${at} class="dev ${d.online ? '' : 'is-off'}${foldOpen('card') ? ' open' : ''}">
+    const quotaOpen = d.quotaOn && state.quotaDrawer === d.name;
+    const see = d.quotaOn ? `<button type="button" class="mini-btn" data-quota-open="${esc(d.name)}">查看</button>` : '';
+    return `<article${at} class="dev ${d.online ? '' : 'is-off'}${foldOpen('card') ? ' open' : ''}${quotaOpen ? ' quota-open' : ''}">
         ${foldHead('card', `${I.server}设备详情`)}
         <header class="dev-head emby">
             <div class="dev-icon" title="Emby"><img src="/static/img/emby-icon.svg" alt=""></div>
@@ -209,10 +238,10 @@ export function embyCard(d, i, ord) {
             <div class="dev-col">
                 ${liveBoxes(d, key)}
                 <div class="kv">
-                    <div class="kv-row">${I.cal}<span class="k">当前周期</span><span class="v num">${esc(d.quotaCycle)}</span></div>
-                    <div class="kv-row">${ico('user', 16)}<span class="k">达量用户数</span><span class="v">${esc(d.quotaOver)}</span></div>
-                    <div class="kv-row">${I.loop}<span class="k">采集频率</span><span class="v">${esc(d.collect)}</span></div>
                     <div class="kv-row">${I.play}<span class="k">当前播放</span><span class="v">${esc(d.playing)}</span></div>
+                    <div class="kv-row">${ico('user', 16)}<span class="k">达量用户数</span>${see}<span class="v">${esc(d.quotaOver)}</span></div>
+                    <div class="kv-row">${I.cal}<span class="k">当前周期</span><span class="v num">${esc(d.quotaCycle)}</span></div>
+                    <div class="kv-row">${I.loop}<span class="k">采集频率</span><span class="v">${esc(d.collect)}</span></div>
                 </div>
                 <h4 class="sec-title">${I.wave}流量统计${legend(key)}</h4>
                 ${tiles(d.traffic, key)}
@@ -228,6 +257,7 @@ export function embyCard(d, i, ord) {
         <footer class="dev-foot" data-kind="emby" data-name="${esc(d.name)}">
             ${actBtn('web', 'web', '打开 Web')}${actBtn('set', 'gear', '设置')}${actBtn('rst', 'rst', '清空统计')}${actBtn('del', 'del', '删除')}
         </footer>
+        ${d.quotaOn ? quotaDrawer(d) : ''}
     </article>`;
 }
 

@@ -114,12 +114,17 @@ def cycle_total_bytes(
     return total
 
 
-def _sum_by_user(cursor, sql: str, params: tuple, into: Dict[str, int]) -> None:
+def _sum_by_user(cursor, sql: str, params: tuple, into: Dict[str, int],
+                 names: Optional[Dict[str, str]] = None) -> None:
     cursor.execute(sql, params)
     for row in cursor.fetchall():
-        fold = str(row['user_name'] or '').strip().casefold()
-        if fold:
-            into[fold] = into.get(fold, 0) + max(0, int(row['total'] or 0))
+        shown = str(row['user_name'] or '').strip()
+        fold = shown.casefold()
+        if not fold:
+            continue
+        into[fold] = into.get(fold, 0) + max(0, int(row['total'] or 0))
+        if names is not None and fold not in names:
+            names[fold] = shown
 
 
 def cycle_used_by_user(
@@ -129,6 +134,7 @@ def cycle_used_by_user(
     credit_browse: bool,
     tz=None,
     include_live: bool = True,
+    names: Optional[Dict[str, str]] = None,
 ) -> Dict[str, int]:
     """当前周期内每个用户的上行字节数（小写用户名为键）。
 
@@ -148,14 +154,14 @@ def cycle_used_by_user(
                 FROM emby_playback_upload_hourly
                 WHERE instance_name = ? AND hour_start >= ? AND hour_start < ?
                 GROUP BY user_name
-            ''', (instance_name, start_s, end_s), used)
+            ''', (instance_name, start_s, end_s), used, names)
             if credit_browse:
                 _sum_by_user(c, '''
                     SELECT user_name, SUM(estimated_upload_bytes) AS total
                     FROM emby_browse_upload_facts
                     WHERE instance_name = ? AND stopped_at >= ? AND stopped_at < ?
                     GROUP BY user_name
-                ''', (instance_name, start_s, end_s), used)
+                ''', (instance_name, start_s, end_s), used, names)
         finally:
             conn.close()
     if include_live:
@@ -163,7 +169,27 @@ def cycle_used_by_user(
             fold = user_from_persist_key(key)
             if fold:
                 used[fold] = used.get(fold, 0) + max(0, int(amount or 0))
+                if names is not None:
+                    names.setdefault(fold, fold)
     return used
+
+
+def _prefer_config_names(quota: dict, names: Dict[str, str]) -> None:
+    """名单上的名字优先用额度里配置的写法。"""
+    for row in (quota or {}).get('users') or []:
+        shown = str(row.get('user_name') or '').strip()
+        fold = shown.casefold()
+        if fold and fold in names:
+            names[fold] = shown
+
+
+def _quota_user(names: Dict[str, str], fold: str, limit_gb: float, used_bytes: int, via: str) -> dict:
+    return {
+        'name': names.get(fold) or fold,
+        'limit_gb': round(float(limit_gb), 2),
+        'used_gb': round(max(0, int(used_bytes)) / GB, 2),
+        'via': via,
+    }
 
 
 _summary_lock = threading.Lock()
@@ -177,7 +203,7 @@ def quota_summary(
     credit_browse: bool,
     clock=time.monotonic,
 ) -> dict:
-    """设备卡片用：当前周期与达量用户数。每 10 秒才重新查一次。"""
+    """设备卡片用：当前周期、达量用户数和名单。每 10 秒才重新查一次。"""
     quota = quota or {}
     if not quota.get('enabled'):
         return {'enabled': False}
@@ -196,31 +222,45 @@ def quota_summary(
         'mode': 'total' if is_total_mode(quota) else 'user',
         'over_count': 0,
         'total_reached': False,
+        'overs': [],
     }
     try:
         period = iter_cycle_periods(cycle, traffic_db.get_config_timezone(), count=1)[0]
         value['range_label'] = period['period']
+        names: Dict[str, str] = {}
+        used = cycle_used_by_user(
+            instance_name, cycle, credit_browse=credit_browse, names=names,
+        )
+        _prefer_config_names(quota, names)
+        overs = []
         if is_total_mode(quota):
             limit_gb = float(quota.get('total_limit_gb') or 0)
+            total = 0
             if limit_gb > 0:
                 total = cycle_total_bytes(instance_name, cycle, credit_browse=credit_browse)
                 value['total_reached'] = total >= limit_gb * GB
             value['has_own_limits'] = bool(quota.get('users'))
             if value['has_own_limits']:
-                used = cycle_used_by_user(instance_name, cycle, credit_browse=credit_browse)
                 for fold, amount in used.items():
                     own = listed_limit_gb(quota, fold)
                     if own is None:
                         if value['total_reached']:
-                            value['over_count'] += 1
+                            overs.append(_quota_user(names, fold, limit_gb, total, 'total'))
                     elif own > 0 and amount >= own * GB:
-                        value['over_count'] += 1
+                        overs.append(_quota_user(names, fold, own, amount, 'user'))
+            elif value['total_reached']:
+                for fold in used:
+                    overs.append(_quota_user(names, fold, limit_gb, total, 'total'))
         else:
-            used = cycle_used_by_user(instance_name, cycle, credit_browse=credit_browse)
             for fold, amount in used.items():
                 limit_gb = user_limit_gb(quota, fold)
                 if limit_gb > 0 and amount >= limit_gb * GB:
-                    value['over_count'] += 1
+                    overs.append(_quota_user(names, fold, limit_gb, amount, 'user'))
+        overs.sort(key=lambda row: (-row['used_gb'], str(row['name']).casefold()))
+        value['overs'] = overs
+        # 没配独立额度时卡片写「全部用户」，人数仍按原来的 0
+        if not (is_total_mode(quota) and value['total_reached'] and not value.get('has_own_limits')):
+            value['over_count'] = len(overs)
     except Exception:
         logger.warning(f'[Emby:{instance_name}] 达量用户数统计失败', exc_info=True)
     with _summary_lock:

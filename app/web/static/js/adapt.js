@@ -78,14 +78,45 @@ export function qbVM(d, hist) {
     };
 }
 
+function quotaUsers(q) {
+    return (q.overs || []).map(u => ({
+        name: u.name || '',
+        limitGb: Number(u.limit_gb) || 0,
+        usedGb: Number(u.used_gb) || 0,
+        via: u.via === 'total' ? 'total' : 'user',
+    })).filter(u => u.name);
+}
+
+/** 额度按十进制 GB 显示，到 TB 再换单位 */
+export function quotaGb(gb) {
+    const n = Number(gb) || 0;
+    return n >= 1024 ? fmtGb(n) : `${trimNum(n)} GB`;
+}
+
+export function quotaHit(overs, user) {
+    const fold = String(user || '').trim().toLowerCase();
+    if (!fold) return null;
+    return (overs || []).find(u => String(u.name || '').trim().toLowerCase() === fold) || null;
+}
+
+export function quotaTip(hit) {
+    if (!hit) return null;
+    return [['额度', quotaGb(hit.limitGb)], ['目前', quotaGb(hit.usedGb)]];
+}
+
 function embyQuotaTexts(d) {
     const q = d.user_quota_status || {};
-    if (!q.enabled) return { cycle: '未启用', over: '未启用' };
-    const cycle = [q.type_label, q.range_label].filter(Boolean).join(' · ');
+    if (!q.enabled) return { on: false, dry: false, cycle: '未启用', over: '未启用', overs: [] };
     // 按总额度且没有用户独立额度时，合计达到后所有用户都被停播
     const over = q.mode === 'total' && q.total_reached && !q.has_own_limits
         ? '全部用户' : `${q.over_count || 0} 人`;
-    return { cycle, over: `${over}${q.dry_run ? '（只记录）' : ''}` };
+    return {
+        on: true,
+        dry: !!q.dry_run,
+        cycle: q.range_label || '—',
+        over: `${over}${q.dry_run ? '（只记录）' : ''}`,
+        overs: quotaUsers(q),
+    };
 }
 
 /** 最新开始的播放排最前；没有开始时间的放最后，同刻按会话编号固定 */
@@ -114,8 +145,11 @@ export function embyVM(d, hist) {
         name: d.name,
         url: deviceUrl(d),
         online: !!d.api_online,
+        quotaOn: quota.on,
+        quotaDry: quota.dry,
         quotaCycle: quota.cycle,
         quotaOver: quota.over,
+        quotaOvers: quota.overs,
         lucky: d.traffic_collect_mode === 'lucky',
         collect: `${refresh > 1 ? `${refresh} 秒刷新` : '实时刷新'} · ${collect} 秒采集`,
         playing: `局域网 ${lan} · 外网 ${wan}`,

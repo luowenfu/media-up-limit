@@ -6,6 +6,7 @@ import { I } from './icons.js';
 import {
     dayTitle, esc, fmtBytes, fmtDuration, hhmm, isLanIp, parseTime, ymd,
 } from './format.js';
+import { quotaHit, quotaTip } from './adapt.js';
 import { state, embyList, eventsRangeDays } from './store.js';
 
 const DAY = 86400000;
@@ -134,7 +135,7 @@ export function playMode(r) {
     return { label: transcode ? '转码' : '直连', cls: transcode ? 'xc' : 'direct', tip: playTip(r) };
 }
 
-function playbackEvent(r) {
+function playbackEvent(r, quotaByDev) {
     const playing = r.status === 'playing';
     const interrupted = !!r.interrupt_reason;
     const t0 = parseTime(r.started_at);
@@ -161,6 +162,7 @@ function playbackEvent(r) {
         mode: playMode(r),
         uploadAnomaly: missed,
         upload: r.is_remote ? `上传 ${uploadLabel}` : '',
+        quota: quotaHit(quotaByDev && quotaByDev.get(r.instance_name), r.user_name),
     };
 }
 
@@ -202,12 +204,14 @@ function fillEncoder(rows) {
 }
 
 async function loadEmby() {
-    const names = state.eventsDevice ? [state.eventsDevice] : embyList().map(d => d.name);
+    const devices = embyList();
+    const names = state.eventsDevice ? [state.eventsDevice] : devices.map(d => d.name);
+    const quotaByDev = new Map(devices.map(d => [d.name, d.quotaOvers]));
     const [playback, ...browses] = await Promise.all([
         api.get(`/api/emby/playback-records${q({ instance: state.eventsDevice, days: 90, limit: 3000 })}`).then(r => r.data || []).catch(() => []),
         ...names.map(n => api.get(`/api/emby/browse-records${q({ instance: n, days: 90, limit: 3000 })}`).then(r => r.data || []).catch(() => [])),
     ]);
-    const plays = fillEncoder(playback).map(playbackEvent);
+    const plays = fillEncoder(playback).map(r => playbackEvent(r, quotaByDev));
     return [...plays, ...browses.flat().map(browseEvent)].filter(e => e.t);
 }
 
@@ -250,6 +254,7 @@ export function tipTag(text, cls, rows) {
 function eventCard(e, kind) {
     const who = e.user && e.place ? `${e.user} · ${e.place}` : (e.user || '');
     const whoTag = who ? tipTag(who, e.lan ? 'who lan' : 'who', e.ipTip) : '';
+    const overTag = e.quota ? tipTag('达量', 'over', quotaTip(e.quota)) : '';
     const modeTag = e.mode ? tipTag(e.mode.label, e.mode.cls, e.mode.tip) : '';
     const upTag = e.upload
         ? (e.uploadAnomaly
@@ -264,7 +269,7 @@ function eventCard(e, kind) {
         <div class="ev-item-top">
             <time class="num${dur ? ' has-tip' : ''}">${timeLabel(e)}${dur}</time>
             <span class="ev-head"><span class="ev-name"><span class="ev-ico ${e.cls}">${I[e.icon]}</span><b title="${esc(e.title)}">${esc(e.title)}</b></span>
-            ${(whoTag + modeTag + upTag + devTag) ? `<span class="ev-tags">${whoTag}${modeTag}${upTag}${devTag}</span>` : ''}</span>
+            ${(whoTag + overTag + modeTag + upTag + devTag) ? `<span class="ev-tags">${whoTag}${overTag}${modeTag}${upTag}${devTag}</span>` : ''}</span>
         </div>
         ${(e.descParts || []).length ? `<div class="ev-desc">${e.descParts.map(part => `<span>${part}</span>`).join('')}</div>` : ''}
         ${e.meta.length ? `<div class="ev-meta">${e.meta.map(m => `<span>${esc(m[0])} <b>${esc(m[1])}</b></span>`).join('')}</div>` : ''}

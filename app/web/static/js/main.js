@@ -73,8 +73,21 @@ function openDevice(kind, dev, focus) {
 /* ---------- 点击 ---------- */
 document.addEventListener('click', e => {
     if (e.target.closest('.rp-pop, [data-range-open]')) return;
-    const t = e.target.closest('button, .switch, .chk, .me-item, [data-lucky], [data-close], [data-lim-mode], [data-hidelan], [data-open-dev]');
+    const t = e.target.closest('button, .switch, .chk, .me-item, [data-lucky], [data-close], [data-lim-mode], [data-hidelan], [data-open-dev], [data-quota-close]');
     if (!t) return;
+    if (t.closest('[data-quota-close]')) {
+        state.quotaDrawer = '';
+        document.querySelectorAll('.dev.quota-open').forEach(el => el.classList.remove('quota-open'));
+        return;
+    }
+    if (t.dataset.quotaOpen) {
+        const card = t.closest('.dev');
+        const open = !(card && card.classList.contains('quota-open'));
+        state.quotaDrawer = open ? t.dataset.quotaOpen : '';
+        document.querySelectorAll('.dev.quota-open').forEach(el => el.classList.remove('quota-open'));
+        if (open && card) card.classList.add('quota-open');
+        return;
+    }
     if (t.dataset.reveal) { toggleReveal(t.dataset.reveal); render(); return; }
     const ctx = { render: () => render() };
     if (t.closest('[data-hidelan]')) { state.eventsHideLan = !state.eventsHideLan; render(); return; }

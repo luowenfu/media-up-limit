@@ -38,6 +38,7 @@ export const state = {
     merge: { qb: [], emby: [] },
     hist: {},
     ready: false,
+    quotaDrawer: '',
 };
 
 const HIST_LEN = 24;
