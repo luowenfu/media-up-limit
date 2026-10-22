@@ -130,7 +130,7 @@
 .kv-row .quota-btn {
     flex: none; display: inline-flex; align-items: center; justify-content: center;
     height: 26px; padding: 0 10px; border-radius: 8px;
-    border: 1px solid var(--emby); background: var(--emby-soft); color: var(--emby);
+    border: 1px solid var(--line); background: var(--emby-soft); color: var(--emby);
     font-size: 12px; font-weight: 700;
 }
 .kv-row .quota-btn:hover { background: var(--emby); color: #fff; }
