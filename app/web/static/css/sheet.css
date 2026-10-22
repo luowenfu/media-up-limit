@@ -50,6 +50,7 @@
 .fs:last-child { margin-bottom: 0; }
 .fs-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
 .fs-head > div:not(.r) { flex: 1; min-width: 0; }
+.fs-fold[hidden] { display: none; }
 .fs-head:has(+ .fs-fold[hidden]) { margin-bottom: 0; }
 .fs-head .ic { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: #f1f5f9; color: var(--text-2); }
 .fs-head .ic svg { width: 15px; height: 15px; }

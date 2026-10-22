@@ -113,7 +113,8 @@ function formControl(t) {
     if (t.matches('.switch') && !t.closest('[data-lucky]')) {
         t.classList.toggle('on');
         const name = t.dataset.sw;
-        const dep = name && t.closest('.sw-list').querySelector(`[data-dep="${name}"]`);
+        const list = t.closest('.sw-list');
+        const dep = name && list && list.querySelector(`[data-dep="${name}"]`);
         if (dep) {
             dep.classList.toggle('disabled', !t.classList.contains('on'));
             if (!t.classList.contains('on')) dep.querySelector('.switch').classList.remove('on');
