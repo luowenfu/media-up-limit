@@ -64,7 +64,6 @@ function luckyPane(cfg) {
     const saved = savedRuleLabels(cfg);
     const rows = (saved.length ? saved : ['']).map(label => ruleRow([], -1, label)).join('');
     const creditOn = cfg.lucky_credit_browse_traffic !== false;
-    const browseAttr = 'min="0" max="100" step="1"' + (creditOn ? '' : ' disabled');
     return `<div class="big-toggle ${on ? 'on' : ''}" data-lucky>
             <span class="ic">${ico('plug', 20)}</span>
             <div class="t"><b>开启 Lucky 反代模式</b><small>通过 Lucky 反代统计流量，可准确采集外网播放与选片流量</small></div>
@@ -87,8 +86,7 @@ function luckyPane(cfg) {
                 </div>
             </div>
             ${testRow([['luckyConn', '连通性测试', 'search'], ['luckyFlow', '流量接口测试', 'wave']])}`)}
-            ${fs('film', '选片流量', '', `<div class="sw-list">${swRow({ t: '计入统计', d: '浏览海报、详情页时产生的流量也计入用户', on: creditOn, name: 'browse' })}</div>
-            <div style="margin-top:12px">${fld('计入下限', inp({ id: 'sBrowse', val: browseMinMb(cfg), type: 'number', suf: 'MB', ro: !creditOn, attr: browseAttr }), { hint: '0 表示不设下限，最小单位 1 MB。单次选片上传不足该值时不记入统计与日志' })}</div>`)}
+            ${fs('film', '选片流量', '浏览海报、详情页时产生的流量也计入用户', `<div class="fs-fold" id="browseMin"${creditOn ? '' : ' hidden'}>${fld('计入下限', inp({ id: 'sBrowse', val: browseMinMb(cfg), type: 'number', suf: 'MB', attr: 'min="0" max="100" step="1"' }), { hint: '0 表示不设下限，最小单位 1 MB。单次选片上传不足该值时不记入统计与日志' })}</div>`, `<span class="fs-sw">计入统计</span><span class="switch ${creditOn ? 'on' : ''}" data-sw="browse"></span>`)}
         </div>`;
 }
 

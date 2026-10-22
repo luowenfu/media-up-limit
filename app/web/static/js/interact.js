@@ -119,14 +119,8 @@ function formControl(t) {
             if (!t.classList.contains('on')) dep.querySelector('.switch').classList.remove('on');
         }
         if (name === 'browse') {
-            const input = t.closest('#sheet')?.querySelector('#sBrowse');
-            const box = input?.closest('.inp');
-            const on = t.classList.contains('on');
-            if (input) {
-                input.disabled = !on;
-                input.readOnly = !on;
-            }
-            if (box) box.classList.toggle('ro', !on);
+            const box = t.closest('#sheet')?.querySelector('#browseMin');
+            if (box) box.hidden = !t.classList.contains('on');
         }
         return true;
     }
