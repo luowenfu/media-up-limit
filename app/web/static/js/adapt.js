@@ -78,6 +78,13 @@ export function qbVM(d, hist) {
     };
 }
 
+function quotaVia(raw, limitGb) {
+    if (raw === 'total' || raw === 'all' || raw === 'own' || raw === 'none') return raw;
+    // 旧接口把独立额度记成 user；总额度是 0 时，没单独列出的人也是 user，但额度是 0
+    if (raw === 'user') return limitGb > 0 ? 'own' : 'none';
+    return 'none';
+}
+
 function quotaUsers(rows) {
     return (rows || []).map(u => {
         const limitGb = Number(u.limit_gb) || 0;
@@ -92,7 +99,7 @@ function quotaUsers(rows) {
             usedGb,
             meterGb,
             remainGb,
-            via: u.via === 'total' || u.via === 'all' || u.via === 'own' || u.via === 'none' ? u.via : 'none',
+            via: quotaVia(u.via, limitGb),
         };
     }).filter(u => u.name);
 }
