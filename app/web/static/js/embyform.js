@@ -189,7 +189,6 @@ function quotaPane(cfg, users) {
     const msgOptions = QUOTA_PRESETS
         .map(([id, tpl]) => [id, tpl.replaceAll('{when}', whenNow)])
         .concat([[QUOTA_MSG_CUSTOM, '自定义']]);
-    const liveTpl = QUOTA_PRESETS.find(([id]) => id === msgSel);
     return notice('', '<b>达量停播：</b>额度用完后再开始播放，3 秒后收到提示，再过 5 秒被停止。需要开启「流量采集」里的 Lucky 反代模式，局域网播放不受影响')
         + fs('shield', '达量停播', '', `<div class="sw-list">
             ${swRow({ t: '启用达量停播', d: '额度用完后，再开播的用户会被停播', on: !!qt.enabled, name: 'qEnable' })}
@@ -200,8 +199,7 @@ function quotaPane(cfg, users) {
             <div class="anchor">${anchorHtml(label, cyc.reset_anchor)}</div>
         </div></div>
         <div class="f-grid q-msg">
-            ${fld('提示文案', sel(msgOptions, msgSel, 'qMsgSel'), { full: true, hint: '改周期类型或恢复时间，这句话会跟着变' })}
-            <div class="full q-msg-live" id="qMsgLive" style="${liveTpl ? '' : 'display:none'}">${esc(liveTpl ? liveTpl[1].replaceAll('{when}', whenNow) : '')}</div>
+            ${fld('提示文案', sel(msgOptions, msgSel, 'qMsgSel'), { full: true, hint: '改周期类型或恢复时间，这句会跟着变' })}
             <div class="full" id="qMsgBox" style="${msgSel === QUOTA_MSG_CUSTOM ? '' : 'display:none'}">
                 ${inp({ id: 'qMsgText', val: msgSel === QUOTA_MSG_CUSTOM ? msgText : '', ph: `最多 ${QUOTA_MSG_MAX} 个字` })}
             </div>
@@ -238,32 +236,25 @@ export function refreshQuotaView(root = document.getElementById('sheet')) {
     show('#qList', !all);
 }
 
-/** 周期类型、恢复时间或所选预设变了，三句通用文案和下面的整句一起换 */
-export function refreshQuotaMessages(root = document.getElementById('sheet')) {
+/** 周期类型或恢复时间变了，下拉里的三句通用文案换成当时的恢复时间 */
+export function refreshQuotaMessages(root) {
+    root = root || document.getElementById('sheet');
     const select = root?.querySelector('#qMsgSel');
     const plan = root?.querySelector('#quotaPlan');
     if (!select || !plan) return;
     const when = resumeWhen(readPlan(plan).cycle);
-    const current = select.value;
     for (const opt of select.options) {
         const preset = QUOTA_PRESETS.find(([id]) => id === opt.value);
         if (preset) opt.text = preset[1].replaceAll('{when}', when);
     }
-    select.value = current;
-    const custom = current === QUOTA_MSG_CUSTOM;
-    const box = root.querySelector('#qMsgBox');
-    if (box) box.style.display = custom ? '' : 'none';
-    const live = root.querySelector('#qMsgLive');
-    const chosen = QUOTA_PRESETS.find(([id]) => id === current);
-    if (live) {
-        live.style.display = chosen ? '' : 'none';
-        if (chosen) live.textContent = chosen[1].replaceAll('{when}', when);
-    }
 }
 
-/** 提示文案下拉变化：通用句显示整句，自定义显示输入框 */
+/** 提示文案下拉变化：只有「自定义」才显示输入框 */
 export function onQuotaMsgChange(select) {
-    refreshQuotaMessages(select.closest('#sheet'));
+    const root = select.closest('#sheet') || document.getElementById('sheet');
+    const box = root?.querySelector('#qMsgBox');
+    if (box) box.style.display = select.value === QUOTA_MSG_CUSTOM ? '' : 'none';
+    refreshQuotaMessages(root);
 }
 
 function readQuota(root) {

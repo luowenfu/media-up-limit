@@ -219,12 +219,12 @@ export function uiClick(t, e, ctx) {
 /** 输入联动：手动限速按钮可用性、规则刻度预览 */
 export function uiChange(t) {
     if (t.id === 'qMsgSel') onQuotaMsgChange(t);
-    if (t.dataset.anchor && t.closest('#quotaPlan')) refreshQuotaMessages();
+    if (t.hasAttribute('data-anchor') && t.closest('#quotaPlan')) refreshQuotaMessages();
 }
 
 export function uiInput(e) {
     const t = e.target;
     if (t.id === 'limInp') refreshLimit();
     if (t.dataset.f === 'th') refreshScale(t.closest('.plan'));
-    if (t.dataset.anchor && t.closest('#quotaPlan')) refreshQuotaMessages();
+    if (t.hasAttribute('data-anchor') && t.closest('#quotaPlan')) refreshQuotaMessages();
 }

@@ -119,10 +119,6 @@
 
 .sw-list { display: flex; flex-direction: column; }
 .q-msg { margin-top: 16px; }
-.q-msg-live {
-    margin-top: 8px; padding: 8px 12px; border-radius: 10px;
-    background: #f4f7fb; font-size: 13px; line-height: 1.55; color: var(--text);
-}
 /* 两端留空，不顶到区块边缘 */
 .line-open { height: 1px; margin: 2px 14px 14px; background: var(--line); }
 .sw-row { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid var(--line-2); }
