@@ -126,12 +126,15 @@ function limitOf(rows, via) {
     return row ? Number(row.limit_gb) || 0 : 0;
 }
 
-function quotaRuleLabel(q, amount) {
+function quotaRuleLabel(q, amount, bare) {
     const rows = q.lookup || [];
     const each = Number(q.default_limit_gb) || limitOf(rows, 'all');
     const total = Number(q.total_limit_gb) || limitOf(rows, 'total');
-    if (q.mode === 'user') return each > 0 ? `按每人额度 ${amount(each)}` : '仅独立额度';
-    return total > 0 ? `按总额度 ${amount(total)}` : '仅独立额度';
+    const person = bare ? '每人额度' : '按每人额度';
+    const pool = bare ? '总额度' : '按总额度';
+    const none = bare ? '独立额度' : '仅独立额度';
+    if (q.mode === 'user') return each > 0 ? `${person} ${amount(each)}` : none;
+    return total > 0 ? `${pool} ${amount(total)}` : none;
 }
 
 function quotaRuleText(q) {
@@ -156,7 +159,7 @@ function embyWhen(q) {
 function embyPlanText(q) {
     if (!q || !q.enabled) return '未启用';
     const when = embyWhen(q);
-    const rule = quotaRuleLabel(q, quotaGbTight);
+    const rule = quotaRuleLabel(q, quotaGbTight, true);
     return when ? `${when} • ${rule}` : rule;
 }
 
