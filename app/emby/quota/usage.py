@@ -174,6 +174,13 @@ def cycle_used_by_user(
     return used
 
 
+def _safe_anchor(raw) -> int:
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return 0
+
+
 def _quota_via(quota: dict, fold: str) -> str:
     """own 独立额度，total 总额度，all 每人额度，none 没设额度。"""
     if listed_limit_gb(quota, fold) is not None:
@@ -253,6 +260,8 @@ def quota_summary(
         'enabled': True,
         'dry_run': bool(quota.get('dry_run', True)),
         'type_label': TYPE_LABELS.get(str(cycle.get('type') or 'month'), '按月'),
+        'cycle_type': str(cycle.get('type') or 'month'),
+        'reset_anchor': _safe_anchor(cycle.get('reset_anchor')),
         'range_label': '',
         'mode': 'total' if is_total_mode(quota) else 'user',
         'total_limit_gb': round(float(quota.get('total_limit_gb') or 0), 2),

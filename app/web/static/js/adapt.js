@@ -134,9 +134,22 @@ function quotaRuleText(q) {
     return total > 0 ? `按总额度 ${quotaGb(total)}` : '仅独立额度';
 }
 
+function embyPlanText(q) {
+    if (!q || !q.enabled) return '未启用';
+    const type = q.cycle_type;
+    if (type) {
+        const n = Number(q.reset_anchor);
+        const anchor = Number.isFinite(n) ? n : 0;
+        if (type === 'week') return `每${WEEKDAYS[anchor] || '周一'}开始`;
+        if (type === 'day') return `每天 ${String(anchor).padStart(2, '0')}:00 开始`;
+        return `每月 ${anchor || 1} 日开始`;
+    }
+    return q.type_label || '未启用';
+}
+
 function embyQuotaTexts(d) {
     const q = d.user_quota_status || {};
-    if (!q.enabled) return { on: false, dry: false, cycle: '未启用', over: '未启用', overs: [], lookup: [] };
+    if (!q.enabled) return { on: false, dry: false, cycle: '未启用', plan: '未启用', over: '未启用', overs: [], lookup: [] };
     // 按总额度且没有用户独立额度时，合计达到后所有用户都被停播
     const over = q.mode === 'total' && q.total_reached && !q.has_own_limits
         ? '全部用户' : `${q.over_count || 0} 人`;
@@ -144,6 +157,7 @@ function embyQuotaTexts(d) {
         on: true,
         dry: !!q.dry_run,
         cycle: q.range_label || '—',
+        plan: embyPlanText(q),
         rule: quotaRuleText(q),
         over: `${over}${q.dry_run ? '（只记录）' : ''}`,
         overs: quotaUsers(q.overs),
@@ -180,6 +194,7 @@ export function embyVM(d, hist) {
         quotaOn: quota.on,
         quotaDry: quota.dry,
         quotaCycle: quota.cycle,
+        quotaPlan: quota.plan || '未启用',
         quotaRule: quota.rule || '仅独立额度',
         quotaOver: quota.over,
         quotaOvers: quota.overs,
