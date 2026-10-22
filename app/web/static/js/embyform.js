@@ -239,7 +239,7 @@ export function refreshQuotaView(root = document.getElementById('sheet')) {
 
 /** 自定义文案下方的提示：变量和当前会换成的时间都带底色 */
 function quotaWhenHint(when) {
-    return `<code>{when}</code>为时间变量，发送时换成<code>${esc(when)}</code>`;
+    return `<code>{when}</code>为时间变量，将换成：<code>${esc(when)}</code>`;
 }
 
 /** 周期类型或恢复时间变了，下拉里的三句通用文案换成当时的恢复时间 */
