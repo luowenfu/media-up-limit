@@ -34,7 +34,7 @@ def listed_limit_gb(quota: dict, user_name: str) -> Optional[float]:
 
 
 def user_limit_gb(quota: dict, user_name: str) -> float:
-    """按用户模式下该用户适用的额度（GB）。用户独立额度优先，否则用全部用户额度。0 表示不限。"""
+    """按用户模式下该用户适用的额度（GB）。用户独立额度优先，否则用每人额度。0 表示不限。"""
     own = listed_limit_gb(quota, user_name)
     if own is not None:
         return own
@@ -175,7 +175,7 @@ def cycle_used_by_user(
 
 
 def _quota_via(quota: dict, fold: str) -> str:
-    """own 独立额度，total 总额度，all 全部用户额度。"""
+    """own 独立额度，total 总额度，all 每人额度。"""
     if listed_limit_gb(quota, fold) is not None:
         return 'own'
     if is_total_mode(quota):

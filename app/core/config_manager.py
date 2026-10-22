@@ -1376,7 +1376,7 @@ def normalize_user_quota(raw, *, strict: bool = False) -> dict:
 
     额度规则二选一：mode=total 按总额度（没单独列出的看所有用户合计）；
     mode=user 按用户（没单独列出的用 default_limit_gb）。
-    两种模式下，单独列出的用户都按各自额度，优先于总额度或全部用户。
+    两种模式下，单独列出的用户都按各自额度，优先于总额度或每人额度。
     单个用户额度 0 表示不限。strict=True 时填错直接报错；否则静默丢弃无效行（读取旧配置用）。
     """
     raw = raw if isinstance(raw, dict) else {}
@@ -1396,10 +1396,10 @@ def normalize_user_quota(raw, *, strict: bool = False) -> dict:
             return 0.0
         return value
 
-    default_gb = _gb('default_limit_gb', '「全部用户」额度')
+    default_gb = _gb('default_limit_gb', '每人额度')
     total_gb = _gb('total_limit_gb', '总额度')
     mode = 'total' if raw.get('mode') == 'total' else 'user'
-    # 旧配置没有 all_users：有「全部用户」额度就当作打开
+    # 旧配置没有 all_users：有每人额度就当作打开
     all_users = bool(raw.get('all_users', default_gb > 0))
     message_text = normalize_message_choice(raw.get('message_text'))
     if message_text not in PRESET_KEYS and len(message_text) > QUOTA_MESSAGE_MAX:
@@ -1434,7 +1434,7 @@ def normalize_user_quota(raw, *, strict: bool = False) -> dict:
         if mode == 'total' and not (total_gb > 0 or any(u['limit_gb'] > 0 for u in users)):
             raise ValueError('启用达量停播前，请设置总额度，或给某个用户设置额度')
         if mode == 'user' and not (default_gb > 0 or any(u['limit_gb'] > 0 for u in users)):
-            raise ValueError('启用达量停播前，请设置「全部用户」额度，或给某个用户设置额度')
+            raise ValueError('启用达量停播前，请设置每人额度，或给某个用户设置额度')
     return {
         'enabled': enabled,
         'dry_run': bool(raw.get('dry_run', True)),

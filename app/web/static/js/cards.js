@@ -204,7 +204,7 @@ function quotaRow(u) {
     const over = limit > 0 && meter >= limit;
     const pct = limit > 0 ? Math.min(100, meter / limit * 100) : 0;
     const cap = limit > 0 ? quotaGb(limit) : '不限';
-    const viaLabel = u.via === 'total' ? '随总额度' : (u.via === 'all' ? '随全部用户额度' : '随独立额度');
+    const viaLabel = u.via === 'total' ? '随总额度' : (u.via === 'all' ? '随每人额度' : '随独立额度');
     const via = `<span class="qd-chip ${u.via === 'total' || u.via === 'all' ? u.via : 'own'}">${viaLabel}</span>`;
     return `<article class="qd-row${over ? ' over' : ''}">
         <span class="qd-av">${esc(quotaMark(u.name))}</span>

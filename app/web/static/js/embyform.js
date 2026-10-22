@@ -209,7 +209,7 @@ function quotaPane(cfg, users) {
             <div class="q-set">
                 <div class="sw-row">
                     <div class="t">
-                        <b id="qDefTitle">${isTotal ? '总额度' : '全部用户'}</b>
+                        <b id="qDefTitle">${isTotal ? '总额度' : '每人额度'}</b>
                         <small id="qDefSub">${isTotal ? '所有用户合计达到后，没单独设置的都会停播' : '每位用户各自累计，用同一个额度，没单独设置的都会停播'}</small>
                     </div>
                     <div class="q-def-inps">
@@ -222,7 +222,7 @@ function quotaPane(cfg, users) {
                 <div class="q-head">
                     <div class="t">
                         <div class="q-title"><b>用户独立额度</b><button type="button" class="rule-add" data-quota-add aria-label="添加用户">${ico('plus', 14)}</button></div>
-                        <small id="qOwnSub">${isTotal ? '优先级高于总额度' : '优先级高于全部用户'}</small>
+                        <small id="qOwnSub">${isTotal ? '优先级高于总额度' : '优先级高于每人额度'}</small>
                     </div>
                 </div>
                 <div class="rule-rows" id="qRows">${rows}</div>
@@ -239,13 +239,13 @@ export function refreshQuotaView(root = document.getElementById('sheet')) {
     const totalBox = root.querySelector('#qTotalBox');
     const defaultBox = root.querySelector('#qDefaultBox');
     const sub = root.querySelector('#qOwnSub');
-    if (title) title.textContent = total ? '总额度' : '全部用户';
+    if (title) title.textContent = total ? '总额度' : '每人额度';
     if (desc) desc.textContent = total
         ? '所有用户合计达到后，没单独设置的都会停播'
         : '每位用户各自累计，用同一个额度，没单独设置的都会停播';
     if (totalBox) totalBox.style.display = total ? '' : 'none';
     if (defaultBox) defaultBox.style.display = total ? 'none' : '';
-    if (sub) sub.textContent = total ? '优先级高于总额度' : '优先级高于全部用户';
+    if (sub) sub.textContent = total ? '优先级高于总额度' : '优先级高于每人额度';
 }
 
 /** 自定义文案下方的提示：变量和当前会换成的时间都带底色 */
@@ -297,7 +297,7 @@ function readQuota(root) {
             throw new Error('启用达量停播前，请设置总额度，或给某个用户设置额度');
         }
         if (!total && !(defaultGb > 0 || users.some(u => u.limit_gb > 0))) {
-            throw new Error('启用达量停播前，请设置「全部用户」额度，或给某个用户设置额度');
+            throw new Error('启用达量停播前，请设置每人额度，或给某个用户设置额度');
         }
     }
     const sel_ = val(root, '#qMsgSel');
