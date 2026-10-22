@@ -215,7 +215,10 @@ function quotaPane(cfg, users) {
                 </div></div>
                 <div id="qList">
                     <div class="line-open"></div>
-                    <div class="fl">用户独立额度<span class="sub">优先级高于全部用户</span><button type="button" class="rule-add" data-quota-add aria-label="添加用户">${ico('plus', 14)}</button></div>
+                    <div class="q-label">
+                        <div class="fl">用户独立额度<button type="button" class="rule-add" data-quota-add aria-label="添加用户">${ico('plus', 14)}</button></div>
+                        <div class="hint-t">优先级高于全部用户</div>
+                    </div>
                     <div class="rule-rows" id="qRows">${rows}</div>
                     <div class="hint-t">额度填 0 表示不限，例如管理员</div>
                 </div>
