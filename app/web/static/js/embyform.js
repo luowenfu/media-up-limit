@@ -210,7 +210,7 @@ function quotaPane(cfg, users) {
                 <div class="sw-row">
                     <div class="t">
                         <b id="qDefTitle">${isTotal ? '总额度' : '全部用户'}</b>
-                        <small id="qDefSub">${isTotal ? '所有用户合计达到后，没单独设置的都会停播' : '每位用户各自累计，用同一个额度'}</small>
+                        <small id="qDefSub">${isTotal ? '所有用户合计达到后，没单独设置的都会停播' : '每位用户各自累计，用同一个额度，没单独设置的都会停播'}</small>
                     </div>
                     <div class="q-def-inps">
                         <div class="inp" id="qTotalBox" style="${isTotal ? '' : 'display:none'}"><input id="qTotal" type="number" min="0" step="any" value="${esc(qt.total_limit_gb > 0 ? qt.total_limit_gb : '')}" placeholder="所有用户合计"><span class="suf">GB</span></div>
@@ -242,7 +242,7 @@ export function refreshQuotaView(root = document.getElementById('sheet')) {
     if (title) title.textContent = total ? '总额度' : '全部用户';
     if (desc) desc.textContent = total
         ? '所有用户合计达到后，没单独设置的都会停播'
-        : '每位用户各自累计，用同一个额度';
+        : '每位用户各自累计，用同一个额度，没单独设置的都会停播';
     if (totalBox) totalBox.style.display = total ? '' : 'none';
     if (defaultBox) defaultBox.style.display = total ? 'none' : '';
     if (sub) sub.textContent = total ? '优先级高于总额度' : '优先级高于全部用户';
