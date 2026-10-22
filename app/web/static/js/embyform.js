@@ -134,9 +134,9 @@ function quotaPane(cfg, users) {
         + fs('clock', '统计周期', '', `<div class="plan" id="quotaPlan" ${anchorsAttr(label, cyc.reset_anchor)}><div class="f-grid">
             ${fld('周期类型', segF(['按月', '按周', '按天'], label, 'data-cyc'), { full: true })}
             <div class="anchor">${anchorHtml(label, cyc.reset_anchor)}</div>
-        </div></div>`)
-        + fs('msg', '提示文案', '开播后发给用户的消息', `<div class="f-grid">
-            ${fld('文案', sel(QUOTA_MSG_PRESETS.concat([[QUOTA_MSG_CUSTOM, '自定义']]), msgSel, 'qMsgSel'), { full: true })}
+        </div></div>
+        <div class="f-grid q-msg">
+            ${fld('提示文案', sel(QUOTA_MSG_PRESETS.concat([[QUOTA_MSG_CUSTOM, '自定义']]), msgSel, 'qMsgSel'), { full: true, hint: '开播后发给用户的消息' })}
             <div class="full" id="qMsgBox" style="${msgSel === QUOTA_MSG_CUSTOM ? '' : 'display:none'}">
                 ${inp({ id: 'qMsgText', val: msgSel === QUOTA_MSG_CUSTOM ? msgText : '', ph: `最多 ${QUOTA_MSG_MAX} 个字` })}
             </div>
@@ -152,6 +152,7 @@ function quotaPane(cfg, users) {
                     <span class="switch ${allUsers ? 'on' : ''}" data-sw="qAll"></span>
                 </div></div>
                 <div id="qList" style="${allUsers ? 'display:none' : ''}">
+                    <div class="line-open"></div>
                     <div class="fl">单独设置<button type="button" class="rule-add" data-quota-add aria-label="添加用户">${ico('plus', 14)}</button></div>
                     <div class="rule-rows" id="qRows">${rows}</div>
                     <div class="hint-t">额度填 0 表示不限，例如管理员</div>
