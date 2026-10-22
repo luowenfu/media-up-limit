@@ -117,7 +117,7 @@ function formControl(t) {
         }
         return true;
     }
-    if (t.hasAttribute('data-rule-add')) { addLuckyRuleRow(); return true; }
+    if (t.classList.contains('rule-add')) { addLuckyRuleRow(); return true; }
     if (t.hasAttribute('data-rule-del')) { removeLuckyRuleRow(t); return true; }
     if (t.hasAttribute('data-quota-add')) { addQuotaRow(); return true; }
     if (t.hasAttribute('data-quota-del')) { removeQuotaRow(t); return true; }
