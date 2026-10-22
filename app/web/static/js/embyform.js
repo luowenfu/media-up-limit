@@ -87,8 +87,8 @@ function luckyPane(cfg) {
                 </div>
             </div>
             ${testRow([['luckyConn', '连通性测试', 'search'], ['luckyFlow', '流量接口测试', 'wave']])}`)}
-            ${fs('film', '选片流量', '', `<div class="sw-list">${swRow({ t: '「选片流量」计入统计', d: '浏览海报、详情页时产生的流量也计入用户', on: creditOn, name: 'browse' })}</div>
-            <div style="margin-top:12px">${fld('「选片流量」记录下限', inp({ id: 'sBrowse', val: browseMinMb(cfg), type: 'number', suf: 'MB', ro: !creditOn, attr: browseAttr }), { hint: '0 表示不设下限，最小单位 1 MB。单次选片上传不足该值时不记入统计与日志' })}</div>`)}
+            ${fs('film', '选片流量', '', `<div class="sw-list">${swRow({ t: '计入统计', d: '浏览海报、详情页时产生的流量也计入用户', on: creditOn, name: 'browse' })}</div>
+            <div style="margin-top:12px">${fld('计入下限', inp({ id: 'sBrowse', val: browseMinMb(cfg), type: 'number', suf: 'MB', ro: !creditOn, attr: browseAttr }), { hint: '0 表示不设下限，最小单位 1 MB。单次选片上传不足该值时不记入统计与日志' })}</div>`)}
         </div>`;
 }
 
@@ -481,11 +481,11 @@ function browseMinMb(cfg) {
 
 function readBrowseMb(raw, el) {
     const text = String(raw ?? '').trim();
-    if (text === '') throw fieldError(el, '请填写「选片流量」记录下限');
+    if (text === '') throw fieldError(el, '请填写计入下限');
     const n = Number(text);
-    if (!Number.isFinite(n)) throw fieldError(el, '请填写「选片流量」记录下限');
-    if (!Number.isInteger(n)) throw fieldError(el, '「选片流量」记录下限最小单位是 1 MB');
-    if (n < 0 || n > 100) throw fieldError(el, '「选片流量」记录下限须在 0～100 MB 之间');
+    if (!Number.isFinite(n)) throw fieldError(el, '请填写计入下限');
+    if (!Number.isInteger(n)) throw fieldError(el, '计入下限最小单位是 1 MB');
+    if (n < 0 || n > 100) throw fieldError(el, '计入下限须在 0～100 MB 之间');
     return n;
 }
 

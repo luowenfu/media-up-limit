@@ -733,20 +733,20 @@ def clamp_emby_browse_upload_min_mb(value, *, strict: bool = False) -> float:
         mb = float(value)
     except (TypeError, ValueError):
         if strict:
-            raise ValueError('请填写「选片流量」记录下限')
+            raise ValueError('请填写计入下限')
         mb = float(DEFAULT_GLOBAL['emby_browse_upload_min_mb'])
     if mb != mb or mb in (float('inf'), float('-inf')):
         if strict:
-            raise ValueError('请填写「选片流量」记录下限')
+            raise ValueError('请填写计入下限')
         mb = float(DEFAULT_GLOBAL['emby_browse_upload_min_mb'])
     if strict:
         if abs(mb - round(mb)) > 1e-6:
-            raise ValueError('「选片流量」记录下限最小单位是 1 MB')
+            raise ValueError('计入下限最小单位是 1 MB')
         whole = int(round(mb))
         lo = int(EMBY_BROWSE_UPLOAD_MIN_MB_MIN)
         hi = int(EMBY_BROWSE_UPLOAD_MIN_MB_MAX)
         if whole < lo or whole > hi:
-            raise ValueError(f'「选片流量」记录下限须在 {lo}～{hi} MB 之间')
+            raise ValueError(f'计入下限须在 {lo}～{hi} MB 之间')
         return float(whole)
     mb = max(
         EMBY_BROWSE_UPLOAD_MIN_MB_MIN,
