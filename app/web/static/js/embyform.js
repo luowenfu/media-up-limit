@@ -205,7 +205,7 @@ function quotaPane(cfg, users) {
                 <div class="hint-t" id="qMsgHint">${quotaWhenHint(whenNow)}</div>
             </div>
         </div>`)
-        + fs('sum', '额度设置', '用量归属可能有些误差，额度请留余量；选片流量是否计入见「流量采集」', `${segF(['按总额度', '按用户'], isTotal ? '按总额度' : '按用户', 'data-qmode')}
+        + fs('sum', '额度设置', '用量归属可能有些误差，额度请留余量；选片流量是否计入见「流量采集」', `${segF(['按总额度', '按每人额度'], isTotal ? '按总额度' : '按每人额度', 'data-qmode')}
             <div class="q-set">
                 <div class="sw-row">
                     <div class="t">
