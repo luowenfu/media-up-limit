@@ -125,8 +125,9 @@
 .kv-row + .kv-row { border-top: 1px solid var(--line-2); }
 .kv-row > svg { width: 16px; height: 16px; color: var(--text-3); }
 .kv-row .k { color: var(--text-2); }
-.kv-row .mini-btn { flex: none; border: 1px solid var(--line); background: var(--card); }
 .kv-row .v { margin-left: auto; font-weight: 600; color: var(--text-1); text-align: right; }
+.kv-row .v.kv-over { display: inline-flex; align-items: center; gap: 8px; }
+.kv-row .mini-btn { flex: none; border: 1px solid var(--line); background: var(--card); }
 
 .toggle {
     margin-left: auto; display: inline-grid; grid-template-columns: 1fr 1fr;
