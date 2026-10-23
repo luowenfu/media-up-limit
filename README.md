@@ -3,7 +3,7 @@
 [![Release](https://img.shields.io/github/v/release/luowenfu/media-up-limit)](https://github.com/luowenfu/media-up-limit/releases)
 [![Docker Hub](https://img.shields.io/docker/v/luowenfu/media-up-limit?label=Docker%20Hub&color=2496ED)](https://hub.docker.com/r/luowenfu/media-up-limit)
 
-英文名 `media-up-limit`。同时看多台 qBittorrent 和 Emby 的上传，按周期统计，达量后自动限速或停播。
+同时看多台 qBittorrent 和 Emby 的上传，按周期统计，达量后自动限速或停播。
 
 浏览器打开 `http://<主机IP>:8765`
 
@@ -20,7 +20,7 @@
 
 ## Emby
 
-外网上传靠 Lucky 反代的连接流量，再和 Emby 的用户、会话对上。对的时候看 IP、建连时间和播放状态。浏览海报记成选片流量，开始播放后记到这次播放。
+外网上传靠采集 Lucky 反代的连接流量，再和 Emby 的用户、会话进行归属、裁决等；浏览海报记成选片流量，可按需归属用户。
 
 - 达量停播：可按总额度或每人额度，也能单独给某个用户设额度。达量后再开播会提示并停止，局域网不受影响。默认只记录，不执行
 - 播放会话区分局域网和外网，外网 IP 默认打码
@@ -52,13 +52,13 @@ services:
       - ./data:/data
 ```
 
-也可以用 `ghcr.io/luowenfu/media-up-limit:latest`。`host` 网络是为了区分局域网和外网。
+也可以用 `ghcr.io/luowenfu/media-up-limit:latest`。
 
 从旧镜像 `luowenfu/qb-up-limit` 升级时，只改镜像名，数据目录不用动。已保存的 qB、Emby、Lucky 连接会在下次启动时自动改封，不用重填。
 
 ### 反代后的真实 IP
 
-前面是局域网反代时，会自动认出真实 IP。前面是公网反代（例如 Cloudflare）时，设置 `TRUSTED_PROXY_COUNT`，有几层就填几。填 `0` 则不信任转发头。
+前面是局域网反代时，会自动认出真实 IP。前面是公网反代（例如 Cloudflare）时，设置环境变量 `TRUSTED_PROXY_COUNT=1`，有几层就填几。填 `0` 则不信任转发头。
 
 ## 不要公开这些文件
 
