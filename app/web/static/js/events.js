@@ -135,9 +135,31 @@ export function playMode(r) {
     return { label: transcode ? '转码' : '直连', cls: transcode ? 'xc' : 'direct', tip: playTip(r) };
 }
 
-function playbackEvent(r, quotaByDev) {
+/** 记录开始时间落在当前周期起点之后，才算本周期 */
+function inQuotaCycle(startedAt, cycleStart) {
+    const start = parseTime(startedAt);
+    const cycle = parseTime(cycleStart);
+    if (!start || !cycle) return false;
+    return start.getTime() >= cycle.getTime();
+}
+
+/** 达量标签。正在播看现在的名单；已结束的本周期还要有当时的记录；以前周期只看记录，不带悬浮。 */
+function quotaMark(r, quotaByDev, cycleByDev) {
+    if (!r.is_remote) return null;
+    const hit = quotaHit(quotaByDev && quotaByDev.get(r.instance_name), r.user_name);
+    const live = r.status === 'playing' && !r.interrupt_reason;
+    if (live) return hit ? { hit, past: false } : null;
+    if (!r.quota_over) return null;
+    const cycleStart = cycleByDev && cycleByDev.get(r.instance_name);
+    if (inQuotaCycle(r.started_at, cycleStart)) return hit ? { hit, past: false } : null;
+    if (!cycleStart) return null;
+    return { hit: null, past: true };
+}
+
+function playbackEvent(r, quotaByDev, cycleByDev) {
     const playing = r.status === 'playing';
     const interrupted = !!r.interrupt_reason;
+    const mark = quotaMark(r, quotaByDev, cycleByDev);
     const t0 = parseTime(r.started_at);
     const stopped = parseTime(r.stopped_at);
     const t1 = playing ? null : (stopped || t0);
@@ -162,7 +184,8 @@ function playbackEvent(r, quotaByDev) {
         mode: playMode(r),
         uploadAnomaly: missed,
         upload: r.is_remote ? `上传 ${uploadLabel}` : '',
-        quota: r.is_remote ? quotaHit(quotaByDev && quotaByDev.get(r.instance_name), r.user_name) : null,
+        quota: mark && !mark.past ? mark.hit : null,
+        quotaPast: !!(mark && mark.past),
     };
 }
 
@@ -207,11 +230,12 @@ async function loadEmby() {
     const devices = embyList();
     const names = state.eventsDevice ? [state.eventsDevice] : devices.map(d => d.name);
     const quotaByDev = new Map(devices.map(d => [d.name, d.quotaOvers]));
+    const cycleByDev = new Map(devices.map(d => [d.name, d.quotaCycleStart || '']));
     const [playback, ...browses] = await Promise.all([
         api.get(`/api/emby/playback-records${q({ instance: state.eventsDevice, days: 90, limit: 3000 })}`).then(r => r.data || []).catch(() => []),
         ...names.map(n => api.get(`/api/emby/browse-records${q({ instance: n, days: 90, limit: 3000 })}`).then(r => r.data || []).catch(() => [])),
     ]);
-    const plays = fillEncoder(playback).map(r => playbackEvent(r, quotaByDev));
+    const plays = fillEncoder(playback).map(r => playbackEvent(r, quotaByDev, cycleByDev));
     return [...plays, ...browses.flat().map(browseEvent)].filter(e => e.t);
 }
 
@@ -254,7 +278,9 @@ export function tipTag(text, cls, rows) {
 function eventCard(e, kind) {
     const who = e.user && e.place ? `${e.user} · ${e.place}` : (e.user || '');
     const whoTag = who ? tipTag(who, e.lan ? 'who lan' : 'who', e.ipTip) : '';
-    const overTag = e.quota ? tipTag('达量', 'over', quotaTip(e.quota)) : '';
+    const overTag = (e.quota || e.quotaPast)
+        ? tipTag('达量', 'over', e.quotaPast ? null : quotaTip(e.quota))
+        : '';
     const modeTag = e.mode ? tipTag(e.mode.label, e.mode.cls, e.mode.tip) : '';
     const upTag = e.upload
         ? (e.uploadAnomaly

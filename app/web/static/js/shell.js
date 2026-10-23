@@ -396,7 +396,7 @@ const ERROR = msg => `<div class="panel panel-pad" style="text-align:center;colo
 
 const chartKey = () => [state.view, state.dev, state.statsRange, state.statsChartRange, state.statsDate, state.statsFrom, state.statsSpan, state.statsUser].join('\0');
 const playStateKey = () => embyList().flatMap(d => (d.sessions || []).map(s => `${s.id}:${s.item_id || ''}:${s.playback_started_at || ''}:${s.is_paused ? 1 : 0}:${s.upload_anomaly ? 1 : 0}`)).join('|');
-const quotaKey = () => embyList().map(d => `${d.name}:${(d.quotaOvers || []).map(u => `${u.name}:${u.limitGb}:${u.via}`).join(',')}`).join('|');
+const quotaKey = () => embyList().map(d => `${d.name}:${d.quotaCycleStart || ''}:${(d.quotaOvers || []).map(u => `${u.name}:${u.limitGb}:${u.via}`).join(',')}`).join('|');
 const eventsKey = (kind, dev) => [kind, dev, kind === 'qb' ? state.eventsType : `${playStateKey()}\n${quotaKey()}`, state.eventsUser, state.eventsDays, state.eventsHideLan].join('\0');
 
 /** 需要请求接口的区块：筛选没变就沿用，后台刷新到期才重新拉取 */

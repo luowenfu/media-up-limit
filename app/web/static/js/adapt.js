@@ -161,7 +161,7 @@ function embyPlanText(q) {
 
 function embyQuotaTexts(d) {
     const q = d.user_quota_status || {};
-    if (!q.enabled) return { on: false, dry: false, cycle: '未启用', plan: '未启用', over: '未启用', overs: [], lookup: [] };
+    if (!q.enabled) return { on: false, dry: false, cycle: '未启用', plan: '未启用', over: '未启用', overs: [], lookup: [], cycleStart: '' };
     // 按总额度且没有用户独立额度时，合计达到后所有用户都被停播
     const over = q.mode === 'total' && q.total_reached && !q.has_own_limits
         ? '全部用户' : `${q.over_count || 0} 人`;
@@ -173,6 +173,7 @@ function embyQuotaTexts(d) {
         over: `${over}${q.dry_run ? '（只记录）' : ''}`,
         overs: quotaUsers(q.overs),
         lookup: quotaUsers(q.lookup),
+        cycleStart: q.cycle_start || '',
     };
 }
 
@@ -209,6 +210,7 @@ export function embyVM(d, hist) {
         quotaOver: quota.over,
         quotaOvers: quota.overs,
         quotaLookup: quota.lookup,
+        quotaCycleStart: quota.cycleStart || '',
         lucky: d.traffic_collect_mode === 'lucky',
         collect: `${refresh > 1 ? `${refresh} 秒刷新` : '实时刷新'} · ${collect} 秒采集`,
         playing: `局域网 ${lan} · 外网 ${wan}`,

@@ -961,9 +961,17 @@ class EmbyInstanceWorker:
                 )
         if collect_mode == 'lucky':
             try:
-                refresh_quota_summary(
+                summary = refresh_quota_summary(
                     self.name, getattr(client, 'user_quota', {}) or {},
                     credit_browse=credit_browse,
+                )
+                playback_record_store.note_quota_over(
+                    self.name,
+                    [
+                        row.get('name')
+                        for row in (summary.get('overs') or [])
+                        if isinstance(row, dict)
+                    ],
                 )
             except Exception as e:
                 logger.debug(f'[Emby:{self.name}] 达量摘要预热失败: {e}')

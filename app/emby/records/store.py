@@ -1333,6 +1333,33 @@ def tick_from_sessions(instance_name: str, sessions: list, *,
         return _wrap_return(changed, store)
 
 
+def note_quota_over(instance_name: str, user_names) -> None:
+    """外网且仍在播放时，给达量用户的这条记录记下 quota_over。只写一次，以后不删。"""
+    name = (instance_name or '').strip()
+    folds = {
+        str(user or '').strip().casefold()
+        for user in (user_names or [])
+        if str(user or '').strip()
+    }
+    if not name or not folds:
+        return
+    with _lock:
+        store = _load_store(name)
+        changed = False
+        for record in store.get('records') or []:
+            if record.get('status') != 'playing' or not record.get('is_remote'):
+                continue
+            if record.get('quota_over'):
+                continue
+            user = str(record.get('user_name') or '').strip().casefold()
+            if user not in folds:
+                continue
+            record['quota_over'] = True
+            changed = True
+        if changed:
+            _save_store(store, immediate=True)
+
+
 def sync_upload_anomaly(instance_name: str, on_ids: list, off_ids: list) -> None:
     """把「反代未覆盖到该客户端」写进仍在播放的记录，结束后保留。"""
     name = (instance_name or '').strip()

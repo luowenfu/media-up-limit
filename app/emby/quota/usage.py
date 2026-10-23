@@ -305,6 +305,7 @@ def quota_summary(
         'cycle_type': str(cycle.get('type') or 'month'),
         'reset_anchor': _safe_anchor(cycle.get('reset_anchor')),
         'range_label': '',
+        'cycle_start': '',
         'mode': 'total' if is_total_mode(quota) else 'user',
         'total_limit_gb': round(float(quota.get('total_limit_gb') or 0), 2),
         'default_limit_gb': round(float(quota.get('default_limit_gb') or 0), 2),
@@ -316,6 +317,8 @@ def quota_summary(
     try:
         period = iter_cycle_periods(cycle, traffic_db.get_config_timezone(), count=1)[0]
         value['range_label'] = period['period']
+        start = period.get('cycle_start')
+        value['cycle_start'] = start.isoformat() if hasattr(start, 'isoformat') else ''
         names: Dict[str, str] = {}
         used = cycle_used_by_user(
             instance_name, cycle, credit_browse=credit_browse, names=names,
