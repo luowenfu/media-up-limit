@@ -82,8 +82,12 @@
 .dev-col + .dev-col { border-left: 1px solid var(--line-2); background: #fbfcfe; }
 /* 左右两栏时，行高只看左栏。右栏拉满这一行，规则和会话超出后在里面滚 */
 @container (min-width: 621px) {
-    .dev-col:last-child { height: 0; min-height: 100%; overflow: hidden; }
-    .rules, .sessions { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; }
+    .dev-col:last-child { height: 0; min-height: 100%; overflow: hidden; padding-right: 0; }
+    .dev-col:last-child > .sec-title { margin-right: 18px; }
+    .rules, .sessions {
+        flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto;
+        padding-right: 18px;
+    }
     .session-empty { min-height: 0; }
 }
 @container (max-width: 620px) {
