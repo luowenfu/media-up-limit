@@ -495,7 +495,7 @@ export function statsHtml(m, kind, dev) {
     const bodies = {
         trend: m.cumulative ? cumulativeTrend(m) : `<div class="chart-grid has-kpis">
         <div class="chart-main">
-            <h3 class="panel-title">${kind === 'emby' ? '播放流量趋势' : '上传流量趋势'}<small>${kind === 'emby' ? esc(dev.name) : esc(m.sp.caption)}</small>
+            <h3 class="panel-title">${kind === 'emby' ? '播放流量趋势' : '上传流量趋势'}<small>${esc(m.sp.caption)}</small>
                 <span class="r chart-legend"><span><i style="background:${S.colorA}"></i>${S.nameA}</span>${kind === 'emby' ? `<span><i style="background:${S.colorB}"></i>${S.nameB}</span>` : ''}</span>
             </h3>
             <div class="chart-wrap" id="chartWrap">${barChart(m)}<div class="chart-tip" id="chartTip"></div></div>
