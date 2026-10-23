@@ -2,14 +2,13 @@
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 600px), 1fr)); gap: 20px; }
 .merge { display: grid; grid-template-columns: 1fr 1fr; column-gap: 20px; row-gap: 16px; align-items: stretch; grid-auto-flow: dense; }
 .merge-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-/* 并排时同一行的两张卡片一样高，多出来的高度进播放会话 */
+/* 宽屏并排时，同一行两张卡片拉齐。高度由各自左栏决定 */
 @media (min-width: 1200px) {
     .merge-col { display: contents; }
     .merge-col:first-child > * { grid-column: 1; }
     .merge-col:last-child > * { grid-column: 2; }
     .merge .col-head { align-self: end; }
     .merge .dev { min-width: 0; }
-    .merge .dev-col:last-child { display: flex; flex-direction: column; min-height: 0; }
 }
 .col-head { display: flex; align-items: center; gap: 8px; padding: 0 4px; font-size: 13px; font-weight: 700; color: var(--text-1); }
 .col-head .dot { width: 9px; height: 9px; border-radius: 3px; }
@@ -79,7 +78,14 @@
 
 .dev-body { flex: 1; display: grid; grid-template-columns: 1.05fr 1fr; gap: 0; }
 .dev-col { padding: 16px 18px; min-width: 0; }
+.dev-col:last-child { display: flex; flex-direction: column; }
 .dev-col + .dev-col { border-left: 1px solid var(--line-2); background: #fbfcfe; }
+/* 左右两栏时，行高只看左栏。右栏拉满这一行，规则和会话超出后在里面滚 */
+@container (min-width: 621px) {
+    .dev-col:last-child { height: 0; min-height: 100%; overflow: hidden; }
+    .rules, .sessions { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; }
+    .session-empty { min-height: 0; }
+}
 @container (max-width: 620px) {
     .dev-body { grid-template-columns: 1fr; }
     .merge .dev-body { grid-template-rows: auto minmax(0, 1fr); }

@@ -303,7 +303,7 @@ export function embyCard(d, i, ord) {
                 <h4 class="sec-title">${I.wave}流量统计${legend(key)}</h4>
                 ${tiles(d.traffic, key)}
             </div>
-            <div class="dev-col" style="display:flex;flex-direction:column">
+            <div class="dev-col">
                 <h4 class="sec-title">${I.play}当前播放会话
                     <span class="more"><button class="mini-btn" data-goto="chart" data-kind="emby" data-dev="${esc(d.name)}">${I.chart}图表</button><button class="mini-btn" data-goto="events" data-kind="emby" data-dev="${esc(d.name)}">${I.list}记录</button></span>
                 </h4>
