@@ -24,6 +24,12 @@
     display: block; flex-shrink: 0;
     box-shadow: 0 6px 16px -4px rgba(37, 99, 235, .55);
 }
+.brand-en {
+    margin-bottom: 1px;
+    font-size: 12px; font-weight: 650; letter-spacing: .02em; line-height: 1.15;
+    color: var(--text-2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .brand-title {
     display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0;
     font-size: 15px; font-weight: 800; letter-spacing: .01em; color: var(--text); line-height: 1.25;

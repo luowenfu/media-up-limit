@@ -2,6 +2,10 @@
 
 新版本写在最上面。
 
+## 1.87.2
+
+- 变更：侧边栏中文名上方显示英文名 media-up-limit
+
 ## 1.87.1
 
 - 变更：说明从旧镜像 luowenfu/qb-up-limit 改成 luowenfu/media-up-limit，数据目录不用动
