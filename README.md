@@ -80,7 +80,7 @@
 
 **Docker 部署**：
 
-```bash
+```yaml
 services:
   media-up-limit:
     image: luowenfu/media-up-limit:latest
@@ -92,6 +92,8 @@ services:
     volumes:
       - ./data:/data
 ```
+
+从旧镜像升级时，只把镜像名从 `luowenfu/qb-up-limit` 改成 `luowenfu/media-up-limit`，数据目录保持不变。已保存的 qB、Emby、Lucky 连接信息会在下次启动时自动改封，不用重填。
 
 
 ## 安全提示（开源 / 部署前必读）
