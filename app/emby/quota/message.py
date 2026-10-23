@@ -6,11 +6,11 @@ from datetime import datetime
 
 from core.cycle import format_resume_when
 
-# 值以 preset: 开头，界面上的文字要和这里保持一致
+# 值以 preset: 开头，文字要和界面对齐。编号沿用原句，已保存的选项不会串到另一句
 PRESETS = {
+    'preset:3': '服务器流量已达上限，请{when}后再看',
+    'preset:2': '流量额度已用完，请{when}后再看',
     'preset:1': '本期流量已用完，{when}恢复',
-    'preset:2': '流量额度已用完，请{when}再看',
-    'preset:3': '服务器流量已达上限，请{when}再看',
 }
 PRESET_KEYS = frozenset(PRESETS)
 
@@ -23,7 +23,7 @@ OLD_PRESETS = {
 
 
 def normalize_message_choice(raw) -> str:
-    """存档用：预设编号，或自定义原文。空的按第一句。"""
+    """存档用：预设编号，或自定义原文。空的按本期那句。"""
     text = str(raw or '').strip()
     text = OLD_PRESETS.get(text, text)
     if not text:

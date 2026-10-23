@@ -97,9 +97,9 @@ const QUOTA_MSG_CUSTOM = '__custom__';
 const WEEK_LABEL = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 // 模板要和 emby/quota/message.py 的 PRESETS 一致，{when} 在发送时按周期重算
 const QUOTA_PRESETS = [
+    ['preset:3', '服务器流量已达上限，请{when}后再看'],
+    ['preset:2', '流量额度已用完，请{when}后再看'],
     ['preset:1', '本期流量已用完，{when}恢复'],
-    ['preset:2', '流量额度已用完，请{when}再看'],
-    ['preset:3', '服务器流量已达上限，请{when}再看'],
 ];
 const OLD_QUOTA_PRESETS = {
     '本周期上行流量已达额度，播放将在 5 秒后停止': 'preset:1',
