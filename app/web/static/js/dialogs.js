@@ -130,7 +130,7 @@ export function openDelete(kind, name) {
     <div class="m-foot"><button type="button" class="btn" data-close>取消</button><button type="button" class="btn danger" id="delGo" data-kind="${kind}" data-name="${esc(d.name)}" disabled>${ico('del', 15)}请选择处理方式</button></div>`);
 }
 
-const MESSAGE_TIMEOUT_MS = 8000;
+const MESSAGE_TIMEOUT_MS = 5000;
 
 function sessionTitleLabel(s) {
     if (s.series_name) {
@@ -154,7 +154,7 @@ export function openSessionMessage(dev, sid) {
                 <button type="button" class="on" data-msg-style="toast">短消息</button>
                 <button type="button" data-msg-style="dialog">确认框</button>
             </div>
-            <p class="msg-style-hint" id="msgStyleHint">短暂显示，3秒后自动消失</p>
+            <p class="msg-style-hint" id="msgStyleHint">短暂显示，5秒后自动消失</p>
         </div>
         <label class="fl" for="msgInp">消息内容</label>
         <textarea id="msgInp" class="msg-box" rows="3" maxlength="500" placeholder="输入消息" enterkeyhint="send" autocomplete="off"></textarea>

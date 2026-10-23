@@ -101,7 +101,7 @@ function formControl(t) {
         t.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === t));
         if (t.dataset.msgStyle) {
             const hint = $('#msgStyleHint');
-            if (hint) hint.textContent = t.dataset.msgStyle === 'dialog' ? '持续显示，用户需自行关闭' : '短暂显示，3秒后自动消失';
+            if (hint) hint.textContent = t.dataset.msgStyle === 'dialog' ? '持续显示，用户需自行关闭' : '短暂显示，5秒后自动消失';
         }
         if (t.dataset.cyc) {
             switchCycleType(t.closest('.plan'), prevCyc, t.dataset.cyc);
