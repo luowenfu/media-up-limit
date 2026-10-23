@@ -1,90 +1,48 @@
-# media-up-limit
+# 媒体达量管理
 
-媒体达量管理
+[![Release](https://img.shields.io/github/v/release/luowenfu/media-up-limit)](https://github.com/luowenfu/media-up-limit/releases)
+[![Docker Hub](https://img.shields.io/docker/v/luowenfu/media-up-limit?label=Docker%20Hub&color=2496ED)](https://hub.docker.com/r/luowenfu/media-up-limit)
 
-# 核心功能
+英文名 `media-up-limit`。同时看多台 qBittorrent 和 Emby 的上传，按周期统计，达量后自动限速或停播。
 
-**qBittorrent 达量限速**
+浏览器打开 `http://<主机IP>:8765`
 
-> 例：qb 每月上传达到 500GB 自动限速为 512KB/s，每月 1 日自动恢复至无限速
+## qBittorrent
 
-- 支持多台 qB 实例，实时监控上传/下载与在线状态
-- 按周期（月 / 周 / 日）统计流量，支持多级达量规则
-- 达量后自动设置全局上传限速；周期切换时按配置恢复
-- 支持手动限速/解除、下周期计划、备用限速模式切换
-- 流量图表、事件日志、系统日志；数据本地 SQLite 持久化
+每月上传到 500GB，自动把全局限速设成 512KB/s，下月 1 日再恢复。周期也可以按周或按天。
 
-![image-20260624005902778](./assets/image-20260624005902778.png)
+- 多台 qB，看实时上传、下载和是否在线
+- 多级达量规则，达量后改全局限速，周期切换时按设置恢复
+- 可手动限速或解除，也能先写好下个周期的计划
+- 流量图表、事件记录、系统日志，数据写在本地 SQLite
 
----
+![qBittorrent 设备与流量](./assets/image-20260624005902778.png)
 
-### Emby 功能（可选）：
+## Emby
 
->Emby 流量统计（Lucky 反代模式）
->
->本程序的核心目标，是按 Emby 用户 统计其外网访问产生的真实上传流量。
->
->Lucky 反向代理提供 连接级 流量统计，并可通过 API 获取每条连接的流量数据；Emby 则提供用户、会话、播放状态等信息。程序将两路 API 数据结合，通过裁决算法判断：某条 Lucky 连接应归属哪位用户。
->
->裁决时主要依据 IP、建连时间、会话状态、流量形态 等信息进行匹配与归属；匹配成功后，再结合 Emby 侧的 客户端、设备 等信息，形成该用户下的会话归属键，用于区分同一用户的不同设备或会话。当用户处于选片、浏览等非播放状态时，产生的流量记为 选片流量；当用户开始播放后，流量则累计到对应的 播放段会话。由此实现按用户分别记录选片流量与播放流量。
->
----
+外网上传靠 Lucky 反代的连接流量，再和 Emby 的用户、会话对上。对的时候看 IP、建连时间和播放状态。浏览海报记成选片流量，开始播放后记到这次播放。
 
+- 达量停播：可按总额度或每人额度，也能单独给某个用户设额度。达量后再开播会提示并停止，局域网不受影响。默认只记录，不执行
+- 播放会话区分局域网和外网，外网 IP 默认打码
+- 播放记录、选片记录、活动日志，以及按用户的图表
+- 可按播放进度给记录卡片换底色
+- 和 qB 分开看，或用合并视图放在一起
+- 地址栏加上 `?emby_debug=1` 可打开调试面板
 
+![Emby 播放与流量](./assets/image-20260624005902779.png)
 
-- 与 qB 设备视图可独立或**合并展示**（qB / Emby / 合并三种视图）
-- 实时播放会话：区分局域网与外网播放
-- 外网流量采集：**Lucky 反代模式**（结合 Lucky 与 Emby API，准确采集外网流量，并推断选片流量）
-- 播放记录、选片记录、活动日志；用户维度统计与图表
-- 外网 IP 脱敏显示；进入调试面板（地址栏加`?emby_debug=1`）
+![播放记录与选片记录](./assets/image-20260624005902780.png)
 
-![image-20260630200118792](./assets/image-20260624005902779.png)
+## 使用
 
-**展示完整信息的播放记录、选片记录，按用户会话统计上传流量**
+首次打开会先设账号，设完自动登录。设备和全局设置都在页面里改。手机浏览器也能用。
 
-- 需结合 **Lucky反代**，达到准确采集流量
-- 根据 播放进度 动态渐变卡片背景色
-- 用户选片时（浏览海报/元数据）产生的选片流量也可计入对应用户
-
-![](./assets/image-20260624005902780.png)
-
----
-
-### Web 管理
-
-- 浏览器访问，账号登录；实例与全局配置可在界面完成
-- 移动端适配
-
-**以及图表统计功能，图略...**
-
-#### 访问方式
-
-浏览器打开：`http://<主机IP>:8765`
-
-**首次使用**
-
-首次打开时，会进入账号设置页，设置完成后自动登录。
-
-
-#### 反向代理后的真实 IP
-
-局域网反代会自动识别真实 IP，只有前面是公网反代（如 Cloudflare）时，需设置变量 `TRUSTED_PROXY_COUNT=1`（前面有几层反代就填几）；设 `0` 则强制不信任。
-
-
-## 下版本计划
-利用 **Lucky API** 已实现 Emby 流量的准确采集，接下来准备做 Emby 的「达量限速」功能~
-
-
-
-## 快速开始（Docker Compose）
-
-**Docker 部署**：
+### Docker Compose
 
 ```yaml
 services:
   media-up-limit:
     image: luowenfu/media-up-limit:latest
-    #image: ghcr.io/luowenfu/qb-up-limit:latest #GitHub仓库镜像
     container_name: media-up-limit
     restart: unless-stopped
     network_mode: host
@@ -94,20 +52,22 @@ services:
       - ./data:/data
 ```
 
-从旧镜像升级时，只把镜像名从 `luowenfu/qb-up-limit` 改成 `luowenfu/media-up-limit`，数据目录保持不变。已保存的 qB、Emby、Lucky 连接信息会在下次启动时自动改封，不用重填。
+也可以用 `ghcr.io/luowenfu/media-up-limit:latest`。`host` 网络是为了区分局域网和外网。
 
+从旧镜像 `luowenfu/qb-up-limit` 升级时，只改镜像名，数据目录不用动。已保存的 qB、Emby、Lucky 连接会在下次启动时自动改封，不用重填。
 
-## 安全提示（开源 / 部署前必读）
+### 反代后的真实 IP
 
-以下内容**切勿**提交到公开仓库或分享给他人：
+前面是局域网反代时，会自动认出真实 IP。前面是公网反代（例如 Cloudflare）时，设置 `TRUSTED_PROXY_COUNT`，有几层就填几。填 `0` 则不信任转发头。
+
+## 不要公开这些文件
 
 - `data/config.yaml`
 - `data/.qb_secrets`、`data/.emby_secrets`
 - `data/.web_auth`、`data/.web_secret`、`data/.data_key`
 - `data/*.db`、`data/app.log*`、`data/emby_events/`
 
-
-> 本开源项目仅供学习测试
+本项目仅供学习测试。
 
 ## 许可证
 
