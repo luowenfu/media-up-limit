@@ -32,7 +32,7 @@
 }
 .brand-en > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .brand-title {
-    display: flex; align-items: center; min-width: 0;
+    display: flex; align-items: center; gap: 2px; min-width: 0;
     font-size: 15px; font-weight: 800; letter-spacing: .01em; color: var(--text); line-height: 1.2;
 }
 .brand-title > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
