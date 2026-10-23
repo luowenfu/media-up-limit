@@ -163,7 +163,7 @@ function sessionHtml(s, d) {
     const speed = `${sn} ${su}`;
     const anomaly = wan && !browse && !(Number(s.estimated_upload_bytes_live) > 0) && !!s.upload_anomaly;
     const mode = browse ? null : playMode(s);
-    const over = browse ? null : quotaHit(d.quotaOvers, s.user_name);
+    const over = wan && !browse ? quotaHit(d.quotaOvers, s.user_name) : null;
     const cmd = (act, label, icon) => `<button type="button" class="mini-btn icon" title="${label}" data-sess="${act}" data-sid="${esc(s.id)}" data-dev="${esc(d.name)}">${icon}</button>`;
     const remoteClosed = '控制通道关闭，请检查客户端是否支持。（SupportsRemoteControl=false）';
     const infoBtn = `<button type="button" class="mini-btn icon has-tip session-info" title="控制通道关闭">${I.info}<span class="ev-tip-src" hidden><div class="ev-note">${esc(remoteClosed)}</div></span></button>`;

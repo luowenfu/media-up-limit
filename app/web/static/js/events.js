@@ -162,7 +162,7 @@ function playbackEvent(r, quotaByDev) {
         mode: playMode(r),
         uploadAnomaly: missed,
         upload: r.is_remote ? `上传 ${uploadLabel}` : '',
-        quota: quotaHit(quotaByDev && quotaByDev.get(r.instance_name), r.user_name),
+        quota: r.is_remote ? quotaHit(quotaByDev && quotaByDev.get(r.instance_name), r.user_name) : null,
     };
 }
 
