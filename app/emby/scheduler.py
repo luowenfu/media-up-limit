@@ -1070,10 +1070,37 @@ class EmbyMonitor:
                     else:
                         self.clients[name] = EmbyClient(inst_cfg)
             self._sync_workers()
+            self._stamp_playing_quota_over()
             return True
         except Exception as e:
             logger.error(f'Emby 配置应用失败: {e}', exc_info=True)
             return False
+
+    def _stamp_playing_quota_over(self) -> None:
+        """新额度写入客户端后，给仍在外网播放的达量会话立刻记一笔。"""
+        with self._config_lock:
+            clients = list(self.clients.items())
+        for name, client in clients:
+            quota = getattr(client, 'user_quota', None) or {}
+            if not quota.get('enabled'):
+                continue
+            if str(getattr(client, 'traffic_collect_mode', '') or '') != 'lucky':
+                continue
+            credit_browse = bool(getattr(client, 'lucky_credit_browse_traffic', False))
+            try:
+                summary = quota_summary(
+                    name, quota, credit_browse=credit_browse,
+                )
+                playback_record_store.note_quota_over(
+                    name,
+                    [
+                        row.get('name')
+                        for row in (summary.get('overs') or [])
+                        if isinstance(row, dict)
+                    ],
+                )
+            except Exception as e:
+                logger.debug(f'[Emby:{name}] 保存额度后记下正在播放的达量失败: {e}')
 
     def reload_config(self):
         try:
