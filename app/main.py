@@ -98,6 +98,12 @@ def main():
         emby_traffic_db.DB_PATH,
     )
 
+    try:
+        from core.secrets_store import migrate_stored_secrets
+        migrate_stored_secrets()
+    except Exception as e:
+        logger.warning('更新连接信息封存失败: %s', e)
+
     monitor = TrafficMonitor(runtime_config, config_path=config_manager.CONFIG_PATH)
     monitor.start()
 

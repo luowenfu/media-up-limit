@@ -73,22 +73,71 @@ def ensure_data_key() -> str:
         return key
 
 
-def _serializer() -> URLSafeSerializer:
-    return URLSafeSerializer(ensure_data_key(), salt='qb-up-limit-secrets')
+# 新封存配料。读取时仍接受旧配料，启动时再改写成新配料。
+_SECRET_SALT = 'media-up-limit-secrets'
+_LEGACY_SECRET_SALT = 'qb-up-limit-secrets'
+
+
+def _serializer(salt: str = _SECRET_SALT) -> URLSafeSerializer:
+    return URLSafeSerializer(ensure_data_key(), salt=salt)
 
 
 def encrypt_value(plain: str) -> str:
     return _serializer().dumps(plain)
 
 
+def _load_token(token: str, salt: str):
+    return _serializer(salt).loads(token)
+
+
 def decrypt_value(token: str) -> str:
     if not token:
         return ''
-    try:
-        return _serializer().loads(token)
-    except Exception:
-        logger.warning("解密凭据失败，可能密钥已变更")
-        return ''
+    for salt in (_SECRET_SALT, _LEGACY_SECRET_SALT):
+        try:
+            return _load_token(token, salt)
+        except Exception:
+            continue
+    logger.warning("解密凭据失败，可能密钥已变更")
+    return ''
+
+
+def migrate_stored_secrets() -> None:
+    """把仍用旧配料封存的连接信息改写成新配料。"""
+    paths = (QB_SECRETS_PATH, EMBY_SECRETS_PATH, LUCKY_SECRETS_PATH)
+    for path in paths:
+        with _lock:
+            data = _read_json(path, None)
+            if not isinstance(data, dict) or not data:
+                continue
+            updated = dict(data)
+            changed = 0
+            failed = 0
+            for key, token in data.items():
+                if not isinstance(token, str) or not token:
+                    continue
+                try:
+                    _load_token(token, _SECRET_SALT)
+                    continue
+                except Exception:
+                    pass
+                try:
+                    plain = _load_token(token, _LEGACY_SECRET_SALT)
+                except Exception:
+                    failed += 1
+                    continue
+                if not isinstance(plain, str):
+                    failed += 1
+                    continue
+                updated[key] = encrypt_value(plain)
+                changed += 1
+            if changed:
+                _write_json(path, updated)
+            if changed or failed:
+                logger.info(
+                    "连接信息封存已核对 %s：改写 %s 项，未能解开 %s 项",
+                    os.path.basename(path), changed, failed,
+                )
 
 
 def ensure_web_auth() -> dict:

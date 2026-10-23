@@ -2,6 +2,11 @@
 
 新版本写在最上面。
 
+## 1.86.77
+
+- 变更：已保存的 qB、Emby、Lucky 连接信息在下次启动时改用新配料封存
+- 变更：GitHub 仓库改为 luowenfu/media-up-limit
+
 ## 1.86.76
 
 - 变更：项目改名为媒体达量管理，英文名 media-up-limit
