@@ -1,6 +1,7 @@
 """达量停播：用户本周期用量达额度后，再开播时弹出提示并暂停，5 秒后停止该会话。
 
-只在播放开始时判定一次。程序启动或刚启用时已在播的会话不处理。
+一场播放只在开始时判定一次。同一场中途改额度不再判定。
+同一会话里新开一场，按这场重新判定。程序启动或刚启用时已在播的会话不处理。
 停止若因暂时连不上或服务器 5xx 失败，会话还在就下个采集周期再发，最多 3 次。
 """
 
@@ -66,6 +67,10 @@ def _session_key(session: dict) -> str:
     return f"{sid}|{str(session.get('item_id') or '').strip()}"
 
 
+def _playback_started(session: dict) -> str:
+    return str(session.get('playback_started_at') or '').strip()
+
+
 def _thread_dispatch(fn: Callable[[], None]) -> None:
     threading.Thread(target=fn, name='emby-quota-action', daemon=True).start()
 
@@ -120,8 +125,16 @@ class QuotaEnforcer:
                 and bool((inst_cfg or {}).get('lucky_credit_browse_traffic', False))
             )
             for key, session in present.items():
-                if key in self._state:
-                    continue
+                entry = self._state.get(key)
+                if entry is not None:
+                    started = _playback_started(session)
+                    previous = str(entry.get('started') or '').strip()
+                    # 同一场沿用上次结论。开播时间变了，才是新的一场
+                    if not (started and previous and started != previous):
+                        if started and not previous:
+                            entry['started'] = started
+                        continue
+                    del self._state[key]
                 # 首次调用时已在线的会话（含暂停）一律不处理
                 if self._baselined and not is_wan_playback_session(session):
                     continue
@@ -145,6 +158,7 @@ class QuotaEnforcer:
             'stage': _IGNORED, 'last_seen': now, 'at': now,
             'sid': str(session.get('id') or '').strip(),
             'user': str(session.get('user_name') or '').strip(),
+            'started': _playback_started(session),
         }
         if not active:
             return entry
