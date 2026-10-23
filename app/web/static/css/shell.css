@@ -17,7 +17,7 @@
     transition: transform .28s cubic-bezier(.2, .8, .2, 1), width .28s cubic-bezier(.2, .8, .2, 1), padding .28s cubic-bezier(.2, .8, .2, 1), border-right-width .28s cubic-bezier(.2, .8, .2, 1);
 }
 .sidebar > :not(.nav-tree) { flex: none; }
-.brand { display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 2px 4px 4px; }
+.brand { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 2px 4px 4px; }
 .brand-top { display: flex; align-items: center; justify-content: center; align-self: center; gap: 11px; width: max-content; max-width: 100%; min-width: 0; }
 .brand-top > div { min-width: 0; }
 .brand-rule { height: 1px; background: var(--line); }
