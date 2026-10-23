@@ -84,6 +84,7 @@
 services:
   media-up-limit:
     image: luowenfu/media-up-limit:latest
+    #image: ghcr.io/luowenfu/qb-up-limit:latest #GitHub仓库镜像
     container_name: media-up-limit
     restart: unless-stopped
     network_mode: host
