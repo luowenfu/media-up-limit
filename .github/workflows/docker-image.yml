@@ -37,5 +37,7 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+            luowenfu/media-up-limit:latest
+            luowenfu/media-up-limit:${{ github.ref_name }}
             luowenfu/qb-up-limit:latest
             luowenfu/qb-up-limit:${{ github.ref_name }}
