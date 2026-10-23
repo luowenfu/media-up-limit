@@ -303,7 +303,18 @@ function eventCard(e, kind) {
     </article>`;
 }
 
-/** 正在播放的卡片用当前会话的片内位置，进度跟着影片走 */
+/** 正在播放的外网记录，上传用当前会话里已经有的累计，不重拉事件列表 */
+function syncPlayUpload(el, s) {
+    if (!s.is_remote) return;
+    const bytes = Number(s.estimated_upload_bytes_live) || 0;
+    if (bytes <= 0) return;
+    const tag = el.querySelector('.tag.up');
+    if (!tag || tag.classList.contains('warn')) return;
+    const text = `上传 ${fmtBytes(bytes, 1000)}`;
+    if (tag.textContent !== text) tag.textContent = text;
+}
+
+/** 正在播放的卡片用当前会话的片内位置和上传量，进度跟着影片走 */
 export function syncPlayProgress() {
     const live = new Map();
     embyList().forEach(d => (d.sessions || []).forEach(s => {
@@ -311,8 +322,10 @@ export function syncPlayProgress() {
     }));
     document.querySelectorAll('.ev-item[data-play]').forEach(el => {
         const s = live.get(el.dataset.play);
-        const run = Number(s && s.runtime_seconds) || 0;
-        if (!s || run <= 0) return;
+        if (!s) return;
+        syncPlayUpload(el, s);
+        const run = Number(s.runtime_seconds) || 0;
+        if (run <= 0) return;
         const pos = Number(s.position_seconds) || 0;
         const bar = el.querySelector('.ev-prog i');
         if (bar) bar.style.width = `${Math.min(100, Math.max(0, pos) / run * 100).toFixed(1)}%`;
