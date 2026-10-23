@@ -1,7 +1,7 @@
 services:
-  qb-up-limit:
-    image: qb-up-limit:latest
-    container_name: qb-up-limit
+  media-up-limit:
+    image: media-up-limit:latest
+    container_name: media-up-limit
     restart: unless-stopped
     network_mode: host
     environment:

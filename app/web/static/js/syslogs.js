@@ -259,7 +259,7 @@ export function exportLogs(lv, query) {
     }).join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
-    a.download = `qb-up-limit-${ymd(new Date())}.log`;
+    a.download = `media-up-limit-${ymd(new Date())}.log`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }

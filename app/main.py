@@ -80,7 +80,7 @@ def main():
     signal.signal(signal.SIGINT, _graceful_shutdown)
 
     logger.info("=" * 60)
-    logger.info("qB-达量限速管理 qb-up-limit 启动中...")
+    logger.info("媒体达量管理 media-up-limit 启动中...")
     logger.info("=" * 60)
 
     config = config_manager.ensure_config()

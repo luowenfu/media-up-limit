@@ -1,8 +1,10 @@
-# qb-up-limit
+# media-up-limit
+
+媒体达量管理
 
 # 核心功能
 
-**qBittorrent-达量限速管理**
+**qBittorrent 达量限速**
 
 > 例：qb 每月上传达到 500GB 自动限速为 512KB/s，每月 1 日自动恢复至无限速
 
@@ -80,9 +82,9 @@
 
 ```bash
 services:
-  qb-up-limit:
-    image: luowenfu/qb-up-limit:latest
-    container_name: qb-up-limit
+  media-up-limit:
+    image: luowenfu/media-up-limit:latest
+    container_name: media-up-limit
     restart: unless-stopped
     network_mode: host
     environment:
