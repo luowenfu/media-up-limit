@@ -1,6 +1,7 @@
 """达量停播：用户本周期用量达额度后，再开播时弹出提示并暂停，5 秒后停止该会话。
 
 只在播放开始时判定一次。程序启动或刚启用时已在播的会话不处理。
+停止若因暂时连不上或服务器 5xx 失败，会话还在就下个采集周期再发，最多 3 次。
 """
 
 from __future__ import annotations
@@ -23,24 +24,39 @@ from emby.traffic.filter import is_wan_playback_session
 logger = logging.getLogger(__name__)
 
 STOP_DELAY_SECONDS = 5.0
+MAX_STOP_ATTEMPTS = 3
 MESSAGE_HEADER = '达量停播'
 MESSAGE_TIMEOUT_MS = 5000
 # 会话短暂从列表消失后再出现，不当作新一次开播
 ABSENT_GRACE_SECONDS = 30.0
 SESSION_ENDED_ERROR = '会话已结束'
+_CONNECT_ERROR = '无法连接 Emby 服务器'
 _TERMINAL_ERRORS = frozenset({REMOTE_CONTROL_CLOSED_ERROR, SESSION_ENDED_ERROR})
 
 # 状态：ignored 不处理；pending 待提示并暂停；notifying 正在提示并暂停；
-# messaged 已提示并暂停，等停止；stopped 已处理完
+# messaged 已提示并暂停，等 5 秒后停止；stopping 正在停止；
+# stop_retry 停止暂时失败，等下个采集周期再发；stopped 已处理完
 _IGNORED = 'ignored'
 _PENDING = 'pending'
 _NOTIFYING = 'notifying'
 _MESSAGED = 'messaged'
+_STOPPING = 'stopping'
+_STOP_RETRY = 'stop_retry'
 _STOPPED = 'stopped'
 
 
 def _fmt_gb(value: float) -> str:
     return f'{value / _GB:.2f} GB'
+
+
+def _stop_can_retry(error: str) -> bool:
+    """暂时连不上，或服务器 5xx，才再发停止。"""
+    if error == _CONNECT_ERROR:
+        return True
+    if not str(error or '').startswith('HTTP '):
+        return False
+    code = str(error)[5:].strip()
+    return code.isdigit() and 500 <= int(code) <= 599
 
 
 def _session_key(session: dict) -> str:
@@ -113,7 +129,7 @@ class QuotaEnforcer:
                     client, session, sessions, quota, credit_browse, active, now,
                 )
             self._baselined = True
-            self._advance(client, now)
+            self._advance(client, now, present)
 
     def _purge(self, present: dict, now: float) -> None:
         for key in list(self._state):
@@ -190,14 +206,20 @@ class QuotaEnforcer:
         )
         return entry
 
-    def _advance(self, client, now: float) -> None:
-        for entry in self._state.values():
+    def _advance(self, client, now: float, present: dict) -> None:
+        for key, entry in self._state.items():
             if entry['stage'] == _PENDING:
                 entry['stage'] = _NOTIFYING
                 self._dispatch(lambda c=client, e=entry: self._notify_and_pause(c, e))
             elif entry['stage'] == _MESSAGED and now - entry['at'] >= STOP_DELAY_SECONDS:
-                entry['stage'] = _STOPPED
-                self._dispatch(lambda c=client, e=entry: self._send_stop(c, e))
+                self._arm_stop(client, entry)
+            elif entry['stage'] == _STOP_RETRY and key in present:
+                self._arm_stop(client, entry)
+
+    def _arm_stop(self, client, entry: dict) -> None:
+        entry['stop_attempts'] = int(entry.get('stop_attempts') or 0) + 1
+        entry['stage'] = _STOPPING
+        self._dispatch(lambda c=client, e=entry: self._send_stop(c, e))
 
     def _notify_and_pause(self, client, entry: dict) -> None:
         """提示和暂停一起发出，互不等待。暂停因控制通道关闭或会话结束而失败时，不再停止。"""
@@ -260,18 +282,50 @@ class QuotaEnforcer:
             entry['stage'] = _MESSAGED
             entry['at'] = self._clock()
 
+    def _finish_stop(self, entry: dict) -> bool:
+        with self._lock:
+            if entry['stage'] != _STOPPING:
+                return False
+            entry['stage'] = _STOPPED
+            return True
+
     def _send_stop(self, client, entry: dict) -> None:
-        result = client.send_session_playing_command(entry['sid'], 'Stop')
+        try:
+            result = client.send_session_playing_command(entry['sid'], 'Stop') or {}
+        except Exception as exc:
+            result = {'ok': False, 'error': str(exc)}
         error = str(result.get('error') or '')
+        user = entry.get('user') or ''
         if result.get('ok'):
-            logger.info(
-                f'[Emby:{self.instance_name}] 达量停播：已停止 {entry["user"]} 的播放',
+            if self._finish_stop(entry):
+                logger.info(f'[Emby:{self.instance_name}] 达量停播：已停止 {user} 的播放')
+            return
+        if error == SESSION_ENDED_ERROR:
+            if self._finish_stop(entry):
+                logger.info(
+                    f'[Emby:{self.instance_name}] 达量停播：{user} 的会话已结束，无需停止',
+                )
+            return
+        retry = _stop_can_retry(error)
+        with self._lock:
+            if entry['stage'] != _STOPPING:
+                return
+            attempts = int(entry.get('stop_attempts') or 1)
+            if retry and attempts < MAX_STOP_ATTEMPTS:
+                entry['stage'] = _STOP_RETRY
+                scheduled = True
+            else:
+                entry['stage'] = _STOPPED
+                scheduled = False
+        if scheduled:
+            logger.warning(
+                f'[Emby:{self.instance_name}] 达量停播：停止 {user} 的播放失败：{error}，下次采集再试',
             )
-        elif error == SESSION_ENDED_ERROR:
-            logger.info(
-                f'[Emby:{self.instance_name}] 达量停播：{entry["user"]} 的会话已结束，无需停止',
+        elif retry:
+            logger.warning(
+                f'[Emby:{self.instance_name}] 达量停播：停止 {user} 的播放失败：{error}，已试 {attempts} 次',
             )
         else:
             logger.warning(
-                f'[Emby:{self.instance_name}] 达量停播：停止 {entry["user"]} 的播放失败：{error}',
+                f'[Emby:{self.instance_name}] 达量停播：停止 {user} 的播放失败：{error}',
             )
