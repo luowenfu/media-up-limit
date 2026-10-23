@@ -1,0 +1,90 @@
+name: Update Docker Hub about
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update old and new image descriptions
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          python3 << 'PY'
+          import json, os, urllib.request
+
+          def request(url, method="GET", body=None, token=None):
+              headers = {"Content-Type": "application/json"}
+              if token:
+                  headers["Authorization"] = f"JWT {token}"
+              data = None if body is None else json.dumps(body).encode("utf-8")
+              req = urllib.request.Request(url, data=data, headers=headers, method=method)
+              with urllib.request.urlopen(req) as resp:
+                  raw = resp.read().decode("utf-8")
+                  return resp.status, json.loads(raw) if raw else {}
+
+          _, login = request(
+              "https://hub.docker.com/v2/users/login/",
+              method="POST",
+              body={
+                  "username": os.environ["DOCKERHUB_USERNAME"],
+                  "password": os.environ["DOCKERHUB_TOKEN"],
+              },
+          )
+          token = login["token"]
+
+          old_notice = (
+              "> 本镜像已改名为 `luowenfu/media-up-limit`，不再更新。"
+              "升级时只把镜像名从 `luowenfu/qb-up-limit` 改成 `luowenfu/media-up-limit`，数据目录保持不变。\n\n"
+              "新镜像：https://hub.docker.com/r/luowenfu/media-up-limit\n\n"
+              "新仓库：https://github.com/luowenfu/media-up-limit\n\n"
+          )
+          _, old = request("https://hub.docker.com/v2/repositories/luowenfu/qb-up-limit/")
+          old_full = old.get("full_description") or ""
+          if "本镜像已改名为" not in old_full:
+              old_full = old_notice + old_full
+
+          new_full = """媒体达量管理。qB 达量后限上传，Emby 按用户统计外网上行，达量后停播。
+
+          从旧镜像升级时，只把镜像名从 `luowenfu/qb-up-limit` 改成 `luowenfu/media-up-limit`，数据目录保持不变。已保存的 qB、Emby、Lucky 连接信息会在下次启动时自动改封，不用重填。
+
+          ```yaml
+          services:
+            media-up-limit:
+              image: luowenfu/media-up-limit:latest
+              container_name: media-up-limit
+              restart: unless-stopped
+              network_mode: host
+              environment:
+                TZ: Asia/Shanghai
+              volumes:
+                - ./data:/data
+          ```
+
+          仓库：https://github.com/luowenfu/media-up-limit
+          """
+          new_full = "\n".join(line[10:] if line.startswith("          ") else line for line in new_full.splitlines())
+
+          updates = {
+              "qb-up-limit": {
+                  "description": "已改名并停更。请改用 luowenfu/media-up-limit",
+                  "full_description": old_full,
+              },
+              "media-up-limit": {
+                  "description": "媒体达量管理。qB 达量限上传，Emby 统计外网上行并达量停播。",
+                  "full_description": new_full.strip() + "\n",
+              },
+          }
+          for name, body in updates.items():
+              if len(body["description"]) > 100:
+                  raise SystemExit(f"{name} description too long: {len(body['description'])}")
+              status, result = request(
+                  f"https://hub.docker.com/v2/repositories/luowenfu/{name}/",
+                  method="PATCH",
+                  body=body,
+                  token=token,
+              )
+              print(name, status, result.get("description", ""))
+          PY
