@@ -97,14 +97,17 @@ const QUOTA_MSG_CUSTOM = '__custom__';
 const WEEK_LABEL = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 // 模板要和 emby/quota/message.py 的 PRESETS 一致，{when} 在发送时按周期重算
 const QUOTA_PRESETS = [
-    ['preset:1', '本期流量已用完，{when}恢复，播放将在 5 秒后停止'],
-    ['preset:2', '流量额度已用完，5 秒后停止播放，请{when}再看'],
-    ['preset:3', '服务器流量已达上限，请{when}再看'],
+    ['preset:1', '本期流量已用完，{when}恢复，播放已暂停，5 秒后停止'],
+    ['preset:2', '流量额度已用完，播放已暂停，5 秒后停止，请{when}再看'],
+    ['preset:3', '服务器流量已达上限，播放已暂停，5 秒后停止，请{when}再看'],
 ];
 const OLD_QUOTA_PRESETS = {
     '本周期上行流量已达额度，播放将在 5 秒后停止': 'preset:1',
     '流量额度已用完，5 秒后将停止播放，请下个周期再看': 'preset:2',
     '服务器流量已达上限，播放即将停止': 'preset:3',
+    '本期流量已用完，{when}恢复，播放将在 5 秒后停止': 'preset:1',
+    '流量额度已用完，5 秒后停止播放，请{when}再看': 'preset:2',
+    '服务器流量已达上限，请{when}再看': 'preset:3',
 };
 
 function sameIsoWeek(a, b) {
@@ -189,10 +192,10 @@ function quotaPane(cfg, users) {
     const msgOptions = QUOTA_PRESETS
         .map(([id, tpl]) => [id, tpl.replaceAll('{when}', whenNow)])
         .concat([[QUOTA_MSG_CUSTOM, '自定义']]);
-    return notice('emby', '<b>达量停播：</b>利用 Emby 官方接口控制播放会话；额度用完后再开始播放时将收到提示，5 秒后停止。需要开启「流量采集」里的 Lucky 反代模式，局域网播放不受影响。')
+    return notice('emby', '<b>达量停播：</b>利用 Emby 官方接口控制播放会话；额度用完后再开始播放时将弹出提示并暂停，5 秒后停止。需要开启「流量采集」里的 Lucky 反代模式，局域网播放不受影响。')
         + fs('shield', '达量停播', '', `<div class="sw-list">
             ${swRow({ t: '启用达量停播', d: '总开关', on: !!qt.enabled, name: 'qEnable' })}
-            ${swRow({ t: '只记录不执行', d: '到点只写系统日志，不发提示也不停止。确认用量准确后再关闭', on: qt.dry_run !== false, name: 'qDry' })}
+            ${swRow({ t: '只记录不执行', d: '到点只写系统日志，不发提示、不暂停也不停止。确认用量准确后再关闭', on: qt.dry_run !== false, name: 'qDry' })}
         </div>`)
         + fs('clock', '统计周期', '', `<div class="plan" id="quotaPlan" ${anchorsAttr(label, cyc.reset_anchor)}><div class="f-grid">
             ${fld('周期类型', segF(['按月', '按周', '按天'], label, 'data-cyc'), { full: true })}
