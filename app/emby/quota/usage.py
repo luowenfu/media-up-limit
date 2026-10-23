@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Emby 流量按十进制单位显示（1 GB = 1000 MB），额度同口径
 GB = 1000 ** 3
-_SUMMARY_TTL_SECONDS = 10.0
+_summary_ttl_seconds = 10.0
 
 
 def listed_limit_gb(quota: dict, user_name: str) -> Optional[float]:
@@ -238,14 +238,54 @@ _summary_lock = threading.Lock()
 _summary_cache: Dict[str, dict] = {}
 
 
-def quota_summary(
+def set_summary_ttl(seconds) -> None:
+    """达量摘要缓存时长，跟数据采集间隔走。"""
+    global _summary_ttl_seconds
+    try:
+        value = float(seconds)
+    except (TypeError, ValueError):
+        value = 10.0
+    _summary_ttl_seconds = max(1.0, value)
+
+
+def _quota_total_bytes(instance_name: str, used: Dict[str, int], *,
+                       credit_browse: bool) -> int:
+    """按用户合计（含播放实时）+ 选片实时桶，口径同 cycle_total_bytes。"""
+    total = sum(used.values())
+    if credit_browse:
+        total += sum(
+            max(0, int(v or 0))
+            for v in emby_playback_traffic.peek_browse_upload_bucket(instance_name).values()
+        )
+    return total
+
+
+def refresh_quota_summary(
     instance_name: str,
     quota: dict,
     *,
     credit_browse: bool,
     clock=time.monotonic,
 ) -> dict:
-    """设备卡片用：当前周期、达量用户数和名单。每 10 秒才重新查一次。"""
+    """采集线程预热：缓存过期才重算。"""
+    return quota_summary(
+        instance_name, quota, credit_browse=credit_browse, clock=clock, refresh=True,
+    )
+
+
+def quota_summary(
+    instance_name: str,
+    quota: dict,
+    *,
+    credit_browse: bool,
+    clock=time.monotonic,
+    refresh: bool = False,
+) -> dict:
+    """设备卡片用：当前周期、达量用户数和名单。
+
+    请求路径只读缓存（过期也返回旧值）。签名变了或还没有缓存时才现算。
+    采集线程带 refresh=True，过期才重算。
+    """
     quota = quota or {}
     if not quota.get('enabled'):
         return {'enabled': False}
@@ -253,8 +293,10 @@ def quota_summary(
     now = clock()
     with _summary_lock:
         cached = _summary_cache.get(instance_name)
-        if cached and cached['signature'] == signature and now - cached['at'] < _SUMMARY_TTL_SECONDS:
-            return cached['value']
+        if cached and cached['signature'] == signature:
+            fresh = now - cached['at'] < _summary_ttl_seconds
+            if fresh or not refresh:
+                return cached['value']
     cycle = quota.get('cycle') or {}
     value = {
         'enabled': True,
@@ -278,13 +320,14 @@ def quota_summary(
         used = cycle_used_by_user(
             instance_name, cycle, credit_browse=credit_browse, names=names,
         )
+        total = _quota_total_bytes(
+            instance_name, used, credit_browse=credit_browse,
+        )
         _prefer_config_names(quota, names)
         overs = []
         if is_total_mode(quota):
             limit_gb = float(quota.get('total_limit_gb') or 0)
-            total = 0
             if limit_gb > 0:
-                total = cycle_total_bytes(instance_name, cycle, credit_browse=credit_browse)
                 value['total_reached'] = total >= limit_gb * GB
             value['has_own_limits'] = bool(quota.get('users'))
             if value['has_own_limits']:

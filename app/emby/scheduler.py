@@ -8,7 +8,6 @@ from typing import Dict, Optional, Set
 from zoneinfo import ZoneInfo
 
 import core.config_manager as config_manager
-import emby.browse.stats as emby_browse_upload_stats
 import emby.traffic.db as emby_traffic_db
 import emby.records.store as playback_record_store
 import core.secrets_store as secrets_store
@@ -18,7 +17,7 @@ import emby.traffic.tick_audit as emby_traffic_tick_audit
 import emby.user_sync as emby_user_sync
 from emby.client import EmbyClient
 from emby.quota.enforcer import QuotaEnforcer
-from emby.quota.usage import quota_summary
+from emby.quota.usage import quota_summary, refresh_quota_summary, set_summary_ttl
 from emby.lucky.api import (
     LuckyClient,
     calc_conn_traffic_deltas,
@@ -960,6 +959,14 @@ class EmbyInstanceWorker:
                 logger.debug(
                     f'[Emby:{self.name}] 无会话时分摊状态清理失败: {e}',
                 )
+        if collect_mode == 'lucky':
+            try:
+                refresh_quota_summary(
+                    self.name, getattr(client, 'user_quota', {}) or {},
+                    credit_browse=credit_browse,
+                )
+            except Exception as e:
+                logger.debug(f'[Emby:{self.name}] 达量摘要预热失败: {e}')
         self._was_online = is_online
         self._recovery_allowed_persist_keys = None
 
@@ -995,6 +1002,8 @@ class EmbyMonitor:
         )
         self.refresh_interval = refresh
         self.collect_interval = config_manager.collect_interval_for_refresh(refresh)
+        self._live_status_traffic_cache_ttl = float(self.collect_interval)
+        set_summary_ttl(self.collect_interval)
         self.preplay_burst_mbps = config_manager.clamp_emby_preplay_burst_mbps(
             self.global_cfg.get('emby_preplay_burst_mbps', 1.5),
         )
@@ -1215,54 +1224,49 @@ class EmbyMonitor:
                     dict(self._live_status_traffic_cache.get('_data_starts') or {}),
                 )
 
-        credit_browse_map = {
-            name: (
-                client.traffic_collect_mode == 'lucky'
-                and bool(client.lucky_credit_browse_traffic)
-            )
-            for name, client in clients.items()
-        }
-        upload_batch = emby_browse_upload_stats.get_live_status_upload_batch(
-            names, credit_browse_map, today_start, yesterday_start, month_start,
-        )
-        download_today = emby_traffic_db.get_period_bytes_batch(
-            names, today_start, 'download',
-        )
-        download_yesterday_base = emby_traffic_db.get_period_bytes_batch(
-            names, yesterday_start, 'download',
-        )
-        download_month = emby_traffic_db.get_period_bytes_batch(
-            names, month_start, 'download',
-        )
-        download_total = emby_traffic_db.get_total_bytes_batch(names, 'download')
-        data_starts = emby_traffic_db.get_data_start_times_batch(names)
-        status_map = {
-            row['instance_name']: row
-            for row in emby_traffic_db.get_all_instance_status()
-        }
-        traffic_batch = {}
-        for name in names:
-            upload = upload_batch.get(name, {})
-            today_dl = download_today.get(name, 0)
-            yesterday_base_dl = download_yesterday_base.get(name, 0)
-            traffic_batch[name] = {
-                'today_upload': int(upload.get('today_upload') or 0),
-                'today_download': today_dl,
-                'yesterday_upload': int(upload.get('yesterday_upload') or 0),
-                'yesterday_download': max(0, yesterday_base_dl - today_dl),
-                'month_upload': int(upload.get('month_upload') or 0),
-                'month_download': download_month.get(name, 0),
-                'device_upload': int(upload.get('device_upload') or 0),
-                'device_download': download_total.get(name, 0),
+            credit_browse_map = {
+                name: (
+                    client.traffic_collect_mode == 'lucky'
+                    and bool(client.lucky_credit_browse_traffic)
+                )
+                for name, client in clients.items()
             }
-        cached = dict(traffic_batch)
-        cached['_period_key'] = period_key
-        cached['_status_map'] = status_map
-        cached['_data_starts'] = data_starts
-        with self._live_status_traffic_cache_lock:
+            snap = emby_traffic_db.get_live_status_snapshot(
+                names, today_start, yesterday_start, month_start,
+            )
+            traffic_batch = {}
+            for name in names:
+                credit = bool(credit_browse_map.get(name))
+                today_up = int(snap['playback_today'].get(name) or 0)
+                yesterday_base = int(snap['playback_yesterday'].get(name) or 0)
+                month_up = int(snap['playback_month'].get(name) or 0)
+                device_up = int(snap['playback_total'].get(name) or 0)
+                if credit:
+                    today_up += int(snap['browse_today'].get(name) or 0)
+                    yesterday_base += int(snap['browse_yesterday'].get(name) or 0)
+                    month_up += int(snap['browse_month'].get(name) or 0)
+                    device_up += int(snap['browse_total'].get(name) or 0)
+                today_dl = int(snap['download_today'].get(name) or 0)
+                yesterday_base_dl = int(snap['download_yesterday'].get(name) or 0)
+                traffic_batch[name] = {
+                    'today_upload': today_up,
+                    'today_download': today_dl,
+                    'yesterday_upload': max(0, yesterday_base - today_up),
+                    'yesterday_download': max(0, yesterday_base_dl - today_dl),
+                    'month_upload': month_up,
+                    'month_download': int(snap['download_month'].get(name) or 0),
+                    'device_upload': device_up,
+                    'device_download': int(snap['download_total'].get(name) or 0),
+                }
+            status_map = dict(snap.get('status_map') or {})
+            data_starts = dict(snap.get('data_starts') or {})
+            cached = dict(traffic_batch)
+            cached['_period_key'] = period_key
+            cached['_status_map'] = status_map
+            cached['_data_starts'] = data_starts
             self._live_status_traffic_cache = cached
             self._live_status_traffic_cache_at = now_mono
-        return traffic_batch, status_map, data_starts
+            return traffic_batch, status_map, data_starts
 
     def get_live_status_summary(self) -> list:
         with self._live_cache_lock:

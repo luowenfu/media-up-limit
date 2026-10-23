@@ -1246,6 +1246,133 @@ def get_data_start_times_batch(instance_names: list) -> dict:
     return result
 
 
+def _fill_instance_sum(cursor, sql: str, params: tuple, names: list) -> dict:
+    result = {n: 0 for n in names}
+    cursor.execute(sql, params)
+    for row in cursor.fetchall():
+        name = row['instance_name']
+        if name in result:
+            result[name] = int(row['total'] or 0)
+    return result
+
+
+def get_live_status_snapshot(instance_names: list, today_start: datetime,
+                             yesterday_start: datetime, month_start: datetime) -> dict:
+    """状态卡片一次查出今日/昨日/本月/总计和实例状态。"""
+    names = [n for n in (instance_names or []) if n]
+    if not names:
+        return {
+            'playback_today': {}, 'playback_yesterday': {},
+            'playback_month': {}, 'playback_total': {},
+            'browse_today': {}, 'browse_yesterday': {},
+            'browse_month': {}, 'browse_total': {},
+            'download_today': {}, 'download_yesterday': {},
+            'download_month': {}, 'download_total': {},
+            'data_starts': {}, 'status_map': {},
+        }
+    placeholders = ','.join('?' * len(names))
+    today_s = today_start.strftime('%Y-%m-%d %H:%M:%S')
+    yesterday_s = yesterday_start.strftime('%Y-%m-%d %H:%M:%S')
+    month_s = month_start.strftime('%Y-%m-%d %H:%M:%S')
+    period_sql = f'''
+        SELECT instance_name, COALESCE(SUM({{col}}), 0) AS total
+        FROM {{table}}
+        WHERE instance_name IN ({placeholders})
+          AND {{when}} >= ?
+        GROUP BY instance_name
+    '''
+    total_sql = f'''
+        SELECT instance_name, COALESCE(SUM({{col}}), 0) AS total
+        FROM {{table}}
+        WHERE instance_name IN ({placeholders})
+        GROUP BY instance_name
+    '''
+    _ensure_emby_schema()
+    with _lock:
+        conn = get_conn()
+        try:
+            c = conn.cursor()
+            playback_today = _fill_instance_sum(
+                c, period_sql.format(col='uploaded_bytes', table='emby_playback_upload_hourly', when='hour_start'),
+                (*names, today_s), names,
+            )
+            playback_yesterday = _fill_instance_sum(
+                c, period_sql.format(col='uploaded_bytes', table='emby_playback_upload_hourly', when='hour_start'),
+                (*names, yesterday_s), names,
+            )
+            playback_month = _fill_instance_sum(
+                c, period_sql.format(col='uploaded_bytes', table='emby_playback_upload_hourly', when='hour_start'),
+                (*names, month_s), names,
+            )
+            playback_total = _fill_instance_sum(
+                c, total_sql.format(col='estimated_upload_bytes', table='emby_playback_upload_facts'),
+                tuple(names), names,
+            )
+            browse_today = _fill_instance_sum(
+                c, period_sql.format(col='estimated_upload_bytes', table='emby_browse_upload_facts', when='stopped_at'),
+                (*names, today_s), names,
+            )
+            browse_yesterday = _fill_instance_sum(
+                c, period_sql.format(col='estimated_upload_bytes', table='emby_browse_upload_facts', when='stopped_at'),
+                (*names, yesterday_s), names,
+            )
+            browse_month = _fill_instance_sum(
+                c, period_sql.format(col='estimated_upload_bytes', table='emby_browse_upload_facts', when='stopped_at'),
+                (*names, month_s), names,
+            )
+            browse_total = _fill_instance_sum(
+                c, total_sql.format(col='estimated_upload_bytes', table='emby_browse_upload_facts'),
+                tuple(names), names,
+            )
+            download_today = _fill_instance_sum(
+                c, period_sql.format(col='downloaded_bytes', table='emby_traffic_hourly', when='hour_start'),
+                (*names, today_s), names,
+            )
+            download_yesterday = _fill_instance_sum(
+                c, period_sql.format(col='downloaded_bytes', table='emby_traffic_hourly', when='hour_start'),
+                (*names, yesterday_s), names,
+            )
+            download_month = _fill_instance_sum(
+                c, period_sql.format(col='downloaded_bytes', table='emby_traffic_hourly', when='hour_start'),
+                (*names, month_s), names,
+            )
+            download_total = _fill_instance_sum(
+                c, total_sql.format(col='downloaded_bytes', table='emby_traffic_hourly'),
+                tuple(names), names,
+            )
+            data_starts = {n: None for n in names}
+            c.execute(f'''
+                SELECT instance_name, MIN(hour_start) AS start_time
+                FROM emby_traffic_hourly
+                WHERE instance_name IN ({placeholders})
+                GROUP BY instance_name
+            ''', names)
+            for row in c.fetchall():
+                data_starts[row['instance_name']] = row['start_time']
+            c.execute(
+                'SELECT * FROM emby_instance_status WHERE deleted_at IS NULL'
+            )
+            status_map = {row['instance_name']: dict(row) for row in c.fetchall()}
+            return {
+                'playback_today': playback_today,
+                'playback_yesterday': playback_yesterday,
+                'playback_month': playback_month,
+                'playback_total': playback_total,
+                'browse_today': browse_today,
+                'browse_yesterday': browse_yesterday,
+                'browse_month': browse_month,
+                'browse_total': browse_total,
+                'download_today': download_today,
+                'download_yesterday': download_yesterday,
+                'download_month': download_month,
+                'download_total': download_total,
+                'data_starts': data_starts,
+                'status_map': status_map,
+            }
+        finally:
+            conn.close()
+
+
 def get_playback_upload_period_bytes_batch(instance_names: list,
                                            start_dt: datetime) -> dict:
     names = [n for n in (instance_names or []) if n]
