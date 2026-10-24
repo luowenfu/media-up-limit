@@ -266,15 +266,18 @@ function ensureTbBar() {
 
 const SPLIT_BTN = '<i class="tb-split-line" aria-hidden="true"></i><span class="tb-split-grip" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M6.2 2.2 3.4 5l2.8 2.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
 
-/** 状态栏打开页面时先展开。上次是收起的，1 秒后再收起 */
+/** 状态栏：电脑上打开页面先展开，上次是收起的 1 秒后再收起；手机上直接按上次状态显示，没记录时默认收起，不先展开 */
 const DOCK_KEY = 'qb-metrics-docked';
 let metricsDocked = false;
 let dockTimer = 0;
 try {
-    if (localStorage.getItem(DOCK_KEY) === '1') {
+    const saved = localStorage.getItem(DOCK_KEY);
+    if (isMobile()) {
+        metricsDocked = saved !== '0';
+    } else if (saved === '1') {
         dockTimer = setTimeout(() => { dockTimer = 0; metricsDocked = true; syncMetricsDock(); }, 1000);
     }
-} catch (e) { /* 隐私模式按展开处理 */ }
+} catch (e) { metricsDocked = isMobile(); /* 隐私模式：手机收起，电脑展开 */ }
 
 function syncMetricsDock() {
     const slot = document.getElementById('metricsSlot');
