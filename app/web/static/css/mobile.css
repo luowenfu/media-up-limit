@@ -212,7 +212,7 @@
     .test-row .btn { flex: 1; }
 
     .modal-mask:has(.modal.sm) { place-items: end stretch; padding: 0; }
-    .modal.sm { width: 100%; border-radius: 22px 22px 0 0; transform: translateY(100%); transition: transform .28s cubic-bezier(.2, .8, .2, 1); }
+    .modal.sm { width: 100%; max-height: calc(100dvh - var(--kb, 0px) - 12px); border-radius: 22px 22px 0 0; transform: translateY(100%); transition: transform .28s cubic-bezier(.2, .8, .2, 1); }
     .modal.sm::before { content: ""; display: block; width: 38px; height: 4px; margin: 8px auto 0; border-radius: 3px; background: #d6dce5; }
     .m-top { padding-top: 14px; }
     .m-foot .btn { flex: 1; }
