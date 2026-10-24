@@ -379,14 +379,16 @@ export function renderChrome() {
     revealMetrics();
 }
 
-/** 手机首屏：顶栏排好、状态栏按上次状态就位后再显示，两帧后才恢复动画 */
+/** 手机首屏：顶栏排好、状态栏按上次状态就位后再显示，两帧后才恢复动画，之后手动点按仍有动画 */
 function revealMetrics() {
     const root = document.documentElement;
     if (!root.classList.contains('mq-pending')) return;
     requestAnimationFrame(() => {
         syncMetricsLayout();
-        root.classList.remove('mq-pending');
-        syncMetricsEdge();
+        requestAnimationFrame(() => {
+            root.classList.remove('mq-pending');
+            syncMetricsEdge();
+        });
     });
 }
 
