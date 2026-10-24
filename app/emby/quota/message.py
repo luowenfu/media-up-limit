@@ -18,6 +18,7 @@ PRESET_KEYS = frozenset(PRESETS)
 HEADER_PRESETS = {
     'preset:1': '达量停播',
     'preset:2': '系统消息',
+    'preset:4': '管理员消息',
     'preset:3': '请联系管理员',
 }
 HEADER_PRESET_KEYS = frozenset(HEADER_PRESETS)

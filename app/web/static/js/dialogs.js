@@ -159,7 +159,7 @@ export function openSessionMessage(dev, sid) {
         </div>
         <div class="msg-head" data-msg-head style="display:none">
             <label class="fl" for="msgHead">标题</label>
-            <div class="inp"><input id="msgHead" type="text" maxlength="${MESSAGE_HEADER_MAX}" value="收到消息" placeholder="最多 ${MESSAGE_HEADER_MAX} 个字" autocomplete="off"></div>
+            <div class="inp"><input id="msgHead" type="text" maxlength="${MESSAGE_HEADER_MAX}" value="管理员消息" placeholder="最多 ${MESSAGE_HEADER_MAX} 个字" autocomplete="off"></div>
         </div>
         <label class="fl" for="msgInp">消息内容</label>
         <textarea id="msgInp" class="msg-box" rows="3" maxlength="500" placeholder="输入消息" enterkeyhint="send" autocomplete="off"></textarea>

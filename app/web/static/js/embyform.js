@@ -106,6 +106,7 @@ const QUOTA_HEADER_MAX = 20;
 const QUOTA_HEADER_PRESETS = [
     ['preset:1', '达量停播'],
     ['preset:2', '系统消息'],
+    ['preset:4', '管理员消息'],
     ['preset:3', '请联系管理员'],
 ];
 const OLD_QUOTA_PRESETS = {
