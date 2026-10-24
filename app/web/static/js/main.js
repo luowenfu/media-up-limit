@@ -3,6 +3,7 @@
 import './fulltip.js';
 import './totop.js';
 import './evwrap.js';
+import './keyboard.js';
 import * as api from './api.js';
 import { exportLogs, loadMoreLogs, logListHtml } from './syslogs.js';
 import {

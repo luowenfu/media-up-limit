@@ -238,14 +238,14 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 
 /* 弹窗 */
 .modal-mask {
-    position: fixed; inset: 0; z-index: 200;
+    position: fixed; inset: 0; bottom: var(--kb, 0px); z-index: 200;
     display: grid; place-items: center; padding: 20px;
     background: rgba(15, 23, 42, .45); backdrop-filter: blur(3px);
     opacity: 0; pointer-events: none; transition: opacity .2s;
 }
 .modal-mask.open { opacity: 1; pointer-events: auto; }
 .modal {
-    width: min(560px, 100%); max-height: calc(100dvh - 40px); overflow: auto;
+    width: min(560px, 100%); max-height: calc(100dvh - var(--kb, 0px) - 40px); overflow: auto;
     border-radius: 20px; background: #fff; box-shadow: var(--shadow-lg);
     transform: translateY(10px) scale(.98); transition: transform .2s;
 }
