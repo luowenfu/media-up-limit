@@ -531,6 +531,14 @@ export async function renderStats(kind) {
     return statsHtml(m, kind, dev);
 }
 
+/** 点名次图标或条目名称，等同于点这一行的展开按钮。只认能展开的那一行，嵌套的明细行不会带动外层 */
+function rankToggleOf(target) {
+    const hit = target?.closest?.('.rank-no, .rank-name');
+    const row = hit?.closest('.rank-row');
+    if (!row?.classList.contains('can-open')) return null;
+    return row.querySelector(':scope > .rank-toggle');
+}
+
 function bindRankToggles() {
     const root = document.getElementById('sec-chart');
     if (!root || root.dataset.rankBound) return;
@@ -547,7 +555,7 @@ function bindRankToggles() {
             if (scroller) scroller.scrollTop = scrollTop;
             return;
         }
-        const btn = event.target.closest('.rank-toggle');
+        const btn = event.target.closest('.rank-toggle') || rankToggleOf(event.target);
         if (!btn || !root.contains(btn)) return;
         const row = btn.closest('.rank-row');
         if (!row || !btn.dataset.rankKey) return;
