@@ -147,6 +147,8 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 .rank-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .rank-detail .hint-t { margin-top: 0; }
 .rank-name { height: 18px; line-height: 18px; font-size: 13px; font-weight: 600; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-row.can-open > .rank-no,
+.rank-row.can-open > div > .rank-name { cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
 .rank-name.has-kind { display: flex; align-items: center; gap: 6px; }
 .rank-name.has-kind > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .rank-kind { flex: none; font-size: 11px; font-weight: 500; color: var(--text-3); white-space: nowrap; }
