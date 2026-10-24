@@ -126,11 +126,7 @@ function openQuotaEdit(name) {
     state.quotaDraft = user && user.via === 'own' ? String(user.limitGb) : '';
     state.quotaEditErr = '';
     const card = paintQuotaList();
-    const input = card && card.querySelector('[data-quota-gb]');
-    if (input) {
-        input.focus({ preventScroll: true });
-        input.closest('.qd-edit')?.scrollIntoView({ block: 'nearest' });
-    }
+    card?.querySelector('.qd-edit')?.scrollIntoView({ block: 'nearest' });
 }
 
 async function commitQuotaEdit(btn) {
