@@ -141,9 +141,9 @@ html[data-scheme="dark"] .inp.bad:focus-within {
 
 .sw-list { display: flex; flex-direction: column; }
 .q-msg { margin-top: 16px; }
+.q-msg .fs-head { margin-bottom: 10px; }
+.q-msg .msg-style { margin-bottom: 12px; }
 #qMsgBox { margin-top: 12px; }
-.q-msg-type { margin-top: 16px; }
-.q-msg-type .msg-style { margin-bottom: 0; }
 /* 两端留空，不顶到区块边缘 */
 .line-open { height: 1px; margin: 0 14px; background: var(--line); }
 .sw-row { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid var(--line-2); }

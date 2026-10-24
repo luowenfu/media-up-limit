@@ -202,20 +202,17 @@ function quotaPane(cfg, users) {
         </div></div>
         <div class="q-msg">
             <div class="fs-head"><span class="ic">${ico('msg', 16)}</span><div><b>提示文案</b></div></div>
+            <div class="msg-style">
+                <div class="seg-f" id="qMsgStyle">
+                    <button type="button" class="${msgStyle === 'toast' ? 'on' : ''}" data-msg-style="toast">短消息</button>
+                    <button type="button" class="${msgStyle === 'dialog' ? 'on' : ''}" data-msg-style="dialog">确认框</button>
+                </div>
+                <p class="msg-style-hint">${msgStyleHint}</p>
+            </div>
             ${sel(msgOptions, msgSel, 'qMsgSel')}
             <div id="qMsgBox" style="${msgSel === QUOTA_MSG_CUSTOM ? '' : 'display:none'}">
                 ${inp({ id: 'qMsgText', val: msgSel === QUOTA_MSG_CUSTOM ? msgText : '', ph: `最多 ${QUOTA_MSG_MAX} 个字` })}
                 <div class="hint-t" id="qMsgHint">${quotaWhenHint(whenNow)}</div>
-            </div>
-            <div class="q-msg-type">
-                <label class="fl">提示类型</label>
-                <div class="msg-style">
-                    <div class="seg-f" id="qMsgStyle">
-                        <button type="button" class="${msgStyle === 'toast' ? 'on' : ''}" data-msg-style="toast">短消息</button>
-                        <button type="button" class="${msgStyle === 'dialog' ? 'on' : ''}" data-msg-style="dialog">确认框</button>
-                    </div>
-                    <p class="msg-style-hint">${msgStyleHint}</p>
-                </div>
             </div>
         </div>`)
         + fs('sum', '额度设置', '用量归属可能有些误差，额度请留余量；选片流量是否计入见「流量采集」', `${segF(['按总额度', '按每人额度'], isTotal ? '按总额度' : '按每人额度', 'data-qmode')}
