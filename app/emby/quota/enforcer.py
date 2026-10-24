@@ -1,6 +1,8 @@
 """达量停播：用户本周期用量达额度后，再开播时弹出提示并暂停，5 秒后停止该会话。
 
-一场播放只在开始时判定一次。同一场中途改额度不再判定。
+一场播放只在开始时判定一次。同一场中途降额不再判定。
+停止命令返回成功后仍看播放器。进度还在走并且仍然达量，就再提示、暂停并停止。
+用户被提额到未达量后，这场不再发。
 同一会话里新开一场，按这场重新判定。程序启动或刚启用时已在播的会话不处理。
 停止若因暂时连不上或服务器 5xx 失败，会话还在就下个采集周期再发，最多 3 次。
 """
@@ -25,6 +27,10 @@ from emby.traffic.filter import is_wan_playback_session
 logger = logging.getLogger(__name__)
 
 STOP_DELAY_SECONDS = 5.0
+CONFIRM_SECONDS = 15.0
+RETRY_GAP_SECONDS = 30.0
+_TICKS_PER_SECOND = 10_000_000
+_PROGRESS_TICKS = 5 * _TICKS_PER_SECOND
 MAX_STOP_ATTEMPTS = 3
 MESSAGE_HEADER = '达量停播'
 MESSAGE_TIMEOUT_MS = 5000
@@ -36,13 +42,15 @@ _TERMINAL_ERRORS = frozenset({REMOTE_CONTROL_CLOSED_ERROR, SESSION_ENDED_ERROR})
 
 # 状态：ignored 不处理；pending 待提示并暂停；notifying 正在提示并暂停；
 # messaged 已提示并暂停，等 5 秒后停止；stopping 正在停止；
-# stop_retry 停止暂时失败，等下个采集周期再发；stopped 已处理完
+# stop_retry 停止暂时失败，等下个采集周期再发；
+# confirming 停止命令已收下，等播放器真正停下；stopped 已处理完
 _IGNORED = 'ignored'
 _PENDING = 'pending'
 _NOTIFYING = 'notifying'
 _MESSAGED = 'messaged'
 _STOPPING = 'stopping'
 _STOP_RETRY = 'stop_retry'
+_CONFIRMING = 'confirming'
 _STOPPED = 'stopped'
 
 
@@ -142,15 +150,62 @@ class QuotaEnforcer:
                     client, session, sessions, quota, credit_browse, active, now,
                 )
             self._baselined = True
-            self._advance(client, now, present)
+            self._advance(client, now, present, sessions, quota, credit_browse)
 
     def _purge(self, present: dict, now: float) -> None:
         for key in list(self._state):
             entry = self._state[key]
             if key in present:
                 entry['last_seen'] = now
+                entry['position_ticks'] = int(present[key].get('position_ticks') or 0)
             elif entry['stage'] == _STOPPED or now - entry['last_seen'] > ABSENT_GRACE_SECONDS:
+                if entry['stage'] == _CONFIRMING:
+                    logger.info(
+                        f'[Emby:{self.instance_name}] 达量停播：已停止 {entry.get("user") or ""} 的播放',
+                    )
                 del self._state[key]
+
+    def _measure_quota(self, user: str, sessions, quota: dict, credit_browse: bool):
+        """返回 (是否达量, 已用字节, 额度 GB)。读不到用量时返回 None。"""
+        total_mode = is_total_mode(quota)
+        own = listed_limit_gb(quota, user) if total_mode else None
+        use_total = total_mode and own is None
+        if use_total:
+            limit_gb = float(quota.get('total_limit_gb') or 0)
+        elif total_mode:
+            limit_gb = own
+        else:
+            limit_gb = user_limit_gb(quota, user)
+        if not limit_gb or float(limit_gb) <= 0:
+            return False, 0, float(limit_gb or 0)
+        user_ids = {
+            str(s.get('user_id') or '').strip() for s in sessions
+            if str(s.get('user_name') or '').strip().casefold() == user.casefold()
+        }
+        try:
+            if use_total:
+                used = self._total_used_bytes(quota, credit_browse)
+            else:
+                used = self._used_bytes(user, quota, credit_browse, user_ids)
+        except Exception:
+            logger.warning(
+                f'[Emby:{self.instance_name}] 达量停播：读取 {user} 的用量失败',
+                exc_info=True,
+            )
+            return None
+        limit_gb = float(limit_gb)
+        return int(used) >= limit_gb * _GB, int(used), limit_gb
+
+    def _release_if_under(self, entry: dict, sessions, quota: dict, credit_browse: bool) -> bool:
+        """提额到未达量后，这场不再发。读不到用量时保持原安排。"""
+        measured = self._measure_quota(entry.get('user') or '', sessions, quota, credit_browse)
+        if measured is None or measured[0]:
+            return False
+        entry['stage'] = _STOPPED
+        logger.info(
+            f'[Emby:{self.instance_name}] 达量停播：{entry.get("user") or ""} 已低于额度，这场不再停止',
+        )
+        return True
 
     def _judge(self, client, session, sessions, quota, credit_browse,
                active, now) -> dict:
@@ -162,36 +217,11 @@ class QuotaEnforcer:
         }
         if not active:
             return entry
-        total_mode = is_total_mode(quota)
-        # 按总额度时，单独列出的用户不看合计，只看自己的额度
-        own = listed_limit_gb(quota, entry['user']) if total_mode else None
-        use_total = total_mode and own is None
-        if use_total:
-            limit_gb = float(quota.get('total_limit_gb') or 0)
-        elif total_mode:
-            limit_gb = own
-        else:
-            limit_gb = user_limit_gb(quota, entry['user'])
-        if not limit_gb > 0:
+        measured = self._measure_quota(entry['user'], sessions, quota, credit_browse)
+        if not measured or not measured[0]:
             return entry
-        user_ids = {
-            str(s.get('user_id') or '').strip() for s in sessions
-            if str(s.get('user_name') or '').strip().casefold() == entry['user'].casefold()
-        }
-        try:
-            if use_total:
-                used = self._total_used_bytes(quota, credit_browse)
-            else:
-                used = self._used_bytes(entry['user'], quota, credit_browse, user_ids)
-        except Exception:
-            logger.warning(
-                f'[Emby:{self.instance_name}] 达量停播：读取 {entry["user"]} 的用量失败',
-                exc_info=True,
-            )
-            return entry
-        limit_bytes = limit_gb * _GB
-        if used < limit_bytes:
-            return entry
+        _over, used, limit_gb = measured
+        use_total = is_total_mode(quota) and listed_limit_gb(quota, entry['user']) is None
         if use_total:
             detail = (f'{entry["user"]} 开播，全部用户本周期合计已用 {_fmt_gb(used)}，'
                       f'总额度 {limit_gb:g} GB')
@@ -225,15 +255,53 @@ class QuotaEnforcer:
         )
         return entry
 
-    def _advance(self, client, now: float, present: dict) -> None:
+    def _advance(self, client, now: float, present: dict, sessions, quota: dict,
+                 credit_browse: bool) -> None:
         for key, entry in self._state.items():
-            if entry['stage'] == _PENDING:
+            stage = entry['stage']
+            due = (
+                stage == _PENDING
+                or (stage == _MESSAGED and now - entry['at'] >= STOP_DELAY_SECONDS)
+                or (stage == _STOP_RETRY and key in present)
+                or (stage == _CONFIRMING and key in present and self._retry_due(entry, now))
+            )
+            if due and self._release_if_under(entry, sessions, quota, credit_browse):
+                continue
+            if stage == _PENDING:
                 entry['stage'] = _NOTIFYING
+                entry['last_round_at'] = now
                 self._dispatch(lambda c=client, e=entry: self._notify_and_pause(c, e))
-            elif entry['stage'] == _MESSAGED and now - entry['at'] >= STOP_DELAY_SECONDS:
+            elif stage == _MESSAGED and now - entry['at'] >= STOP_DELAY_SECONDS:
                 self._arm_stop(client, entry)
-            elif entry['stage'] == _STOP_RETRY and key in present:
+            elif stage == _STOP_RETRY and key in present:
                 self._arm_stop(client, entry)
+            elif stage == _CONFIRMING and key in present and self._retry_due(entry, now):
+                self._queue_again(entry, quota, now)
+
+    def _retry_due(self, entry: dict, now: float) -> bool:
+        if now - float(entry.get('confirm_at') or 0) < CONFIRM_SECONDS:
+            return False
+        if now - float(entry.get('last_round_at') or 0) < RETRY_GAP_SECONDS:
+            return False
+        started = int(entry.get('confirm_position') or 0)
+        current = int(entry.get('position_ticks') or 0)
+        return current - started >= _PROGRESS_TICKS
+
+    def _queue_again(self, entry: dict, quota: dict, now: float) -> None:
+        entry['text'] = render_quota_message(
+            quota, datetime.now(traffic_db.get_config_timezone()),
+        )
+        entry['message_timeout_ms'] = (
+            MESSAGE_TIMEOUT_MS
+            if str(quota.get('message_style') or 'dialog').strip().lower() == 'toast'
+            else None
+        )
+        entry['stage'] = _PENDING
+        entry['at'] = now
+        logger.info(
+            f'[Emby:{self.instance_name}] 达量停播：{entry.get("user") or ""} 的播放仍在继续，'
+            f'再次弹出提示并暂停',
+        )
 
     def _arm_stop(self, client, entry: dict) -> None:
         entry['stop_attempts'] = int(entry.get('stop_attempts') or 0) + 1
@@ -309,6 +377,16 @@ class QuotaEnforcer:
             entry['stage'] = _STOPPED
             return True
 
+    def _begin_confirm(self, entry: dict) -> bool:
+        with self._lock:
+            if entry['stage'] != _STOPPING:
+                return False
+            entry['stage'] = _CONFIRMING
+            entry['confirm_at'] = self._clock()
+            entry['confirm_position'] = int(entry.get('position_ticks') or 0)
+            entry['stop_attempts'] = 0
+            return True
+
     def _send_stop(self, client, entry: dict) -> None:
         try:
             result = client.send_session_playing_command(entry['sid'], 'Stop') or {}
@@ -317,8 +395,10 @@ class QuotaEnforcer:
         error = str(result.get('error') or '')
         user = entry.get('user') or ''
         if result.get('ok'):
-            if self._finish_stop(entry):
-                logger.info(f'[Emby:{self.instance_name}] 达量停播：已停止 {user} 的播放')
+            if self._begin_confirm(entry):
+                logger.info(
+                    f'[Emby:{self.instance_name}] 达量停播：已向 {user} 发出停止，等待播放器停下',
+                )
             return
         if error == SESSION_ENDED_ERROR:
             if self._finish_stop(entry):
