@@ -101,6 +101,12 @@
         border-bottom: 1px solid var(--line);
     }
     body[data-detail="1"] .tb-metrics-slot { position: sticky; top: var(--tb-bar-h, 54px); }
+    /* 首屏顶栏还没排好时先不显示状态栏和分割按钮，排好后直接按最终状态出现，不播放动画 */
+    html.mq-pending .tb-metrics-slot { display: none; }
+    html.mq-pending .tb-split { visibility: hidden; }
+    /* 手机上状态栏展开收起不做动画，点一下立即切换 */
+    .tb-metrics-slot, .tb-metrics-clip, .tb-metrics-clip > .tb-metrics,
+    .tb-split-line, .tb-split-grip, .topbar-in { transition: none !important; }
     .tb-metrics-clip { width: 100%; }
     .tb-metrics {
         width: 100%; height: auto; margin: 0; flex: none;
