@@ -62,3 +62,6 @@ tests/
 .coverage
 htmlcov/
 
+
+# 本机代码索引（独立本地仓库）
+.local/
