@@ -79,7 +79,9 @@
 .dev-body { flex: 1; display: grid; grid-template-columns: 1.05fr 1fr; gap: 0; }
 .dev-col { padding: 16px 18px; min-width: 0; }
 .dev-col:last-child { display: flex; flex-direction: column; }
-.dev-col + .dev-col { border-left: 1px solid var(--line-2); background: #fbfcfe; }
+.dev-col ~ .dev-col { border-left: 1px solid var(--line-2); background: #fbfcfe; }
+/* 上下互换按钮只在手机上显示，见 mobile.css */
+.dev-body > .dev-split { display: none; }
 /* 左右两栏时，行高只看左栏。右栏拉满这一行，规则和会话超出后在里面滚 */
 @container (min-width: 621px) {
     .dev-col:last-child { height: 0; min-height: 100%; overflow: hidden; padding-right: 0; }
@@ -92,7 +94,7 @@
 @container (max-width: 620px) {
     .dev-body { grid-template-columns: 1fr; }
     .merge .dev-body { grid-template-rows: auto minmax(0, 1fr); }
-    .dev-col + .dev-col { border-left: 0; border-top: 1px solid var(--line-2); }
+    .dev-col ~ .dev-col { border-left: 0; border-top: 1px solid var(--line-2); }
 }
 
 .sec-title {

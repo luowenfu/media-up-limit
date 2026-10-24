@@ -156,7 +156,13 @@
 
     .page { overflow-x: clip; padding: 16px 12px calc(16px + env(safe-area-inset-bottom)); }
     .dev-body { grid-template-columns: 1fr; }
-    .dev-col + .dev-col { border-left: 0; border-top: 1px solid var(--line-2); }
+    .dev-col ~ .dev-col { border-left: 0; border-top: 0; }
+    /* 卡片上下两块之间的分割线带互换按钮，和流量图表一致 */
+    .dev-body > .dev-split { display: block; border-top-color: var(--line-2); }
+    .dev-split .block-swap { right: 12px; }
+    .dev-body.is-swapped > .dev-col:last-child { order: 1; }
+    .dev-body.is-swapped > .dev-split { order: 2; }
+    .dev-body.is-swapped > .dev-col:first-child { order: 3; }
 
     .panel-name { padding: 12px 12px 0; }
     .toolbar { min-width: 0; max-width: 100%; padding: 12px; }

@@ -14,7 +14,7 @@ import {
     fixRoute, isListView, rememberPart, render, refreshLogsInPlace, revealSection, syncDetailFold, toggleMetricsDock, toggleNavGroup, togglePadSide,
 } from './shell.js';
 import { uiChange, uiClick, uiInput, relockTiles } from './interact.js';
-import { quotaListHtml, toggleReveal } from './cards.js';
+import { quotaListHtml, swapCardBlocks, toggleReveal } from './cards.js';
 import { openSettings } from './settings.js';
 import { toggleScheme } from './theme.js';
 import { openChooser } from './dialogs.js';
@@ -218,6 +218,14 @@ document.addEventListener('click', e => {
     if (t.hasAttribute('data-open-dev')) { openDevice(t.dataset.kind, t.dataset.dev); return; }
     if (t.dataset.feed) { state.feedOpen[t.dataset.feed] = !state.feedOpen[t.dataset.feed]; render(); return; }
     if (t.dataset.fold) { state.detailFold[t.dataset.fold] = !state.detailFold[t.dataset.fold]; syncDetailFold(); return; }
+    if (t.hasAttribute('data-dev-swap')) {
+        const patch = swapCardBlocks(t);
+        if (!patch) return;
+        const sec = document.getElementById('sec-card');
+        if (sec && sec.contains(t)) rememberPart('card', sec.innerHTML.replace(/\sdata-bound="1"/g, ''));
+        savePrefs(patch);
+        return;
+    }
     if (t.hasAttribute('data-block-swap')) {
         const order = moveChartBlock(t);
         if (!order) return;

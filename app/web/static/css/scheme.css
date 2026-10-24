@@ -104,7 +104,7 @@ html[data-scheme="dark"] .def-row .seg-f button.on {
     background: var(--sheet-accent, var(--accent-on));
     color: #fff;
 }
-html[data-scheme="dark"] .dev-col + .dev-col { background: #101826; }
+html[data-scheme="dark"] .dev-col ~ .dev-col { background: #101826; }
 html[data-scheme="dark"] .rule.hit { background: #2a1518; border-color: #7f1d1d; }
 html[data-scheme="dark"] .rule.cur {
     background: #2a2110; border-color: #6b4e12;
