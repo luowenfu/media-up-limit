@@ -17,7 +17,7 @@ from typing import Callable, Dict, Optional
 
 import qb.traffic_db as traffic_db
 from emby.client import REMOTE_CONTROL_CLOSED_ERROR
-from emby.quota.message import render_quota_message
+from emby.quota.message import render_quota_header, render_quota_message
 from emby.quota.usage import (
     GB as _GB, cycle_total_bytes, cycle_used_bytes, has_any_limit, is_total_mode,
     listed_limit_gb, user_limit_gb,
@@ -77,6 +77,16 @@ def _session_key(session: dict) -> str:
 
 def _playback_started(session: dict) -> str:
     return str(session.get('playback_started_at') or '').strip()
+
+
+def _fill_message(entry: dict, quota: dict) -> None:
+    """按当前设置填好这一轮要发的标题、正文和显示方式。短消息标题固定。"""
+    toast = str(quota.get('message_style') or 'dialog').strip().lower() == 'toast'
+    entry['message_timeout_ms'] = MESSAGE_TIMEOUT_MS if toast else None
+    entry['header'] = MESSAGE_HEADER if toast else render_quota_header(quota)
+    entry['text'] = render_quota_message(
+        quota, datetime.now(traffic_db.get_config_timezone()),
+    )
 
 
 def _thread_dispatch(fn: Callable[[], None]) -> None:
@@ -245,14 +255,7 @@ class QuotaEnforcer:
         )
         entry['stage'] = _PENDING
         entry['detail'] = detail
-        entry['message_timeout_ms'] = (
-            MESSAGE_TIMEOUT_MS
-            if str(quota.get('message_style') or 'dialog').strip().lower() == 'toast'
-            else None
-        )
-        entry['text'] = render_quota_message(
-            quota, datetime.now(traffic_db.get_config_timezone()),
-        )
+        _fill_message(entry, quota)
         return entry
 
     def _advance(self, client, now: float, present: dict, sessions, quota: dict,
@@ -288,14 +291,7 @@ class QuotaEnforcer:
         return current - started >= _PROGRESS_TICKS
 
     def _queue_again(self, entry: dict, quota: dict, now: float) -> None:
-        entry['text'] = render_quota_message(
-            quota, datetime.now(traffic_db.get_config_timezone()),
-        )
-        entry['message_timeout_ms'] = (
-            MESSAGE_TIMEOUT_MS
-            if str(quota.get('message_style') or 'dialog').strip().lower() == 'toast'
-            else None
-        )
+        _fill_message(entry, quota)
         entry['stage'] = _PENDING
         entry['at'] = now
         logger.info(
@@ -323,7 +319,7 @@ class QuotaEnforcer:
                 target=run, name='emby-quota-message', daemon=True,
                 args=(boxes[0], lambda: client.send_session_message(
                     entry['sid'], entry.get('text') or '',
-                    header=MESSAGE_HEADER,
+                    header=entry.get('header') or MESSAGE_HEADER,
                     timeout_ms=entry.get('message_timeout_ms', MESSAGE_TIMEOUT_MS),
                 )),
             ),

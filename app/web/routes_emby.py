@@ -18,6 +18,7 @@ from web.common import GENERIC_API_ERROR
 
 logger = logging.getLogger(__name__)
 bp = Blueprint('routes_emby', __name__)
+ADMIN_MESSAGE_HEADER = '管理员消息'
 
 def _emby_debug_traffic_config_payload(global_cfg: dict = None,
                                       inst: dict = None) -> dict:
@@ -360,7 +361,6 @@ def api_emby_session_message(instance_name, session_id):
     try:
         data = request.get_json() or {}
         text = str(data.get('text') or '').strip()
-        header = str(data.get('header') or '').strip() or None
         if 'timeout_ms' not in data:
             timeout_ms = DEFAULT_SESSION_MESSAGE_TIMEOUT_MS
         else:
@@ -370,7 +370,7 @@ def api_emby_session_message(instance_name, session_id):
             else:
                 timeout_ms = int(raw)
         result = client.send_session_message(
-            session_id, text, header=header, timeout_ms=timeout_ms,
+            session_id, text, header=ADMIN_MESSAGE_HEADER, timeout_ms=timeout_ms,
         )
         if not result.get('ok'):
             return jsonify({'success': False, 'error': result.get('error') or '发送失败'}), 502

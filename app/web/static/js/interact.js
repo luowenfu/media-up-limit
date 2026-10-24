@@ -8,7 +8,7 @@ import { deviceUrl } from './adapt.js';
 import { state, qbByName, embyByName } from './store.js';
 import { openQbForm } from './qbform.js';
 import {
-    addLuckyRuleRow, addQuotaRow, onQuotaMsgChange, openEmbyForm, refreshQuotaMessages, refreshQuotaView,
+    addLuckyRuleRow, addQuotaRow, onQuotaHeadChange, onQuotaMsgChange, openEmbyForm, refreshQuotaMessages, refreshQuotaView,
     removeLuckyRuleRow, removeQuotaRow,
 } from './embyform.js';
 import { refreshScale, ruleRow, switchCycleType } from './plan.js';
@@ -102,6 +102,8 @@ function formControl(t) {
         if (t.dataset.msgStyle) {
             const hint = t.closest('.msg-style')?.querySelector('.msg-style-hint');
             if (hint) hint.textContent = t.dataset.msgStyle === 'dialog' ? '持续显示，用户需自行关闭' : '短暂显示，5秒后自动消失';
+            const head = t.closest('.q-msg')?.querySelector('#qHeadWrap');
+            if (head) head.style.display = t.dataset.msgStyle === 'dialog' ? '' : 'none';
         }
         if (t.dataset.cyc) {
             switchCycleType(t.closest('.plan'), prevCyc, t.dataset.cyc);
@@ -238,6 +240,7 @@ function clearBad(t) {
 export function uiChange(t) {
     clearBad(t);
     if (t.id === 'qMsgSel') onQuotaMsgChange(t);
+    if (t.id === 'qHeadSel') onQuotaHeadChange(t);
     if (t.hasAttribute('data-anchor') && t.closest('#quotaPlan')) refreshQuotaMessages();
 }
 

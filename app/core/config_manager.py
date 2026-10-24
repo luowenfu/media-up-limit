@@ -10,7 +10,9 @@ import logging
 
 from core.cycle import migrate_legacy_cycle, CYCLE_TYPES
 import core.secrets_store as secrets_store
-from emby.quota.message import PRESET_KEYS, normalize_message_choice
+from emby.quota.message import (
+    HEADER_PRESET_KEYS, PRESET_KEYS, normalize_header_choice, normalize_message_choice,
+)
 from emby.lucky.api import (
     migrate_estimate_upload_flag,
     normalize_lucky_base_url,
@@ -1436,6 +1438,7 @@ def get_web_username() -> str:
 
 
 QUOTA_MESSAGE_MAX = 60
+QUOTA_HEADER_MAX = 20
 
 
 def normalize_user_quota(raw, *, strict: bool = False) -> dict:
@@ -1479,6 +1482,11 @@ def normalize_user_quota(raw, *, strict: bool = False) -> dict:
         if strict:
             raise ValueError(f'提示文案最多 {QUOTA_MESSAGE_MAX} 个字')
         message_text = message_text[:QUOTA_MESSAGE_MAX]
+    message_header = normalize_header_choice(raw.get('message_header'))
+    if message_header not in HEADER_PRESET_KEYS and len(message_header) > QUOTA_HEADER_MAX:
+        if strict:
+            raise ValueError(f'确认框标题最多 {QUOTA_HEADER_MAX} 个字')
+        message_header = message_header[:QUOTA_HEADER_MAX]
     users = []
     seen = set()
     for row in raw.get('users') or []:
@@ -1518,6 +1526,7 @@ def normalize_user_quota(raw, *, strict: bool = False) -> dict:
         'cycle': cycle,
         'message_text': message_text,
         'message_style': message_style,
+        'message_header': message_header,
         'mode': mode,
         'total_limit_gb': round(total_gb, 1),
         'all_users': all_users,

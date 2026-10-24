@@ -101,6 +101,13 @@ const QUOTA_PRESETS = [
     ['preset:2', '流量额度已用完，请{when}后再看'],
     ['preset:1', '本期流量已用完，{when}恢复'],
 ];
+// 确认框标题，要和 emby/quota/message.py 的 HEADER_PRESETS 一致
+const QUOTA_HEADER_MAX = 20;
+const QUOTA_HEADER_PRESETS = [
+    ['preset:1', '达量停播'],
+    ['preset:2', '系统消息'],
+    ['preset:3', '请联系管理员'],
+];
 const OLD_QUOTA_PRESETS = {
     '本周期上行流量已达额度，播放将在 5 秒后停止': 'preset:1',
     '流量额度已用完，5 秒后将停止播放，请下个周期再看': 'preset:2',
@@ -187,6 +194,10 @@ function quotaPane(cfg, users) {
     const msgSel = QUOTA_PRESETS.some(([id]) => id === stored) || !stored ? (stored || 'preset:1') : QUOTA_MSG_CUSTOM;
     const msgStyle = qt.message_style === 'toast' ? 'toast' : 'dialog';
     const msgStyleHint = msgStyle === 'toast' ? '短暂显示，5秒后自动消失' : '持续显示，用户需自行关闭';
+    const headText = String(qt.message_header || '');
+    const headSel = !headText || QUOTA_HEADER_PRESETS.some(([id]) => id === headText)
+        ? (headText || 'preset:1') : QUOTA_MSG_CUSTOM;
+    const headOptions = QUOTA_HEADER_PRESETS.concat([[QUOTA_MSG_CUSTOM, '自定义']]);
     const whenNow = resumeWhen(cyc);
     const msgOptions = QUOTA_PRESETS
         .map(([id, tpl]) => [id, tpl.replaceAll('{when}', whenNow)])
@@ -208,6 +219,14 @@ function quotaPane(cfg, users) {
                     <button type="button" class="${msgStyle === 'dialog' ? 'on' : ''}" data-msg-style="dialog">确认框</button>
                 </div>
                 <p class="msg-style-hint">${msgStyleHint}</p>
+            </div>
+            <div id="qHeadWrap" style="${msgStyle === 'dialog' ? '' : 'display:none'}">
+                <label class="fl" for="qHeadSel">标题</label>
+                ${sel(headOptions, headSel, 'qHeadSel')}
+                <div id="qHeadBox" style="${headSel === QUOTA_MSG_CUSTOM ? '' : 'display:none'}">
+                    ${inp({ id: 'qHeadText', val: headSel === QUOTA_MSG_CUSTOM ? headText : '', ph: `最多 ${QUOTA_HEADER_MAX} 个字` })}
+                </div>
+                <label class="fl" for="qMsgSel">内容</label>
             </div>
             ${sel(msgOptions, msgSel, 'qMsgSel')}
             <div id="qMsgBox" style="${msgSel === QUOTA_MSG_CUSTOM ? '' : 'display:none'}">
@@ -278,6 +297,13 @@ export function refreshQuotaMessages(root) {
     if (hint) hint.innerHTML = quotaWhenHint(when);
 }
 
+/** 确认框标题下拉变化：只有「自定义」才显示输入框 */
+export function onQuotaHeadChange(select) {
+    const root = select.closest('#sheet') || document.getElementById('sheet');
+    const box = root?.querySelector('#qHeadBox');
+    if (box) box.style.display = select.value === QUOTA_MSG_CUSTOM ? '' : 'none';
+}
+
 /** 提示文案下拉变化：只有「自定义」才显示输入框 */
 export function onQuotaMsgChange(select) {
     const root = select.closest('#sheet') || document.getElementById('sheet');
@@ -330,12 +356,22 @@ function readQuota(root) {
     const message = sel_ === QUOTA_MSG_CUSTOM ? val(root, '#qMsgText') : sel_;
     if (sel_ === QUOTA_MSG_CUSTOM && !message) throw new Error('请填写自定义提示文案');
     if (sel_ === QUOTA_MSG_CUSTOM && message.length > QUOTA_MSG_MAX) throw new Error(`提示文案最多 ${QUOTA_MSG_MAX} 个字`);
+    const dialog = root.querySelector('#qMsgStyle button.on')?.dataset.msgStyle !== 'toast';
+    const headSel = val(root, '#qHeadSel') || 'preset:1';
+    const headEl = root.querySelector('#qHeadText');
+    let header = headSel === QUOTA_MSG_CUSTOM ? val(root, '#qHeadText') : headSel;
+    if (headSel === QUOTA_MSG_CUSTOM && dialog) {
+        if (!header) throw fieldError(headEl, '请填写自定义标题');
+        if (header.length > QUOTA_HEADER_MAX) throw fieldError(headEl, `标题最多 ${QUOTA_HEADER_MAX} 个字`);
+    }
+    if (!header || header.length > QUOTA_HEADER_MAX) header = 'preset:1';
     return {
         enabled,
         dry_run: isOn(root, '[data-sw="qDry"]'),
         cycle: readPlan(root.querySelector('#quotaPlan')).cycle,
         message_text: message,
-        message_style: root.querySelector('#qMsgStyle button.on')?.dataset.msgStyle === 'toast' ? 'toast' : 'dialog',
+        message_style: dialog ? 'dialog' : 'toast',
+        message_header: header,
         mode: total ? 'total' : 'user',
         total_limit_gb: totalGb,
         all_users: false,
