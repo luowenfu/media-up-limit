@@ -10,6 +10,7 @@
 .m-ico.green { background: #ecfdf5; color: #047857; }
 .msg-hint { margin: 0 0 12px; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
 .msg-style { margin: 0 0 12px; }
+.msg-head { margin: 0 0 12px; }
 .msg-style-hint { margin: 6px 0 0; font-size: 12px; color: var(--text-3); }
 .msg-box {
     display: block; width: 100%; min-height: 88px; padding: 10px 12px;

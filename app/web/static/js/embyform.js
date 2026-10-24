@@ -220,7 +220,7 @@ function quotaPane(cfg, users) {
                 </div>
                 <p class="msg-style-hint">${msgStyleHint}</p>
             </div>
-            <div id="qHeadWrap" style="${msgStyle === 'dialog' ? '' : 'display:none'}">
+            <div id="qHeadWrap" data-msg-head style="${msgStyle === 'dialog' ? '' : 'display:none'}">
                 <label class="fl" for="qHeadSel">标题</label>
                 ${sel(headOptions, headSel, 'qHeadSel')}
                 <div id="qHeadBox" style="${headSel === QUOTA_MSG_CUSTOM ? '' : 'display:none'}">

@@ -131,6 +131,7 @@ export function openDelete(kind, name) {
 }
 
 const MESSAGE_TIMEOUT_MS = 5000;
+const MESSAGE_HEADER_MAX = 20;
 
 function sessionTitleLabel(s) {
     if (s.series_name) {
@@ -156,6 +157,10 @@ export function openSessionMessage(dev, sid) {
             </div>
             <p class="msg-style-hint" id="msgStyleHint">短暂显示，5秒后自动消失</p>
         </div>
+        <div class="msg-head" data-msg-head style="display:none">
+            <label class="fl" for="msgHead">标题</label>
+            <div class="inp"><input id="msgHead" type="text" maxlength="${MESSAGE_HEADER_MAX}" value="收到消息" placeholder="最多 ${MESSAGE_HEADER_MAX} 个字" autocomplete="off"></div>
+        </div>
         <label class="fl" for="msgInp">消息内容</label>
         <textarea id="msgInp" class="msg-box" rows="3" maxlength="500" placeholder="输入消息" enterkeyhint="send" autocomplete="off"></textarea>
     </div>
@@ -180,8 +185,9 @@ export async function sendSessionMessage(btn) {
         try {
             const style = document.querySelector('#msgStyle button.on');
             const toastStyle = !style || style.dataset.msgStyle !== 'dialog';
+            const header = toastStyle ? '' : ($('#msgHead') && $('#msgHead').value || '').trim();
             await api.post(`/api/emby/sessions/${enc(dev)}/${enc(sid)}/message`, {
-                text, timeout_ms: toastStyle ? MESSAGE_TIMEOUT_MS : null,
+                text, header, timeout_ms: toastStyle ? MESSAGE_TIMEOUT_MS : null,
             });
             closeModal();
             toast('消息已发送');

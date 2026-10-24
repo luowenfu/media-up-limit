@@ -102,7 +102,7 @@ function formControl(t) {
         if (t.dataset.msgStyle) {
             const hint = t.closest('.msg-style')?.querySelector('.msg-style-hint');
             if (hint) hint.textContent = t.dataset.msgStyle === 'dialog' ? '持续显示，用户需自行关闭' : '短暂显示，5秒后自动消失';
-            const head = t.closest('.q-msg')?.querySelector('#qHeadWrap');
+            const head = t.closest('.q-msg, .m-body')?.querySelector('[data-msg-head]');
             if (head) head.style.display = t.dataset.msgStyle === 'dialog' ? '' : 'none';
         }
         if (t.dataset.cyc) {
