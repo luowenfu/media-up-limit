@@ -75,6 +75,38 @@ const urlLine = (d, kind) => {
 const dot = d => `<span class="online ${d.online ? '' : 'off'}"></span>`;
 
 /* ---------- qB 卡片 ---------- */
+/* ---------- 手机上卡片上下两块互换 ---------- */
+const CARD_BLOCKS = ['main', 'side'];
+
+/** 这台设备卡片是否把下面一块换到上面（只在手机上生效） */
+function cardSwapped(kind, name) {
+    const all = state.prefs.card_block_orders;
+    const bucket = all && typeof all === 'object' ? all[kind] : null;
+    const raw = bucket && Array.isArray(bucket[name]) ? bucket[name] : [];
+    return raw[0] === 'side';
+}
+
+const cardBody = (kind, name) => `<div class="dev-body${cardSwapped(kind, name) ? ' is-swapped' : ''}" data-kind="${kind}" data-dev="${esc(name)}">`;
+const cardSplit = () => `<div class="block-split dev-split"><button type="button" class="block-swap" data-dev-swap title="上下互换" aria-label="上下互换">${I.swap}</button></div>`;
+
+/** 切换卡片上下顺序，同一台设备的卡片一起换，返回要保存的偏好 */
+export function swapCardBlocks(btn) {
+    const body = btn?.closest('.dev-body');
+    if (!body) return null;
+    const kind = body.dataset.kind === 'emby' ? 'emby' : 'qb';
+    const name = body.dataset.dev || '';
+    if (!name) return null;
+    const swapped = !body.classList.contains('is-swapped');
+    document.querySelectorAll('.dev-body[data-kind][data-dev]').forEach(el => {
+        if (el.dataset.kind === kind && el.dataset.dev === name) el.classList.toggle('is-swapped', swapped);
+    });
+    const order = swapped ? ['side', 'main'] : ['main', 'side'];
+    const prev = state.prefs.card_block_orders;
+    const all = prev && typeof prev === 'object' ? prev : {};
+    const bucket = all[kind] && typeof all[kind] === 'object' ? all[kind] : {};
+    return { card_block_orders: { ...all, [kind]: { ...bucket, [name]: order } } };
+}
+
 export function qbCard(d, i, ord) {
     const at = ord == null ? '' : ` style="--i:${ord}"`;
     return `<article${at} class="dev ${d.online ? '' : 'is-off'}${foldOpen('card') ? ' open' : ''}">
@@ -91,7 +123,7 @@ export function qbCard(d, i, ord) {
                 <span class="chip">${I.cal.replace('16', '13').replace('16', '13')}${esc(d.cycle)}</span>
             </div>
         </header>
-        <div class="dev-body">
+        ${cardBody('qb', d.name)}
             <div class="dev-col">
                 ${liveBoxes(d, 'q' + i)}
                 <div class="kv">
@@ -104,6 +136,7 @@ export function qbCard(d, i, ord) {
                 <h4 class="sec-title">${I.wave}流量统计${legend('q' + i)}</h4>
                 ${tiles(d.traffic, 'q' + i)}
             </div>
+            ${cardSplit()}
             <div class="dev-col">
                 <h4 class="sec-title">${I.rules}达量限速规则<span style="color:var(--text-3);font-weight:600">${d.rules.length}</span>
                     <span class="more"><button class="mini-btn" data-goto="chart" data-kind="qb" data-dev="${esc(d.name)}">${I.chart}图表</button><button class="mini-btn" data-goto="events" data-kind="qb" data-dev="${esc(d.name)}">${I.list}记录</button></span>
@@ -291,7 +324,7 @@ export function embyCard(d, i, ord) {
                 <span class="chip">${d.sessions.length} 路播放</span>
             </div>
         </header>
-        <div class="dev-body">
+        ${cardBody('emby', d.name)}
             <div class="dev-col">
                 ${liveBoxes(d, key)}
                 <div class="kv">
@@ -303,6 +336,7 @@ export function embyCard(d, i, ord) {
                 <h4 class="sec-title">${I.wave}流量统计${legend(key)}</h4>
                 ${tiles(d.traffic, key)}
             </div>
+            ${cardSplit()}
             <div class="dev-col">
                 <h4 class="sec-title">${I.play}当前播放会话
                     <span class="more"><button class="mini-btn" data-goto="chart" data-kind="emby" data-dev="${esc(d.name)}">${I.chart}图表</button><button class="mini-btn" data-goto="events" data-kind="emby" data-dev="${esc(d.name)}">${I.list}记录</button></span>
