@@ -131,7 +131,7 @@ export function openDelete(kind, name) {
 }
 
 const MESSAGE_TIMEOUT_MS = 5000;
-const MESSAGE_HEADER_MAX = 20;
+const MESSAGE_HEADER_MAX = 16;
 
 function sessionTitleLabel(s) {
     if (s.series_name) {

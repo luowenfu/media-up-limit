@@ -19,7 +19,7 @@ from web.common import GENERIC_API_ERROR
 logger = logging.getLogger(__name__)
 bp = Blueprint('routes_emby', __name__)
 ADMIN_MESSAGE_HEADER = '收到管理员消息'
-MESSAGE_HEADER_MAX = 20
+MESSAGE_HEADER_MAX = 16
 
 def _emby_debug_traffic_config_payload(global_cfg: dict = None,
                                       inst: dict = None) -> dict:

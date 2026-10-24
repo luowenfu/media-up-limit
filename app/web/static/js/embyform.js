@@ -102,7 +102,7 @@ const QUOTA_PRESETS = [
     ['preset:1', '本期流量已用完，{when}恢复'],
 ];
 // 确认框标题，要和 emby/quota/message.py 的 HEADER_PRESETS 一致
-const QUOTA_HEADER_MAX = 20;
+const QUOTA_HEADER_MAX = 16;
 const QUOTA_HEADER_PRESETS = [
     ['preset:1', '达量停播'],
     ['preset:2', '系统消息'],

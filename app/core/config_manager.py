@@ -1438,7 +1438,7 @@ def get_web_username() -> str:
 
 
 QUOTA_MESSAGE_MAX = 60
-QUOTA_HEADER_MAX = 20
+QUOTA_HEADER_MAX = 16
 
 
 def normalize_user_quota(raw, *, strict: bool = False) -> dict:
