@@ -215,6 +215,11 @@ class QuotaEnforcer:
         )
         entry['stage'] = _PENDING
         entry['detail'] = detail
+        entry['message_timeout_ms'] = (
+            MESSAGE_TIMEOUT_MS
+            if str(quota.get('message_style') or 'dialog').strip().lower() == 'toast'
+            else None
+        )
         entry['text'] = render_quota_message(
             quota, datetime.now(traffic_db.get_config_timezone()),
         )
@@ -250,7 +255,8 @@ class QuotaEnforcer:
                 target=run, name='emby-quota-message', daemon=True,
                 args=(boxes[0], lambda: client.send_session_message(
                     entry['sid'], entry.get('text') or '',
-                    header=MESSAGE_HEADER, timeout_ms=MESSAGE_TIMEOUT_MS,
+                    header=MESSAGE_HEADER,
+                    timeout_ms=entry.get('message_timeout_ms', MESSAGE_TIMEOUT_MS),
                 )),
             ),
             threading.Thread(

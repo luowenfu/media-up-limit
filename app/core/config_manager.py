@@ -1472,6 +1472,9 @@ def normalize_user_quota(raw, *, strict: bool = False) -> dict:
     # 旧配置没有 all_users：有每人额度就当作打开
     all_users = bool(raw.get('all_users', default_gb > 0))
     message_text = normalize_message_choice(raw.get('message_text'))
+    message_style = str(raw.get('message_style') or 'dialog').strip().lower()
+    if message_style not in ('toast', 'dialog'):
+        message_style = 'dialog'
     if message_text not in PRESET_KEYS and len(message_text) > QUOTA_MESSAGE_MAX:
         if strict:
             raise ValueError(f'提示文案最多 {QUOTA_MESSAGE_MAX} 个字')
@@ -1514,6 +1517,7 @@ def normalize_user_quota(raw, *, strict: bool = False) -> dict:
         'dry_run': bool(raw.get('dry_run', True)),
         'cycle': cycle,
         'message_text': message_text,
+        'message_style': message_style,
         'mode': mode,
         'total_limit_gb': round(total_gb, 1),
         'all_users': all_users,

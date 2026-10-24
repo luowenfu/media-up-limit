@@ -185,6 +185,8 @@ function quotaPane(cfg, users) {
     const msgText = String(qt.message_text || '');
     const stored = OLD_QUOTA_PRESETS[msgText] || msgText;
     const msgSel = QUOTA_PRESETS.some(([id]) => id === stored) || !stored ? (stored || 'preset:1') : QUOTA_MSG_CUSTOM;
+    const msgStyle = qt.message_style === 'toast' ? 'toast' : 'dialog';
+    const msgStyleHint = msgStyle === 'toast' ? '短暂显示，5秒后自动消失' : '持续显示，用户需自行关闭';
     const whenNow = resumeWhen(cyc);
     const msgOptions = QUOTA_PRESETS
         .map(([id, tpl]) => [id, tpl.replaceAll('{when}', whenNow)])
@@ -204,6 +206,16 @@ function quotaPane(cfg, users) {
             <div id="qMsgBox" style="${msgSel === QUOTA_MSG_CUSTOM ? '' : 'display:none'}">
                 ${inp({ id: 'qMsgText', val: msgSel === QUOTA_MSG_CUSTOM ? msgText : '', ph: `最多 ${QUOTA_MSG_MAX} 个字` })}
                 <div class="hint-t" id="qMsgHint">${quotaWhenHint(whenNow)}</div>
+            </div>
+            <div class="q-msg-type">
+                <label class="fl">提示类型</label>
+                <div class="msg-style">
+                    <div class="seg-f" id="qMsgStyle">
+                        <button type="button" class="${msgStyle === 'toast' ? 'on' : ''}" data-msg-style="toast">短消息</button>
+                        <button type="button" class="${msgStyle === 'dialog' ? 'on' : ''}" data-msg-style="dialog">确认框</button>
+                    </div>
+                    <p class="msg-style-hint">${msgStyleHint}</p>
+                </div>
             </div>
         </div>`)
         + fs('sum', '额度设置', '用量归属可能有些误差，额度请留余量；选片流量是否计入见「流量采集」', `${segF(['按总额度', '按每人额度'], isTotal ? '按总额度' : '按每人额度', 'data-qmode')}
@@ -326,6 +338,7 @@ function readQuota(root) {
         dry_run: isOn(root, '[data-sw="qDry"]'),
         cycle: readPlan(root.querySelector('#quotaPlan')).cycle,
         message_text: message,
+        message_style: root.querySelector('#qMsgStyle button.on')?.dataset.msgStyle === 'toast' ? 'toast' : 'dialog',
         mode: total ? 'total' : 'user',
         total_limit_gb: totalGb,
         all_users: false,

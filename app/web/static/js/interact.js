@@ -100,7 +100,7 @@ function formControl(t) {
         const prevCyc = t.dataset.cyc && t.parentElement.querySelector('button.on')?.dataset.cyc;
         t.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === t));
         if (t.dataset.msgStyle) {
-            const hint = $('#msgStyleHint');
+            const hint = t.closest('.msg-style')?.querySelector('.msg-style-hint');
             if (hint) hint.textContent = t.dataset.msgStyle === 'dialog' ? '持续显示，用户需自行关闭' : '短暂显示，5秒后自动消失';
         }
         if (t.dataset.cyc) {
