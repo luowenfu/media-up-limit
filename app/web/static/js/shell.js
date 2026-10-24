@@ -376,6 +376,20 @@ export function renderChrome() {
     syncMetricsLayout();
     syncMetricsDock();
     requestAnimationFrame(syncMetricsLayout);
+    revealMetrics();
+}
+
+/** 手机首屏：顶栏排好、状态栏按上次状态就位后再显示，两帧后才恢复动画，之后手动点按仍有动画 */
+function revealMetrics() {
+    const root = document.documentElement;
+    if (!root.classList.contains('mq-pending')) return;
+    requestAnimationFrame(() => {
+        syncMetricsLayout();
+        requestAnimationFrame(() => {
+            root.classList.remove('mq-pending');
+            syncMetricsEdge();
+        });
+    });
 }
 
 /** 统计完全滑进标题栏后，给标题栏补上底边，避免和内容贴在一起 */
