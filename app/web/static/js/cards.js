@@ -119,7 +119,7 @@ export function qbCard(d, i, ord) {
             </div>
             <div class="dev-chips">
                 ${d.online ? '' : '<span class="chip">离线</span>'}
-                ${d.triggered ? `<span class="chip hot">${I.bolt.replace('16', '13').replace('16', '13')}已触发限速</span>` : ''}
+                ${d.triggered ? `<span class="chip hot">${I.bolt.replace('16', '13').replace('16', '13')}已触发</span>` : ''}
                 <span class="chip">${I.cal.replace('16', '13').replace('16', '13')}${esc(d.cycle)}</span>
             </div>
         </header>
@@ -319,8 +319,8 @@ export function embyCard(d, i, ord) {
                 <div class="dev-url">${dot(d)}${urlLine(d, 'emby')}</div>
             </div>
             <div class="dev-chips">
-                <span class="chip">${d.online ? 'API 在线' : 'API 离线'}</span>
-                <span class="chip">${d.lucky ? 'Lucky 采集' : '未采集'}</span>
+                <span class="chip">${d.online ? '在线' : '离线'}</span>
+                <span class="chip">${d.lucky ? 'Lucky' : '无 Lucky'}</span>
                 <span class="chip">${d.sessions.length} 路播放</span>
             </div>
         </header>

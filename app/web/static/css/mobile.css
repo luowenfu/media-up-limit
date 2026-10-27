@@ -248,6 +248,35 @@
     .rank-detail, .rank-detail .rank-detail { padding-left: 28px; }
     .log-stats { grid-template-columns: 1fr 1fr; gap: 10px; }
     .live-val { font-size: 17px; }
-    .dev-head { flex-wrap: wrap; }
-    .dev-chips { width: 100%; justify-content: flex-start; margin-left: 52px; }
+    .dev-head {
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        padding-right: 12px;
+    }
+    .dev-icon { width: 26px; height: 26px; }
+    .dev-name { font-size: 15px; }
+    .dev-url { font-size: 11px; }
+    .dev-title { flex: 1; min-width: 0; padding-right: 4px; max-width: calc(100% - 118px); }
+    .dev-chips {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: auto;
+        max-width: 46%;
+        margin-left: 0;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 4px;
+    }
+    .dev-chips .chip {
+        height: 18px;
+        padding: 0 6px;
+        border-radius: 9px;
+        font-size: 10px;
+        gap: 3px;
+    }
+    .dev-chips .chip svg { width: 11px; height: 11px; }
 }
+
