@@ -131,6 +131,15 @@ def _compute_manual_baseline(qb_client, cycle_uploaded_bytes: int = None) -> flo
     )
 
 
+def _kbps_text(kbps) -> str:
+    return f'{kbps} KB/s' if kbps and kbps > 0 else '不限速'
+
+
+def _manual_reason(origin: str, kbps) -> str:
+    """手动覆盖事件原因：origin 为「内部」或「外部」"""
+    return f'{origin}修改限速: {_kbps_text(kbps)}，直至下一条达量规则触发后自动接管'
+
+
 def _enter_manual_override(qb_client, cycle_uploaded_bytes: int = None):
     baseline = _compute_manual_baseline(qb_client, cycle_uploaded_bytes)
     set_manual_baseline_threshold_gb(qb_client.name, baseline)
@@ -170,7 +179,7 @@ def _restore_auto_from_rule_match(qb_client, threshold_gb: float,
         current_kbps,
         reason,
     )
-    logger.info(f"[{qb_client.name}] {reason}")
+    logger.info(f"[{qb_client.name}] 手动覆盖结束 • {reason}")
     return True
 
 
@@ -204,7 +213,7 @@ def detect_external_limit_change(qb_client, cycle_uploaded_bytes: int,
                 qb_client,
                 threshold_gb,
                 current_kbps,
-                f'外部修改限速与当前达量规则一致: {current_kbps} KB/s',
+                '外部修改与当前达量规则一致，恢复自动',
             )
         stored_kbps = get_manual_limit_trigger_kbps(qb_client.name)
         if stored_kbps != current_kbps:
@@ -213,11 +222,11 @@ def detect_external_limit_change(qb_client, cycle_uploaded_bytes: int,
                 qb_client.name,
                 'limit_applied_external',
                 current_kbps,
-                f'检测到 qBittorrent 外部修改全局上传限速: {current_kbps} KB/s',
+                _manual_reason('外部', current_kbps),
             )
             logger.info(
-                f"[{qb_client.name}] 手动覆盖中检测到外部限速变化: "
-                f"{stored_kbps} -> {current_kbps} KB/s"
+                f"[{qb_client.name}] 手动覆盖 • 外部: 限速变化 "
+                f"{_kbps_text(stored_kbps)} -> {_kbps_text(current_kbps)}"
             )
             return True
         return False
@@ -235,7 +244,7 @@ def detect_external_limit_change(qb_client, cycle_uploaded_bytes: int,
             qb_client,
             threshold_gb,
             current_kbps,
-            f'外部修改限速与当前达量规则一致: {current_kbps} KB/s',
+            '外部修改与当前达量规则一致，恢复自动',
         )
 
     # 上一档程序写入值尚未被新档覆盖时，不算手动覆盖
@@ -254,11 +263,11 @@ def detect_external_limit_change(qb_client, cycle_uploaded_bytes: int,
         qb_client.name,
         'limit_applied_external',
         current_kbps,
-        f'检测到 qBittorrent 外部修改全局上传限速: {current_kbps} KB/s',
+        _manual_reason('外部', current_kbps),
     )
     logger.info(
-        f"[{qb_client.name}] 检测到外部修改全局限速为 "
-        f"{current_kbps} KB/s（预期 {expected_kbps} KB/s），视为手动覆盖"
+        f"[{qb_client.name}] 手动覆盖 • 外部: 全局限速改为 "
+        f"{_kbps_text(current_kbps)}（预期 {_kbps_text(expected_kbps)}）"
     )
     return True
 
@@ -495,9 +504,9 @@ def restore_speed_limit(qb_client, reason: str = '手动解除限速',
             qb_client.name,
             'limit_restored',
             0,
-            reason
+            _manual_reason('内部', 0) if reason == '手动解除限速' else reason
         )
-        logger.info(f"[{qb_client.name}] 限速已解除: {reason}")
+        logger.info(f"[{qb_client.name}] 手动覆盖 • 内部: 已解除限速（{reason}）")
     else:
         logger.warning(
             f"[{qb_client.name}] 解除限速 API 调用失败，保持手动覆盖状态",
@@ -523,7 +532,7 @@ def force_apply_limit(qb_client, limit_kbps: int,
                 qb_client,
                 threshold_gb,
                 limit_kbps,
-                f'手动设置限速与当前达量规则一致: {limit_kbps} KB/s',
+                '内部修改与当前达量规则一致，恢复自动',
             )
 
     _enter_manual_override(qb_client, cycle_uploaded_bytes)
@@ -536,8 +545,9 @@ def force_apply_limit(qb_client, limit_kbps: int,
                 qb_client.name,
                 'limit_removed_manual',
                 0,
-                '手动解除限速，直至下一条达量规则触发后自动接管'
+                _manual_reason('内部', 0)
             )
+            logger.info(f"[{qb_client.name}] 手动覆盖 • 内部: 已解除限速（不限速）")
         else:
             _record_limit_source(qb_client, LIMIT_SOURCE_NONE)
             set_manual_baseline_threshold_gb(qb_client.name, 0)
@@ -550,8 +560,9 @@ def force_apply_limit(qb_client, limit_kbps: int,
             qb_client.name,
             'limit_applied_manual',
             limit_kbps,
-            f'手动设置限速: {limit_kbps} KB/s，直至下一条达量规则触发后自动接管'
+            _manual_reason('内部', limit_kbps)
         )
+        logger.info(f"[{qb_client.name}] 手动覆盖 • 内部: 限速 {limit_kbps} KB/s")
     else:
         _record_limit_source(qb_client, LIMIT_SOURCE_NONE)
         set_manual_baseline_threshold_gb(qb_client.name, 0)
