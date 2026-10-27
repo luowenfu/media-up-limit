@@ -14,7 +14,7 @@
 - 可手动限速或解除，也能先写好下个周期的计划
 - 流量图表、事件记录、系统日志，数据写在本地 SQLite
 
-![qBittorrent 设备与流量](./assets/image-20260624005902778.png)
+![qBittorrent 设备与流量](./assets/qb.png)
 
 ## Emby
 
@@ -27,9 +27,9 @@
 - 和 qB 分开看，或用合并视图放在一起
 - 地址栏加上 `?emby_debug=1` 可打开调试面板
 
-![Emby 播放与流量](./assets/image-20260624005902779.png)
+![Emby 播放与流量](./assets/emby.png)
 
-![播放记录与选片记录](./assets/image-20260624005902780.png)
+![合并视图](./assets/mergeView.png)
 
 ## 使用
 
