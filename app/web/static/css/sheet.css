@@ -147,8 +147,8 @@ html[data-scheme="dark"] .inp.bad:focus-within {
 #qHeadBox { margin-top: 12px; }
 #qHeadWrap .fl { margin-top: 12px; }
 #qHeadWrap .fl:first-child { margin-top: 0; }
-/* 两端拉到区块边缘封住 */
-.line-open { height: 1px; margin: 0; background: var(--line); }
+/* 两端拉到额度区块白卡片左右边封住（抵消 .fs 的左右内边距） */
+.line-open { height: 1px; margin: 0 -20px; background: var(--line); }
 .sw-row { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid var(--line-2); }
 .sw-row:first-child { border-top: 0; padding-top: 2px; }
 .sw-row .t { flex: 1; min-width: 0; }
