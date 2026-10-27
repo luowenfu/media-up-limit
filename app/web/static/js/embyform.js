@@ -251,7 +251,7 @@ function quotaPane(cfg, users) {
                 <div class="line-open"></div>
                 <div class="q-head">
                     <div class="t">
-                        <div class="q-title"><b>用户独立额度</b><button type="button" class="rule-add" data-quota-add aria-label="添加用户">${ico('plus', 14)}</button></div>
+                        <div class="q-title"><b>独立额度</b><button type="button" class="rule-add" data-quota-add aria-label="添加用户">${ico('plus', 14)}</button></div>
                         <small id="qOwnSub">${isTotal ? '优先级高于共用额度' : '优先级高于每人额度'}</small>
                     </div>
                 </div>

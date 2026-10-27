@@ -23,7 +23,7 @@ _summary_ttl_seconds = 10.0
 
 
 def listed_limit_gb(quota: dict, user_name: str) -> Optional[float]:
-    """用户独立额度。没单独列出返回 None，列出则返回额度，0 表示不限。"""
+    """独立额度。没单独列出返回 None，列出则返回额度，0 表示不限。"""
     fold = str(user_name or '').strip().casefold()
     if not fold:
         return None
@@ -34,7 +34,7 @@ def listed_limit_gb(quota: dict, user_name: str) -> Optional[float]:
 
 
 def user_limit_gb(quota: dict, user_name: str) -> float:
-    """按每人额度时该用户适用的额度（GB）。用户独立额度优先，否则用每人额度。0 表示不限。"""
+    """按每人额度时该用户适用的额度（GB）。独立额度优先，否则用每人额度。0 表示不限。"""
     own = listed_limit_gb(quota, user_name)
     if own is not None:
         return own
