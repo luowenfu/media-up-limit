@@ -5,45 +5,16 @@
 
 同时看多台 qBittorrent 和 Emby 的上传，按周期统计，达量后自动限速或停播。
 
-## 功能
-
-- **qB 达量限速**：多台 qB 按月、周或天统计上传，到量自动降速，下个周期自动恢复
-- **手动控制**：随时手动限速、解除，或切换 qB 备用速度
-- **Emby 播放监控**：实时看播放会话，区分局域网和外网，外网 IP 默认打码
-- **Emby 外网流量**：经 Lucky 反代，按用户统计播放和选片流量
-- **Emby 达量停播**：用户用完额度后再开播，提示并停止
-- **记录与图表**：流量图表、种子和用户排行、播放和选片记录、事件记录、系统日志
-- **合并视图**：qB 和 Emby 放在一页看
-- **其他**：手机可用、深浅色主题、密钥加密存储、登录失败限流
-
-## 截图
+## qBittorrent 达量限速
 
 ![qBittorrent 设备与流量](./assets/qb.png)
 
-![Emby 播放与流量](./assets/emby.png)
+- 多台 qB 按月、周或天统计上传，到量自动降速，下个周期自动恢复
+- 多档规则逐级生效，用得越多限得越狠
+- 随时手动限速、解除，或切换备用速度
+- 实时看上传、下载和在线状态，有流量图表、种子排行和事件记录
 
-![合并视图](./assets/mergeView.png)
-
-## 快速开始
-
-```yaml
-services:
-  media-up-limit:
-    image: luowenfu/media-up-limit:latest
-    container_name: media-up-limit
-    restart: unless-stopped
-    network_mode: host
-    environment:
-      TZ: Asia/Shanghai
-    volumes:
-      - ./data:/data
-```
-
-也可以用 `ghcr.io/luowenfu/media-up-limit:latest`。
-
-启动后打开 `http://<主机IP>:8765`。首次先设账号，设完自动登录。设备和设置都在页面里改。
-
-## qBittorrent 达量限速
+### 怎么用
 
 1. 在「设备」里添加 qB 的地址、用户名和密码，确认显示在线
 2. 在规则里选周期，填达量值和对应限速，可加多档，例如 300GB 限 2MB/s、500GB 限 512KB/s
@@ -51,19 +22,26 @@ services:
 
 需要 qB 开启 WebUI，容器能访问到 qB，程序持续运行（停机期间不统计）。
 
-**手动覆盖**
+### 手动覆盖
 
 - **内部覆盖**：在本页面手动限速或解除，规则行显示「内部覆盖」
 - **外部覆盖**：直接在 qB 里改了全局限速，会识别为「外部覆盖」，不会立刻改回
 - 两种覆盖只管当前档。用量到达更高一档时，规则重新接管
 
-**注意**
+### 注意
 
 - 改的是 qB 的全局上传限速。qB 开着「备用速度限制」时，实际生效的是备用限速
 - 按轮询统计，到量后最多晚一个采集周期才限速，实际上传会略超
 - qB 离线期间不统计、不改限速，恢复在线后按当前用量重新判定
 
-## Emby
+## Emby 播放监控与达量停播
+
+![Emby 播放与流量](./assets/emby.png)
+
+- 实时看播放会话，区分局域网和外网，外网 IP 默认打码
+- 经 Lucky 反代，按用户统计外网播放和选片流量
+- 用户用完额度后再开播，提示并停止
+- 有播放和选片记录、活动日志、用户和影片排行、流量图表
 
 先在「设置 › 系统」打开「Emby 监控」，再添加 Emby 设备。
 
@@ -86,6 +64,33 @@ services:
 - **不拦**：局域网播放、程序启动时已在播的会话、读取用量失败时
 - **默认只记录不执行**：确认无误后，在 Emby 设置里关闭「只记录不执行」
 - **条件**：API 密钥能读用户和会话、能发命令；客户端支持远程遥控；不用装插件
+
+## 合并视图
+
+![合并视图](./assets/mergeView.png)
+
+qB 和 Emby 放在一页看。
+
+## 快速开始
+
+```yaml
+services:
+  media-up-limit:
+    image: luowenfu/media-up-limit:latest
+    container_name: media-up-limit
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - ./data:/data
+```
+
+也可以用 `ghcr.io/luowenfu/media-up-limit:latest`。
+
+启动后打开 `http://<主机IP>:8765`。首次先设账号，设完自动登录。设备和设置都在页面里改。
+
+手机也能用，支持深浅色主题，系统日志可在页面里查看和导出。
 
 ## 设置
 
@@ -112,6 +117,8 @@ services:
 从旧镜像 `luowenfu/qb-up-limit` 升级时，只改镜像名，数据目录不用动。已保存的 qB、Emby、Lucky 连接会在下次启动时自动改封，不用重填。
 
 ## 不要公开这些文件
+
+密码和密钥加密存放在 `data/`，登录失败过多会限流。下面这些文件不要外传：
 
 - `data/config.yaml`
 - `data/.qb_secrets`、`data/.emby_secrets`
