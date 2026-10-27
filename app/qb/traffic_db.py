@@ -1297,39 +1297,41 @@ def clear_normal_global_upload_limit(instance_name: str):
 
 def get_last_programmed_limit_kbps(instance_name: str):
     """程序上次成功写入的全局限速 (KB/s)。None 表示尚未记录。"""
-    with get_connection() as conn:
-        row = conn.execute(
-            'SELECT last_programmed_limit_kbps FROM instance_status WHERE instance_name = ?',
-            (instance_name,),
-        ).fetchone()
-        if not row or row['last_programmed_limit_kbps'] is None:
-            return None
-        value = int(row['last_programmed_limit_kbps'])
-        if value < 0:
-            return None
-        return value
+    with _lock:
+        conn = get_conn()
+        try:
+            row = conn.execute(
+                'SELECT last_programmed_limit_kbps FROM instance_status WHERE instance_name = ?',
+                (instance_name,),
+            ).fetchone()
+        finally:
+            conn.close()
+    if not row or row[0] is None:
+        return None
+    value = int(row[0])
+    return None if value < 0 else value
+
+
+def _write_last_programmed(instance_name: str, stored: int):
+    with _lock:
+        conn = get_conn()
+        try:
+            conn.execute(
+                "INSERT INTO instance_status (instance_name, last_programmed_limit_kbps) VALUES (?, ?) "
+                "ON CONFLICT(instance_name) DO UPDATE SET last_programmed_limit_kbps = ?",
+                (instance_name, stored, stored),
+            )
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def set_last_programmed_limit_kbps(instance_name: str, limit_kbps: int):
-    kbps = max(0, int(limit_kbps or 0))
-    with get_connection() as conn:
-        conn.execute(
-            "INSERT INTO instance_status (instance_name, last_programmed_limit_kbps)\n"
-            "               VALUES (?, ?)\n"
-            "               ON CONFLICT(instance_name) DO UPDATE SET last_programmed_limit_kbps = ?",
-            (instance_name, kbps, kbps),
-        )
+    _write_last_programmed(instance_name, max(0, int(limit_kbps or 0)))
 
 
 def clear_last_programmed_limit_kbps(instance_name: str):
-    with get_connection() as conn:
-        conn.execute(
-            "INSERT INTO instance_status (instance_name, last_programmed_limit_kbps)\n"
-            "               VALUES (?, -1)\n"
-            "               ON CONFLICT(instance_name) DO UPDATE SET last_programmed_limit_kbps = -1",
-            (instance_name,),
-        )
-
+    _write_last_programmed(instance_name, -1)
 
 
 def get_last_applied_cycle_start(instance_name: str) -> str:
