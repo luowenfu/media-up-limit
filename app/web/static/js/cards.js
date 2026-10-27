@@ -311,7 +311,7 @@ export function embyCard(d, i, ord) {
     if (quotaOpen && state.quotaLockH) styleBits.push(`height:${state.quotaLockH}px`);
     if (quotaOpen && state.quotaTop) styleBits.push(`--qd-top:${state.quotaTop}px`);
     const at = styleBits.length ? ` style="${styleBits.join(';')}"` : '';
-    const see = d.quotaOn ? `<button type="button" class="quota-btn" data-quota-open="${esc(d.name)}">查询</button>` : '';
+    const see = d.quotaOn ? `<button type="button" class="quota-btn" data-quota-open="${esc(d.name)}">管理</button>` : '';
     return `<article${at} class="dev ${d.online ? '' : 'is-off'}${foldOpen('card') ? ' open' : ''}${quotaOpen ? ' quota-open' : ''}">
         ${foldHead('card', `${I.server}设备详情`)}
         <header class="dev-head emby">
