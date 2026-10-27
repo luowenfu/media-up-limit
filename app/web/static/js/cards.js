@@ -321,7 +321,7 @@ export function embyCard(d, i, ord) {
             <div class="dev-chips">
                 <span class="chip">${d.online ? '在线' : '离线'}</span>
                 <span class="chip">${d.lucky ? 'Lucky' : '无 Lucky'}</span>
-                <span class="chip">${d.sessions.length} 路播放</span>
+                <span class="chip">播放 ${d.sessions.length}</span>
             </div>
         </header>
         ${cardBody('emby', d.name)}
