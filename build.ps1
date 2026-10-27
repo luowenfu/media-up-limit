@@ -71,7 +71,7 @@ if ($Bump -eq 'Test') {
     $next = '{0}.{1}' -f $major, ($minor + 1)
 }
 
-$log = [regex]::Replace($log, '(?m)^## 待定[ \t]*$', "## $next", 1)
+$log = [regex]::Replace($log, '(?m)^## 待定[ \t]*\r?$', "## $next", 1)
 Write-Text $Changelog $log
 
 $versionText = "ChineseName=$($fields['ChineseName'])`nAppName=$($fields['AppName'])`nVersion=$next`n"
