@@ -206,7 +206,7 @@ function quotaPane(cfg, users) {
     return notice('emby', '<b>达量停播：</b>利用 Emby 官方接口控制播放会话；额度用完后再开始播放时将弹出提示并暂停，5 秒后停止。需要开启「流量采集」里的 Lucky 反代模式，局域网播放不受影响。')
         + fs('shield', '达量停播', '', `<div class="sw-list">
             ${swRow({ t: '启用达量停播', d: '总开关', on: !!qt.enabled, name: 'qEnable' })}
-            ${swRow({ t: '只记录不执行', d: '到点只写系统日志，不发提示、不暂停也不停止。确认用量准确后再关闭', on: qt.dry_run !== false, name: 'qDry' })}
+            ${swRow({ t: '只记录不执行', d: '只对达量用户进行标记，不发提示、不暂停也不停止。', on: qt.dry_run !== false, name: 'qDry' })}
         </div>`)
         + fs('clock', '统计周期', '', `<div class="plan" id="quotaPlan" ${anchorsAttr(label, cyc.reset_anchor)}><div class="f-grid">
             ${fld('周期类型', segF(['按月', '按周', '按天'], label, 'data-cyc'), { full: true })}
