@@ -71,6 +71,11 @@ html[data-scheme="dark"] .theme-ico .ico-sun { display: none; }
 html[data-scheme="dark"] .theme-ico .ico-moon { display: block; }
 #themeMark::before { content: "浅色"; }
 html[data-scheme="dark"] #themeMark::before { content: "深色"; }
+.scheme-menu { display: flex; gap: 6px; padding: 2px 8px 6px 41px; }
+.scheme-menu[hidden] { display: none; }
+.scheme-opt { flex: 1; height: 34px; border-radius: 9px; border: 1px solid var(--line); background: transparent; color: inherit; font-weight: 600; }
+.scheme-opt.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.scheme-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .nav { display: flex; flex-direction: column; gap: 2px; }
 .nav-item {
     position: relative;

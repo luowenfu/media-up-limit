@@ -16,7 +16,7 @@ import {
 import { uiChange, uiClick, uiInput, relockTiles } from './interact.js';
 import { quotaListHtml, swapCardBlocks, toggleReveal } from './cards.js';
 import { openSettings } from './settings.js';
-import { toggleScheme } from './theme.js';
+import './theme.js';
 import { openChooser } from './dialogs.js';
 import { normalizeDayRange, normalizeMonthRange, parseDay, parseMonth, quickPreset, visibleDayRange, visibleMonthRange } from './stats_data.js';
 import { bindRangePicker, closeRangePicker } from './range_picker.js';
@@ -274,7 +274,7 @@ document.addEventListener('click', e => {
     }
     if (t.dataset.bar) { go({ view: t.dataset.bar === 'syslogs' ? 'syslogs' : state.lastList, dev: '' }); return; }
     if (t.dataset.open === 'add') { closeDrawer(); openChooser(); return; }
-    if (t.id === 'themeBtn') { toggleScheme(); return; }
+    if (t.id === 'themeBtn') return; /* 主题选项菜单由 theme.js 处理 */
     if (t.dataset.open === 'settings') { closeDrawer(); openSettings(); return; }
     if (t.dataset.goto) { openDevice(t.dataset.kind, t.dataset.dev, t.dataset.goto); return; }
     if (t.hasAttribute('data-open-dev')) { openDevice(t.dataset.kind, t.dataset.dev); return; }

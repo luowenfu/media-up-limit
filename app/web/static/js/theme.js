@@ -31,6 +31,39 @@ export function toggleScheme() {
     applyScheme(!isDark());
 }
 
+/* 点「主题切换」只展开选项，再点深色/浅色才生效，避免误触直接切换 */
+function ensureSchemeMenu() {
+    const btn = document.getElementById('themeBtn');
+    if (!btn) return null;
+    let menu = document.getElementById('schemeMenu');
+    if (!menu) {
+        btn.insertAdjacentHTML('afterend', `<div class="scheme-menu" id="schemeMenu" role="group" aria-label="选择主题" hidden>
+    <button type="button" class="scheme-opt" data-scheme-pick="light">浅色</button>
+    <button type="button" class="scheme-opt" data-scheme-pick="dark">深色</button>
+</div>`);
+        menu = document.getElementById('schemeMenu');
+    }
+    return menu;
+}
+
+export function setSchemeMenu(open) {
+    const menu = ensureSchemeMenu();
+    if (!menu) return;
+    menu.hidden = !open;
+    document.getElementById('themeBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
+    const cur = isDark() ? 'dark' : 'light';
+    menu.querySelectorAll('[data-scheme-pick]').forEach(b => b.classList.toggle('on', b.dataset.schemePick === cur));
+}
+
+export function toggleSchemeMenu() {
+    const menu = ensureSchemeMenu();
+    setSchemeMenu(!!(menu && menu.hidden));
+}
+
+export function pickScheme(v) {
+    applyScheme(v === 'dark');
+    setSchemeMenu(false);
+}
 function ensureSchemeCss() {
     if (document.querySelector('link[href*="scheme.css"]')) return;
     const link = document.createElement('link');
@@ -62,6 +95,9 @@ export function ensureSidebar() {
     const theme = document.getElementById('themeBtn');
     if (!theme && foot) foot.insertAdjacentHTML('afterbegin', THEME_BTN);
     else if (theme && foot && foot.firstElementChild !== theme) foot.prepend(theme);
+    const oldMenu = document.getElementById('schemeMenu');
+    if (oldMenu && theme && theme.nextElementSibling !== oldMenu) theme.after(oldMenu);
+    ensureSchemeMenu();
     document.querySelectorAll('.bottom-bar [data-open="settings"] svg').forEach(svg => { svg.outerHTML = gearSvg(21); });
     if (!document.getElementById('sideBtn')) {
         const side = document.querySelector('.sidebar');
@@ -78,3 +114,10 @@ export function ensureSidebar() {
 }
 
 ensureSidebar();
+
+document.addEventListener('click', e => {
+    const t = e.target.closest && e.target.closest('#themeBtn, [data-scheme-pick], #schemeMenu');
+    if (!t) { const m = document.getElementById('schemeMenu'); if (m && !m.hidden) setSchemeMenu(false); return; }
+    if (t.id === 'themeBtn') { toggleSchemeMenu(); return; }
+    if (t.dataset.schemePick) pickScheme(t.dataset.schemePick);
+});
