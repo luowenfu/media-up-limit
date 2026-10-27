@@ -2571,6 +2571,23 @@ def list_playback_upload_users(instance_name: str) -> list:
     return list_distinct_user_names(instance_name)
 
 
+def get_browse_event_versions() -> dict:
+    """各实例最新选片记录 id {instance_name: max_id}"""
+    _ensure_emby_schema()
+    with _lock:
+        conn = get_conn()
+        try:
+            c = conn.cursor()
+            c.execute('''
+                SELECT instance_name, MAX(id) AS max_id
+                FROM emby_browse_upload_facts
+                GROUP BY instance_name
+            ''')
+            return {row['instance_name']: int(row['max_id'] or 0) for row in c.fetchall()}
+        finally:
+            conn.close()
+
+
 def list_browse_upload_records(
     instance_name: str,
     limit: int = 200,

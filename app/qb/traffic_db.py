@@ -1825,6 +1825,22 @@ def get_device_events(instance_name: str = None, limit: int = 500) -> list:
 get_speed_events = get_device_events
 
 
+def get_device_event_versions() -> dict:
+    """各实例最新事件 id {instance_name: max_id}，前端据此判断事件列表是否要重拉"""
+    with _lock:
+        conn = get_conn()
+        try:
+            c = conn.cursor()
+            c.execute('''
+                SELECT instance_name, MAX(id) AS max_id
+                FROM device_events
+                GROUP BY instance_name
+            ''')
+            return {row['instance_name']: int(row['max_id'] or 0) for row in c.fetchall()}
+        finally:
+            conn.close()
+
+
 def get_last_offline_times() -> dict:
     """返回各实例最近一次 device_offline 事件时间 {instance_name: event_time}"""
     with _lock:

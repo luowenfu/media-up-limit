@@ -414,7 +414,11 @@ const ERROR = msg => `<div class="panel panel-pad" style="text-align:center;colo
 const chartKey = () => [state.view, state.dev, state.statsRange, state.statsChartRange, state.statsDate, state.statsFrom, state.statsSpan, state.statsUser].join('\0');
 const playStateKey = () => embyList().flatMap(d => (d.sessions || []).map(s => `${s.id}:${s.item_id || ''}:${s.playback_started_at || ''}:${s.is_paused ? 1 : 0}:${s.upload_anomaly ? 1 : 0}`)).join('|');
 const quotaKey = () => embyList().map(d => `${d.name}:${d.quotaCycleStart || ''}:${(d.quotaOvers || []).map(u => `${u.name}:${u.limitGb}:${u.via}`).join(',')}`).join('|');
-const eventsKey = (kind, dev) => [kind, dev, kind === 'qb' ? state.eventsType : `${playStateKey()}\n${quotaKey()}`, state.eventsUser, state.eventsDays, state.eventsHideLan].join('\0');
+/** 状态接口里各设备的最新事件版本：有新事件就换 key，立即重拉 */
+const eventsVerKey = (kind, dev) => (kind === 'qb' ? qbList() : embyList())
+    .filter(d => !dev || d.name === dev)
+    .map(d => `${d.name}:${d.raw?.events_version ?? d.events_version ?? ''}`).join('|');
+const eventsKey = (kind, dev) => [kind, dev, eventsVerKey(kind, dev), kind === 'qb' ? state.eventsType : `${playStateKey()}\n${quotaKey()}`, state.eventsUser, state.eventsDays, state.eventsHideLan].join('\0');
 
 /** 需要请求接口的区块：筛选没变就沿用，后台刷新到期才重新拉取 */
 const slowCache = new Map();

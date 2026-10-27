@@ -738,7 +738,18 @@ class TrafficMonitor:
                     'collect_interval': self.collect_interval,
                     'refresh_interval': self.refresh_interval,
                 }, name))
+        self._attach_event_versions(result)
         return result
+
+    @staticmethod
+    def _attach_event_versions(rows: list) -> None:
+        try:
+            versions = traffic_db.get_device_event_versions()
+        except Exception:
+            logger.debug('读取事件版本失败', exc_info=True)
+            versions = {}
+        for row in rows:
+            row['events_version'] = versions.get(row.get('name'), 0)
 
     def stop(self):
         self._running = False
@@ -1113,6 +1124,7 @@ class TrafficMonitor:
                 **self._generation_fields(name),
             })
 
+        self._attach_event_versions(result)
         return result
 
     def manual_reset(self, instance_name: str = None) -> bool:

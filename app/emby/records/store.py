@@ -38,6 +38,9 @@ _flush_timers: Dict[str, threading.Timer] = {}
 # 按文件路径的写盘锁：同一文件同一时刻只允许一次写入
 _write_locks: Dict[str, threading.Lock] = {}
 
+# 每台设备播放记录的事件版本：只看新建记录和已结束记录，播放中进度变化不算
+_event_versions: Dict[str, str] = {}
+
 _PLAYBACK_STATUSES = frozenset({'playing', 'ended', 'incomplete'})
 
 
@@ -180,6 +183,34 @@ def _write_store_now(store: dict) -> None:
             store['records'] = _trim_records(store.get('records') or [])
             snapshot = copy.deepcopy(store)
         _write_json(path, snapshot)
+        if name:
+            with _lock:
+                _event_versions[name] = _records_event_version(snapshot)
+
+
+def _records_event_version(store: dict) -> str:
+    records = store.get('records') or []
+    done = [r for r in records if r.get('status') != 'playing']
+    latest = max((_ended_record_sort_key(r) for r in done), default='')
+    return f"{store.get('next_id') or 0}:{len(done)}:{latest}"
+
+
+def get_event_version(instance_name: str) -> str:
+    """播放记录版本号；首次读盘计算，之后随写盘更新"""
+    name = (instance_name or '').strip()
+    if not name:
+        return ''
+    with _lock:
+        ver = _event_versions.get(name)
+    if ver is None:
+        try:
+            ver = _records_event_version(_load_store(name))
+        except Exception:
+            logger.debug('计算播放记录版本失败 %s', name, exc_info=True)
+            ver = ''
+        with _lock:
+            _event_versions.setdefault(name, ver)
+    return ver
 
 
 def _cancel_flush_timer(instance_name: str) -> None:
@@ -1433,6 +1464,7 @@ def delete_instance_records(instance_name: str) -> bool:
             return False
         try:
             os.remove(path)
+            _event_versions.pop(instance_name, None)
             return True
         except OSError as e:
             logger.warning(f'删除播放记录缓存失败 {path}: {e}')

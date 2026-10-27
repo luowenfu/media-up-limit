@@ -1395,8 +1395,25 @@ class EmbyMonitor:
                 'state_generation': live.get(
                     'state_generation', self._state_generation.get(name, 0)),
             })
+        self._attach_event_versions(result)
         result.sort(key=lambda x: (x.get('display_priority', 500), x.get('name', '')))
         return result
+
+    @staticmethod
+    def _attach_event_versions(rows: list) -> None:
+        """播放记录与选片记录的最新版本，前端事件列表据此立即重拉"""
+        try:
+            browse = emby_traffic_db.get_browse_event_versions()
+        except Exception:
+            logger.debug('读取选片记录版本失败', exc_info=True)
+            browse = {}
+        for row in rows:
+            name = row.get('name') or ''
+            try:
+                play = playback_record_store.get_event_version(name)
+            except Exception:
+                play = ''
+            row['events_version'] = f"{play}|{browse.get(name, 0)}"
 
     def get_cached_sessions(self, instance_name: str = None) -> list:
         """已缓存的播放会话，不现场请求 Emby。"""
