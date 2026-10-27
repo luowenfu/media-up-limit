@@ -23,13 +23,18 @@ export function liveSpeed(bytes, seconds, base = 1024) {
     return splitSpeed((Number(bytes) || 0) / sec, base);
 }
 
+function manualKb(d) {
+    const n = Number(d.global_upload_limit_kbps ?? d.manual_limit_trigger_kbps) || 0;
+    return n > 0 ? `${n}KB` : '不限速';
+}
+
 function ruleRows(d) {
     const rules = d.speed_rules || [];
     let curIdx = -1;
     rules.forEach((r, i) => { if (r.triggered) curIdx = i; });
-    // 手动覆盖时，最近触发那一行改显示「手动覆盖 • 内部/外部」
+    // 手动覆盖时，最近触发那一行改显示「内部/外部覆盖 XXXKB」
     const manual = d.limit_source === 'manual'
-        ? (d.manual_limit_origin === 'external' ? '手动覆盖 • 外部' : '手动覆盖 • 内部')
+        ? `${d.manual_limit_origin === 'external' ? '外部' : '内部'}覆盖 ${manualKb(d)}`
         : '';
     return rules.map((r, i) => {
         const pct = Math.min(100, Number(r.progress) || 0);

@@ -1464,8 +1464,10 @@ MANUAL_ORIGIN_INTERNAL = 'internal'
 MANUAL_ORIGIN_EXTERNAL = 'external'
 
 
-def manual_override_label(origin: str) -> str:
-    return '手动覆盖 • 外部' if origin == MANUAL_ORIGIN_EXTERNAL else '手动覆盖 • 内部'
+def manual_override_label(origin: str, limit_kbps=None) -> str:
+    side = '外部' if origin == MANUAL_ORIGIN_EXTERNAL else '内部'
+    n = int(limit_kbps or 0)
+    return f'{side}覆盖 {n}KB' if n > 0 else f'{side}覆盖 不限速'
 
 
 def record_manual_limit_trigger(instance_name: str, limit_kbps: int,
@@ -1621,7 +1623,7 @@ def build_limit_trigger_summary(instance_name: str, speed_rules: list = None,
                 origin = (r['manual_limit_origin'] or '') if r else ''
             finally:
                 conn.close()
-    manual_label = manual_override_label(origin)
+    manual_label = manual_override_label(origin, manual_kbps)
 
     manual_at_str = None
     if manual_at:
