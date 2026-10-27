@@ -3,9 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<meta name="theme-color" content="#2563eb">
+<meta name="theme-color" content="#0c1220">
 <script>
-try { if (localStorage.getItem('qb-scheme') === 'dark') document.documentElement.dataset.scheme = 'dark'; } catch (e) {}
+try {
+  var s = localStorage.getItem('qb-scheme');
+  if (s !== 'light') document.documentElement.dataset.scheme = 'dark';
+} catch (e) { document.documentElement.dataset.scheme = 'dark'; }
 </script>
 <title>登录 · 媒体达量管理</title>
 <link rel="icon" href="/favicon.ico" sizes="64x64">
