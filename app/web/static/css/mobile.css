@@ -227,8 +227,11 @@
     .sec-events, .sec-events .panel, .timeline { min-width: 0; max-width: 100%; }
     .field.search { flex: 1 1 100%; }
     .tool-r { margin-left: 0; }
-    /* 事件记录筛选：右侧两项拆开排，顺序 排除局域网 → 排除选片 → 最近 N 天，宽度不够时依次换行 */
+    /* 事件记录筛选：第一排 用户 + 最近 N 天，第二排 排除局域网 + 排除选片，类型标签在其后 */
     .sec-events .toolbar .tool-r { display: contents; }
+    .sec-events .toolbar .tool-r .field { order: 1; }
+    .sec-events .toolbar .ev-excl { order: 2; flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: inherit; }
+    .sec-events .toolbar .tabs { order: 3; }
     .tool-r .field { max-width: 100%; }
     .range-field, .range-field.is-day, .range-field:not(.is-day) { width: 100%; }
     .tool-r:has(.range-quick) { width: auto; max-width: 100%; margin-left: 0; justify-content: flex-start; }
