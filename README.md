@@ -3,9 +3,9 @@
 [![Release](https://img.shields.io/github/v/release/luowenfu/media-up-limit)](https://github.com/luowenfu/media-up-limit/releases)
 [![Docker Hub](https://img.shields.io/docker/v/luowenfu/media-up-limit?label=Docker%20Hub&color=2496ED)](https://hub.docker.com/r/luowenfu/media-up-limit)
 
-**qb 达量限速**（qBittorrent 达量限速）——qB 上传流量到达阀值后自动限速，支持按月、按周、按天；支持多级达量规则。
+**qBittorrent 达量限速**——qB 上传到达阀值后自动限速，支持多周期；支持多级达量规则。
 
-**Emby 达量停播** ——上传流量到达指定阀值后自动停播，支持按月、按周、按天；支持共用额度、每人额度、独立额度管理。
+**Emby 达量停播** ——上传到达指定阀值后自动停播，支持多周期；支持共用额度、每人额度、独立额度管理。
 
 ---
 
