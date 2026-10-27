@@ -239,7 +239,7 @@ function quotaRow(u) {
     const over = limit > 0 && meter >= limit;
     const pct = limit > 0 ? Math.min(100, meter / limit * 100) : 0;
     const cap = limit > 0 ? quotaGb(limit) : '不限';
-    const viaLabel = { total: '随总额度', all: '随每人额度', own: '随独立额度', none: '未设额度' }[u.via] || '未设额度';
+    const viaLabel = { total: '随共享额度', all: '随每人额度', own: '随独立额度', none: '未设额度' }[u.via] || '未设额度';
     const via = `<span class="qd-chip">${viaLabel}</span>`;
     const editing = !!state.quotaEdit && state.quotaEdit.toLowerCase() === String(u.name || '').trim().toLowerCase();
     const editor = editing ? `<div class="qd-edit">
@@ -275,7 +275,7 @@ export function quotaListHtml(d) {
         ? (d.quotaLookup || []).filter(u => u.name.toLowerCase().includes(query))
         : (d.quotaOvers || []);
     const empty = String(d.quotaOver || '').startsWith('全部用户')
-        ? '总额度已到，当前没有可列出的用户'
+        ? '共享额度已到，当前没有可列出的用户'
         : '本周期还没有达量用户';
     const label = searching
         ? (rows.length ? `找到 ${rows.length} 人` : '')

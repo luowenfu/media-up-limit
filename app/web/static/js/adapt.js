@@ -80,7 +80,7 @@ export function qbVM(d, hist) {
 
 function quotaVia(raw, limitGb) {
     if (raw === 'total' || raw === 'all' || raw === 'own' || raw === 'none') return raw;
-    // 旧接口把独立额度记成 user；总额度是 0 时，没单独列出的人也是 user，但额度是 0
+    // 旧接口把独立额度记成 user；共享额度是 0 时，没单独列出的人也是 user，但额度是 0
     if (raw === 'user') return limitGb > 0 ? 'own' : 'none';
     return 'none';
 }
@@ -131,7 +131,7 @@ function quotaRuleLabel(q, amount, bare) {
     const each = Number(q.default_limit_gb) || limitOf(rows, 'all');
     const total = Number(q.total_limit_gb) || limitOf(rows, 'total');
     const person = bare ? '每人额度' : '按每人额度';
-    const pool = bare ? '总额度' : '按总额度';
+    const pool = bare ? '共享额度' : '按共享额度';
     const none = bare ? '独立额度' : '仅独立额度';
     if (q.mode === 'user') return each > 0 ? `${person} ${amount(each)}` : none;
     return total > 0 ? `${pool} ${amount(total)}` : none;
@@ -162,7 +162,7 @@ function embyPlanText(q) {
 function embyQuotaTexts(d) {
     const q = d.user_quota_status || {};
     if (!q.enabled) return { on: false, dry: false, cycle: '未启用', plan: '未启用', over: '未启用', overs: [], lookup: [], cycleStart: '' };
-    // 按总额度且没有用户独立额度时，合计达到后所有用户都被停播
+    // 按共享额度且没有用户独立额度时，合计达到后所有用户都被停播
     const over = q.mode === 'total' && q.total_reached && !q.has_own_limits
         ? '全部用户' : `${q.over_count || 0} 人`;
     return {
