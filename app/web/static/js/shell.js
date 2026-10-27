@@ -418,7 +418,7 @@ const quotaKey = () => embyList().map(d => `${d.name}:${d.quotaCycleStart || ''}
 const eventsVerKey = (kind, dev) => (kind === 'qb' ? qbList() : embyList())
     .filter(d => !dev || d.name === dev)
     .map(d => `${d.name}:${d.raw?.events_version ?? d.events_version ?? ''}`).join('|');
-const eventsKey = (kind, dev) => [kind, dev, eventsVerKey(kind, dev), kind === 'qb' ? state.eventsType : `${playStateKey()}\n${quotaKey()}`, state.eventsUser, state.eventsDays, state.eventsHideLan].join('\0');
+const eventsKey = (kind, dev) => [kind, dev, eventsVerKey(kind, dev), kind === 'qb' ? state.eventsType : `${playStateKey()}\n${quotaKey()}`, state.eventsUser, state.eventsDays, state.eventsHideLan, state.eventsHideBrowse].join('\0');
 
 /** 需要请求接口的区块：筛选没变就沿用，后台刷新到期才重新拉取 */
 const slowCache = new Map();

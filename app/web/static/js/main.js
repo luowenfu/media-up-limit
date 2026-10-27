@@ -218,7 +218,7 @@ function closeQuotaDrawer(immediate = false) {
 /* ---------- 点击 ---------- */
 document.addEventListener('click', e => {
     if (e.target.closest('.rp-pop, [data-range-open]')) return;
-    const t = e.target.closest('button, .switch, .chk, .me-item, [data-lucky], [data-close], [data-lim-mode], [data-hidelan], [data-open-dev], [data-quota-close]');
+    const t = e.target.closest('button, .switch, .chk, .me-item, [data-lucky], [data-close], [data-lim-mode], [data-hidelan], [data-hidebrowse], [data-open-dev], [data-quota-close]');
     if (!t) return;
     if (t.closest('[data-quota-close]')) { closeQuotaDrawer(); return; }
     if (t.dataset.quotaSet) { openQuotaEdit(t.dataset.quotaSet); return; }
@@ -259,6 +259,7 @@ document.addEventListener('click', e => {
     if (t.dataset.reveal) { toggleReveal(t.dataset.reveal); render(); return; }
     const ctx = { render: () => render() };
     if (t.closest('[data-hidelan]')) { state.eventsHideLan = !state.eventsHideLan; render(); return; }
+    if (t.closest('[data-hidebrowse]')) { state.eventsHideBrowse = !state.eventsHideBrowse; render(); return; }
     if (uiClick(t, e, ctx)) return;
     if (t.dataset.navToggle) { const k = t.dataset.navToggle; setGroupOpen(k, navCollapsed().includes(k)); return; }
     if (t.dataset.nav && ['qb', 'emby', 'merge', 'syslogs'].includes(t.dataset.nav)) {
@@ -335,6 +336,7 @@ document.addEventListener('click', e => {
     if (t.closest('[data-logsrc]')) { state.logSrc = t.dataset.v; render(); return; }
     if (t.closest('[data-loglv]')) { state.logLv = t.dataset.v; render(); return; }
     if (t.hasAttribute('data-hidelan')) { state.eventsHideLan = !state.eventsHideLan; render(); return; }
+    if (t.hasAttribute('data-hidebrowse')) { state.eventsHideBrowse = !state.eventsHideBrowse; render(); return; }
     if (t.hasAttribute('data-log-export')) { exportLogs(state.logLv, state.logQuery); return; }
     if (t.hasAttribute('data-log-more')) { loadMoreLogs(); return; }
     if (t.hasAttribute('data-close') || t.id === 'modal') closeModal();

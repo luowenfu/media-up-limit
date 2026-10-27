@@ -24,6 +24,7 @@ export const state = {
     eventsUser: '',
     eventsType: 'all',
     eventsHideLan: false,
+    eventsHideBrowse: false,
     eventsDays: 7,
     logSrc: 'all',
     logLv: 'all',
@@ -178,6 +179,7 @@ export function pageSnapshot() {
         eventsUser: state.eventsUser || '',
         eventsDays: eventsRangeDays(state.eventsDays),
         eventsHideLan: !!state.eventsHideLan,
+        eventsHideBrowse: !!state.eventsHideBrowse,
         logSrc: state.logSrc || 'all',
         logLv: state.logLv || 'all',
     };
@@ -200,6 +202,7 @@ function applyPage(saved) {
     if (typeof saved.eventsUser === 'string') state.eventsUser = saved.eventsUser;
     if (saved.eventsDays != null && saved.eventsDays !== '') state.eventsDays = eventsRangeDays(saved.eventsDays);
     if (typeof saved.eventsHideLan === 'boolean') state.eventsHideLan = saved.eventsHideLan;
+    if (typeof saved.eventsHideBrowse === 'boolean') state.eventsHideBrowse = saved.eventsHideBrowse;
     if (typeof saved.logSrc === 'string') state.logSrc = saved.logSrc;
     if (typeof saved.logLv === 'string') state.logLv = saved.logLv;
     return true;
