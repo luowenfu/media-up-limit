@@ -234,7 +234,7 @@ class QuotaEnforcer:
         use_total = is_total_mode(quota) and listed_limit_gb(quota, entry['user']) is None
         if use_total:
             detail = (f'{entry["user"]} 开播，全部用户本周期合计已用 {_fmt_gb(used)}，'
-                      f'共享额度 {limit_gb:g} GB')
+                      f'共用额度 {limit_gb:g} GB')
         else:
             detail = f'{entry["user"]} 本周期已用 {_fmt_gb(used)}，额度 {limit_gb:g} GB'
         if not session.get('supports_remote_control'):

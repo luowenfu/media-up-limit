@@ -182,7 +182,7 @@ def _safe_anchor(raw) -> int:
 
 
 def _quota_via(quota: dict, fold: str) -> str:
-    """own 独立额度，total 共享额度，all 每人额度，none 没设额度。"""
+    """own 独立额度，total 共用额度，all 每人额度，none 没设额度。"""
     if listed_limit_gb(quota, fold) is not None:
         return 'own'
     if is_total_mode(quota):

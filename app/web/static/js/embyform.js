@@ -235,11 +235,11 @@ function quotaPane(cfg, users) {
                 <div class="hint-t" id="qMsgHint">${quotaWhenHint(whenNow)}</div>
             </div>
         </div>`)
-        + fs('sum', '额度设置', '用量归属可能有些误差，额度请留余量；选片流量是否计入见「流量采集」', `${segF(['按共享额度', '按每人额度'], isTotal ? '按共享额度' : '按每人额度', 'data-qmode')}
+        + fs('sum', '额度设置', '用量归属可能有些误差，额度请留余量；选片流量是否计入见「流量采集」', `${segF(['按共用额度', '按每人额度'], isTotal ? '按共用额度' : '按每人额度', 'data-qmode')}
             <div class="q-set">
                 <div class="sw-row">
                     <div class="t">
-                        <b id="qDefTitle">${isTotal ? '共享额度' : '每人额度'}</b>
+                        <b id="qDefTitle">${isTotal ? '共用额度' : '每人额度'}</b>
                         <small id="qDefSub">${isTotal ? '所有用户合计达到后，没单独设置的都会停播' : '每位用户各自累计，用同一个额度，没单独设置的都会停播'}</small>
                     </div>
                     <div class="q-def-inps">
@@ -252,7 +252,7 @@ function quotaPane(cfg, users) {
                 <div class="q-head">
                     <div class="t">
                         <div class="q-title"><b>用户独立额度</b><button type="button" class="rule-add" data-quota-add aria-label="添加用户">${ico('plus', 14)}</button></div>
-                        <small id="qOwnSub">${isTotal ? '优先级高于共享额度' : '优先级高于每人额度'}</small>
+                        <small id="qOwnSub">${isTotal ? '优先级高于共用额度' : '优先级高于每人额度'}</small>
                     </div>
                 </div>
                 <div class="rule-rows" id="qRows">${rows}</div>
@@ -263,19 +263,19 @@ function quotaPane(cfg, users) {
 /** 切换额度方式时，只换第一行的标题、说明和输入框，已填的数留着 */
 export function refreshQuotaView(root = document.getElementById('sheet')) {
     if (!root || !root.querySelector('#quotaPlan')) return;
-    const total = root.querySelector('[data-qmode].on')?.dataset.qmode === '按共享额度';
+    const total = root.querySelector('[data-qmode].on')?.dataset.qmode === '按共用额度';
     const title = root.querySelector('#qDefTitle');
     const desc = root.querySelector('#qDefSub');
     const totalBox = root.querySelector('#qTotalBox');
     const defaultBox = root.querySelector('#qDefaultBox');
     const sub = root.querySelector('#qOwnSub');
-    if (title) title.textContent = total ? '共享额度' : '每人额度';
+    if (title) title.textContent = total ? '共用额度' : '每人额度';
     if (desc) desc.textContent = total
         ? '所有用户合计达到后，没单独设置的都会停播'
         : '每位用户各自累计，用同一个额度，没单独设置的都会停播';
     if (totalBox) totalBox.style.display = total ? '' : 'none';
     if (defaultBox) defaultBox.style.display = total ? 'none' : '';
-    if (sub) sub.textContent = total ? '优先级高于共享额度' : '优先级高于每人额度';
+    if (sub) sub.textContent = total ? '优先级高于共用额度' : '优先级高于每人额度';
 }
 
 /** 自定义文案下方的提示：变量和当前会换成的时间都带底色 */
@@ -328,7 +328,7 @@ function readQuota(root) {
         userEl: row.querySelector('[data-q-user]'),
         gbEl: row.querySelector('[data-q-gb]'),
     })).filter(r => r.userEl.value || String(r.gbEl.value).trim());
-    const total = root.querySelector('[data-qmode].on')?.dataset.qmode === '按共享额度';
+    const total = root.querySelector('[data-qmode].on')?.dataset.qmode === '按共用额度';
     const enabled = isOn(root, '[data-sw="qEnable"]');
     rows.forEach(r => {
         if (!r.userEl.value) throw fieldError(r.userEl, '请为每个额度选择用户');
@@ -343,11 +343,11 @@ function readQuota(root) {
     const defaultEl = root.querySelector('#qDefault');
     const totalGb = readQuotaGb(totalEl?.value, totalEl);
     const defaultGb = readQuotaGb(defaultEl?.value, defaultEl);
-    if (totalGb == null) throw fieldError(totalEl, '请填写共享额度（0 表示不限）');
+    if (totalGb == null) throw fieldError(totalEl, '请填写共用额度（0 表示不限）');
     if (defaultGb == null) throw fieldError(defaultEl, '请填写每人额度（0 表示不限）');
     if (enabled) {
         if (total && !(totalGb > 0 || users.some(u => u.limit_gb > 0))) {
-            throw fieldError(totalEl, '启用达量停播前，请设置共享额度，或给某个用户设置额度');
+            throw fieldError(totalEl, '启用达量停播前，请设置共用额度，或给某个用户设置额度');
         }
         if (!total && !(defaultGb > 0 || users.some(u => u.limit_gb > 0))) {
             throw fieldError(defaultEl, '启用达量停播前，请设置每人额度，或给某个用户设置额度');
