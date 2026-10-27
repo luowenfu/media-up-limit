@@ -147,25 +147,8 @@ html[data-scheme="dark"] .inp.bad:focus-within {
 #qHeadBox { margin-top: 12px; }
 #qHeadWrap .fl { margin-top: 12px; }
 #qHeadWrap .fl:first-child { margin-top: 0; }
-/* 两端缩进，两头用短竖线封口 */
-.line-open {
-    position: relative;
-    height: 1px;
-    margin: 0 14px;
-    background: var(--line);
-}
-.line-open::before,
-.line-open::after {
-    content: "";
-    position: absolute;
-    top: 50%;
-    width: 1px;
-    height: 8px;
-    margin-top: -4px;
-    background: var(--line);
-}
-.line-open::before { left: 0; }
-.line-open::after { right: 0; }
+/* 两端拉到区块边缘封住 */
+.line-open { height: 1px; margin: 0; background: var(--line); }
 .sw-row { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid var(--line-2); }
 .sw-row:first-child { border-top: 0; padding-top: 2px; }
 .sw-row .t { flex: 1; min-width: 0; }
