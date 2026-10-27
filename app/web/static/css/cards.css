@@ -323,10 +323,12 @@
 }
 .qd-search input::placeholder { color: var(--text-3); }
 .qd-list {
-    flex: 1 1 auto; overflow-x: hidden; overflow-y: auto; min-height: 0;
+    flex: 1 1 0;
+    overflow-x: hidden; overflow-y: auto; min-height: 0;
     padding: 4px 16px 16px;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
 }
 .qd-sec {
     margin: 4px 2px 8px; font-size: 12px; font-weight: 700; color: var(--text-3);

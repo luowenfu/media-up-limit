@@ -184,8 +184,15 @@ document.addEventListener('click', e => {
         closeQuotaDrawer();
         if (open && card) {
             state.quotaDrawer = t.dataset.quotaOpen;
-            state.quotaLockH = Math.round(card.offsetHeight);
             state.quotaTop = quotaHeadOffset(card);
+            const natural = Math.round(card.offsetHeight);
+            /* 手机上卡片往往高于一屏，锁满高会导致抽屉撑很高、列表不滚动 */
+            if (isPhone()) {
+                const maxDrawer = Math.max(280, window.innerHeight - stickyTop() - 12);
+                state.quotaLockH = Math.min(natural, state.quotaTop + maxDrawer);
+            } else {
+                state.quotaLockH = natural;
+            }
             card.style.height = `${state.quotaLockH}px`;
             if (state.quotaTop) card.style.setProperty('--qd-top', `${state.quotaTop}px`);
             card.classList.add('quota-open');

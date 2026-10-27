@@ -164,6 +164,16 @@
     .dev-body.is-swapped > .dev-split { order: 2; }
     .dev-body.is-swapped > .dev-col:first-child { order: 3; }
 
+    /* 额度抽屉：高度不超过可视一屏，列表在抽屉内滚动 */
+    .dev.quota-open .quota-drawer {
+        bottom: auto;
+        height: min(
+            calc(100% - var(--qd-top, 0px)),
+            calc(100dvh - var(--tb-bar-h, 54px) - 12px - env(safe-area-inset-bottom, 0px))
+        );
+        max-height: calc(100dvh - var(--tb-bar-h, 54px) - 12px - env(safe-area-inset-bottom, 0px));
+    }
+
     .panel-name { padding: 12px 12px 0; }
     .toolbar { min-width: 0; max-width: 100%; padding: 12px; }
     .chart-bar { gap: 8px; padding: 8px; }
