@@ -26,6 +26,7 @@ _SCHEMA_COLUMNS = (
     ('instance_status', 'rule_trigger_times', "TEXT DEFAULT ''"),
     ('instance_status', 'manual_limit_trigger_at', 'DATETIME'),
     ('instance_status', 'manual_limit_trigger_kbps', 'INTEGER DEFAULT 0'),
+    ('instance_status', 'manual_limit_origin', "TEXT DEFAULT ''"),
     ('instance_status', 'normal_global_upload_limit_kbps', 'INTEGER DEFAULT -1'),
     ('instance_status', 'last_programmed_limit_kbps', 'INTEGER DEFAULT -1'),
     ('instance_status', 'alt_upload_limit_kbps', 'INTEGER DEFAULT 0'),
@@ -1459,7 +1460,16 @@ def _get_active_rule_index(speed_rules: list, cycle_gb: float):
     return active_idx
 
 
-def record_manual_limit_trigger(instance_name: str, limit_kbps: int):
+MANUAL_ORIGIN_INTERNAL = 'internal'
+MANUAL_ORIGIN_EXTERNAL = 'external'
+
+
+def manual_override_label(origin: str) -> str:
+    return '手动覆盖 • 外部' if origin == MANUAL_ORIGIN_EXTERNAL else '手动覆盖 • 内部'
+
+
+def record_manual_limit_trigger(instance_name: str, limit_kbps: int,
+                                origin: str = MANUAL_ORIGIN_INTERNAL):
     with _lock:
         conn = get_conn()
         try:
@@ -1467,12 +1477,14 @@ def record_manual_limit_trigger(instance_name: str, limit_kbps: int):
             c = conn.cursor()
             c.execute('''
                 INSERT INTO instance_status
-                (instance_name, manual_limit_trigger_at, manual_limit_trigger_kbps)
-                VALUES (?, ?, ?)
+                (instance_name, manual_limit_trigger_at, manual_limit_trigger_kbps,
+                 manual_limit_origin)
+                VALUES (?, ?, ?, ?)
                 ON CONFLICT(instance_name) DO UPDATE SET
                     manual_limit_trigger_at = ?,
-                    manual_limit_trigger_kbps = ?
-            ''', (instance_name, now, limit_kbps, now, limit_kbps))
+                    manual_limit_trigger_kbps = ?,
+                    manual_limit_origin = ?
+            ''', (instance_name, now, limit_kbps, origin, now, limit_kbps, origin))
             conn.commit()
         finally:
             conn.close()
@@ -1576,7 +1588,8 @@ def build_limit_trigger_summary(instance_name: str, speed_rules: list = None,
                                 limit_source: str = None,
                                 rule_trigger_times=None,
                                 manual_limit_trigger_at=None,
-                                manual_limit_trigger_kbps=None) -> dict:
+                                manual_limit_trigger_kbps=None,
+                                manual_limit_origin=None) -> dict:
     if rule_trigger_times is not None:
         if isinstance(rule_trigger_times, str):
             rule_times = _parse_rule_trigger_times(rule_trigger_times)
@@ -1596,6 +1609,20 @@ def build_limit_trigger_summary(instance_name: str, speed_rules: list = None,
             finally:
                 conn.close()
 
+    origin = manual_limit_origin
+    if origin is None:
+        with _lock:
+            conn = get_conn()
+            try:
+                c = conn.cursor()
+                c.execute('SELECT manual_limit_origin FROM instance_status WHERE instance_name = ?',
+                          (instance_name,))
+                r = c.fetchone()
+                origin = (r['manual_limit_origin'] or '') if r else ''
+            finally:
+                conn.close()
+    manual_label = manual_override_label(origin)
+
     manual_at_str = None
     if manual_at:
         manual_at_str = manual_at if isinstance(manual_at, str) else str(manual_at)
@@ -1605,7 +1632,7 @@ def build_limit_trigger_summary(instance_name: str, speed_rules: list = None,
 
     if limit_source == LIMIT_SOURCE_MANUAL and manual_at_str:
         last_at = manual_at_str
-        last_label = '手动覆盖'
+        last_label = manual_label
     elif speed_rules and cycle_uploaded_bytes is not None:
         cycle_gb = cycle_uploaded_bytes / (1024 ** 3)
         active_idx = _get_active_rule_index(speed_rules, cycle_gb)
@@ -1618,7 +1645,7 @@ def build_limit_trigger_summary(instance_name: str, speed_rules: list = None,
             if trigger_at:
                 candidates.append((trigger_at, f'规则{idx}'))
         if manual_at_str:
-            candidates.append((manual_at_str, '手动覆盖'))
+            candidates.append((manual_at_str, manual_label))
         if candidates:
             last_at, last_label = max(candidates, key=lambda item: item[0])
 
@@ -1627,6 +1654,7 @@ def build_limit_trigger_summary(instance_name: str, speed_rules: list = None,
         'last_limit_trigger_label': last_label,
         'manual_limit_trigger_at': manual_at_str,
         'manual_limit_trigger_kbps': manual_kbps,
+        'manual_limit_origin': origin or '',
         'rule_trigger_times': rule_times,
     }
 

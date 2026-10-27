@@ -965,6 +965,7 @@ class TrafficMonitor:
                 rule_trigger_times=status.get('rule_trigger_times'),
                 manual_limit_trigger_at=status.get('manual_limit_trigger_at'),
                 manual_limit_trigger_kbps=status.get('manual_limit_trigger_kbps'),
+                manual_limit_origin=status.get('manual_limit_origin') or '',
             )
             rule_trigger_times = trigger_summary['rule_trigger_times']
 
@@ -1100,6 +1101,7 @@ class TrafficMonitor:
                 'last_limit_trigger_label': trigger_summary['last_limit_trigger_label'],
                 'manual_limit_trigger_at': trigger_summary['manual_limit_trigger_at'],
                 'manual_limit_trigger_kbps': trigger_summary['manual_limit_trigger_kbps'],
+                'manual_limit_origin': trigger_summary['manual_limit_origin'],
                 'normal_global_upload_limit_kbps': _normal_global_limit_from_status(status),
                 'has_next_cycle_plan': has_next_cycle_plan,
                 'next_cycle_switch_at': next_cycle_switch_at,

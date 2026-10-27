@@ -208,10 +208,10 @@ def detect_external_limit_change(qb_client, cycle_uploaded_bytes: int,
             )
         stored_kbps = get_manual_limit_trigger_kbps(qb_client.name)
         if stored_kbps != current_kbps:
-            record_manual_limit_trigger(qb_client.name, current_kbps)
+            record_manual_limit_trigger(qb_client.name, current_kbps, 'external')
             add_speed_event(
                 qb_client.name,
-                'limit_applied_manual',
+                'limit_applied_external',
                 current_kbps,
                 f'检测到 qBittorrent 外部修改全局上传限速: {current_kbps} KB/s',
             )
@@ -249,10 +249,10 @@ def detect_external_limit_change(qb_client, cycle_uploaded_bytes: int,
         return False
 
     _enter_manual_override(qb_client, cycle_uploaded_bytes)
-    record_manual_limit_trigger(qb_client.name, current_kbps)
+    record_manual_limit_trigger(qb_client.name, current_kbps, 'external')
     add_speed_event(
         qb_client.name,
-        'limit_applied_manual',
+        'limit_applied_external',
         current_kbps,
         f'检测到 qBittorrent 外部修改全局上传限速: {current_kbps} KB/s',
     )

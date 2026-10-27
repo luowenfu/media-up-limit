@@ -23,7 +23,8 @@ export function foldHead(key, inner) {
 /* ---------- qB 事件 ---------- */
 const QB_TYPES = {
     limit_applied: ['danger', 'bolt', '触发达量限速', 'limit'],
-    limit_applied_manual: ['violet', 'lim', '手动限速', 'limit'],
+    limit_applied_manual: ['violet', 'lim', '手动限速 • 内部修改', 'limit'],
+    limit_applied_external: ['violet', 'lim', '手动限速 • 外部修改', 'limit'],
     limit_removed_manual: ['ok', 'unlock', '手动解除限速', 'limit'],
     speed_mode_switch: ['info', 'loop', '切换限速模式', 'limit'],
     limit_restored: ['ok', 'unlock', '解除限速', 'plan'],
@@ -39,7 +40,10 @@ const QB_TYPES = {
 };
 
 function qbEvent(e) {
-    const [cls, icon, title, cat] = QB_TYPES[e.event_type] || ['info', 'info', e.event_type, 'other'];
+    // 旧版本外部修改也记为 limit_applied_manual，按原因文案归到外部修改
+    const type = e.event_type === 'limit_applied_manual' && /外部修改/.test(e.reason || '')
+        ? 'limit_applied_external' : e.event_type;
+    const [cls, icon, title, cat] = QB_TYPES[type] || ['info', 'info', e.event_type, 'other'];
     const meta = [];
     if (e.speed_limit_kbps !== null && e.speed_limit_kbps !== undefined && cat === 'limit') {
         meta.push(['限速', e.speed_limit_kbps > 0 ? `${e.speed_limit_kbps} KB/s` : '不限速']);
