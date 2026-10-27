@@ -164,14 +164,35 @@
     .dev-body.is-swapped > .dev-split { order: 2; }
     .dev-body.is-swapped > .dev-col:first-child { order: 3; }
 
-    /* 额度抽屉：高度不超过可视一屏，列表在抽屉内滚动 */
+    /* 额度抽屉：手机上脱离卡片，按视口固定，避免顶栏裁切、列表才能滚 */
+    .dev.quota-open {
+        container-type: normal;
+        overflow: visible;
+    }
+    .dev.quota-open .quota-mask,
     .dev.quota-open .quota-drawer {
-        bottom: auto;
-        height: min(
-            calc(100% - var(--qd-top, 0px)),
-            calc(100dvh - var(--tb-bar-h, 54px) - 12px - env(safe-area-inset-bottom, 0px))
-        );
-        max-height: calc(100dvh - var(--tb-bar-h, 54px) - 12px - env(safe-area-inset-bottom, 0px));
+        position: fixed;
+        left: 0;
+        right: 0;
+    }
+    .dev.quota-open .quota-mask {
+        top: 0;
+        bottom: 0;
+        z-index: 100;
+    }
+    .dev.quota-open .quota-drawer {
+        top: var(--qd-safe-top, var(--tb-bar-h, 54px));
+        bottom: env(safe-area-inset-bottom, 0px);
+        height: auto;
+        max-height: none;
+        z-index: 101;
+        border-radius: 16px 16px 0 0;
+    }
+    body[data-detail="1"] .dev.quota-open .quota-drawer {
+        bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+    }
+    body.quota-drawer-open {
+        overflow: hidden;
     }
 
     .panel-name { padding: 12px 12px 0; }

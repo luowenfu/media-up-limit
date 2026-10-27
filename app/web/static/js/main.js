@@ -89,6 +89,28 @@ function stickyTop() {
     return 0;
 }
 
+function quotaSafeTop() {
+    let top = stickyTop();
+    const metrics = document.querySelector('.tb-metrics-slot');
+    if (metrics && getComputedStyle(metrics).display !== 'none') {
+        const r = metrics.getBoundingClientRect();
+        if (r.height > 0 && r.top >= -1 && r.top <= top + 4 && r.bottom > top) {
+            top = Math.round(r.bottom);
+        }
+    }
+    return Math.max(0, top);
+}
+
+function setQuotaDrawerPhoneChrome(on) {
+    document.body.classList.toggle('quota-drawer-open', !!on);
+    if (on) {
+        document.documentElement.style.setProperty('--qd-safe-top', `${quotaSafeTop()}px`);
+    } else {
+        document.documentElement.style.removeProperty('--qd-safe-top');
+    }
+}
+
+
 function scrollQuotaCard(card) {
     const head = card.querySelector('.dev-head') || card;
     const top = window.scrollY + head.getBoundingClientRect().top - stickyTop();
@@ -162,6 +184,7 @@ function closeQuotaDrawer() {
     state.quotaEdit = '';
     state.quotaDraft = '';
     state.quotaEditErr = '';
+    setQuotaDrawerPhoneChrome(false);
     document.querySelectorAll('.dev').forEach(el => {
         el.classList.remove('quota-open');
         el.style.height = '';
@@ -184,21 +207,24 @@ document.addEventListener('click', e => {
         closeQuotaDrawer();
         if (open && card) {
             state.quotaDrawer = t.dataset.quotaOpen;
-            state.quotaTop = quotaHeadOffset(card);
-            const natural = Math.round(card.offsetHeight);
-            /* 手机上卡片往往高于一屏，锁满高会导致抽屉撑很高、列表不滚动 */
             if (isPhone()) {
-                const maxDrawer = Math.max(280, window.innerHeight - stickyTop() - 12);
-                state.quotaLockH = Math.min(natural, state.quotaTop + maxDrawer);
+                /* 手机改为视口固定抽屉，不再锁卡片高度，避免顶栏裁切、列表无法滑动 */
+                state.quotaTop = 0;
+                state.quotaLockH = 0;
+                card.style.height = '';
+                card.style.removeProperty('--qd-top');
+                setQuotaDrawerPhoneChrome(true);
+                card.classList.add('quota-open');
             } else {
-                state.quotaLockH = natural;
+                state.quotaTop = quotaHeadOffset(card);
+                state.quotaLockH = Math.round(card.offsetHeight);
+                card.style.height = `${state.quotaLockH}px`;
+                if (state.quotaTop) card.style.setProperty('--qd-top', `${state.quotaTop}px`);
+                card.classList.add('quota-open');
+                scrollQuotaCard(card);
             }
-            card.style.height = `${state.quotaLockH}px`;
-            if (state.quotaTop) card.style.setProperty('--qd-top', `${state.quotaTop}px`);
-            card.classList.add('quota-open');
             const input = card.querySelector('[data-quota-find]');
             if (input) input.value = '';
-            scrollQuotaCard(card);
         }
         return;
     }
