@@ -455,9 +455,9 @@ export async function renderEvents(kind) {
         ${head}
         <div class="toolbar">
             ${kind === 'emby' ? `<span class="field"><span class="k">用户</span><select id="evUser"><option value="">全部用户</option>${users.map(u => `<option value="${esc(u)}" ${u === state.eventsUser ? 'selected' : ''}>${esc(u)}</option>`).join('')}</select>${I.chev}</span>` : ''}
+            <span class="field">${I.cal.replace(/16/g, '14')}<select id="evDays">${RANGES.map(([v, l]) => `<option value="${v}" ${v === state.eventsDays ? 'selected' : ''}>${l}</option>`).join('')}</select></span>
             ${tabs.length ? `<div class="tabs" data-evtype>${tabs.map(t => `<button data-v="${t[0]}" class="${state.eventsType === t[0] ? 'on' : ''}">${t[1]}<span class="c">${t[2]}</span></button>`).join('')}</div>` : ''}
             <div class="tool-r">
-                <span class="field">${I.cal.replace(/16/g, '14')}<select id="evDays">${RANGES.map(([v, l]) => `<option value="${v}" ${v === state.eventsDays ? 'selected' : ''}>${l}</option>`).join('')}</select></span>
                 ${kind === 'emby' ? `<span class="field" data-hidelan style="cursor:pointer">排除局域网 <span class="switch ${state.eventsHideLan ? 'on' : ''}" style="transform:scale(.8);margin-right:-6px"></span></span>` : ''}
                 ${kind === 'emby' ? `<span class="field" data-hidebrowse style="cursor:pointer">排除选片 <span class="switch ${state.eventsHideBrowse ? 'on' : ''}" style="transform:scale(.8);margin-right:-6px"></span></span>` : ''}
             </div>
