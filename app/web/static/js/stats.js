@@ -4,6 +4,7 @@ import { I } from './icons.js';
 import { foldHead, foldOpen } from './events.js';
 import { esc, fmtBytes, splitBytes, trimNum } from './format.js';
 import { state } from './store.js';
+import { isPhone } from './ui.js';
 import { siteName } from './pt_sites.js';
 import { ALL_USERS, currentDevice, defaultAnchor, loadEmbyStats, loadQbStats, quickPreset, visibleDayRange, visibleMonthRange } from './stats_data.js';
 
@@ -460,7 +461,9 @@ function chartBlockOrder(kind, name) {
     raw.forEach(id => {
         if (CHART_BLOCKS.includes(id) && !order.includes(id)) order.push(id);
     });
-    CHART_BLOCKS.forEach(id => { if (!order.includes(id)) order.push(id); });
+    /* 没存过时：手机上 Emby 默认排行榜在趋势图上面 */
+    const fallback = (kind === 'emby' && isPhone() && !raw.length) ? ['rank', 'trend'] : CHART_BLOCKS;
+    fallback.forEach(id => { if (!order.includes(id)) order.push(id); });
     return order;
 }
 

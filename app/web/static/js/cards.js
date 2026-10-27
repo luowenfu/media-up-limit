@@ -82,7 +82,9 @@ const CARD_BLOCKS = ['main', 'side'];
 function cardSwapped(kind, name) {
     const all = state.prefs.card_block_orders;
     const bucket = all && typeof all === 'object' ? all[kind] : null;
-    const raw = bucket && Array.isArray(bucket[name]) ? bucket[name] : [];
+    const raw = bucket && Array.isArray(bucket[name]) ? bucket[name] : null;
+    /* 没存过偏好时：Emby 默认会话在上（手机 CSS 才换序，电脑布局不变） */
+    if (!raw || !raw.length) return kind === 'emby';
     return raw[0] === 'side';
 }
 
