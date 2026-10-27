@@ -169,6 +169,10 @@
         container-type: normal;
         overflow: visible;
     }
+    /* 卡片 overflow 放开后头部渐变不再被裁切，需自身保持顶部圆角 */
+    .dev.quota-open > .dev-head {
+        border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
+    }
     .dev.quota-open .quota-mask,
     .dev.quota-open .quota-drawer {
         position: fixed;
