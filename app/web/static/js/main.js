@@ -111,12 +111,6 @@ function setQuotaDrawerPhoneChrome(on) {
 }
 
 
-function scrollQuotaCard(card) {
-    const head = card.querySelector('.dev-head') || card;
-    const top = window.scrollY + head.getBoundingClientRect().top - stickyTop();
-    window.scrollTo({ top: Math.max(0, Math.round(top)), behavior: 'smooth' });
-}
-
 function quotaCard() {
     return document.querySelector('.dev.quota-open');
 }
@@ -221,7 +215,6 @@ document.addEventListener('click', e => {
                 card.style.height = `${state.quotaLockH}px`;
                 if (state.quotaTop) card.style.setProperty('--qd-top', `${state.quotaTop}px`);
                 card.classList.add('quota-open');
-                scrollQuotaCard(card);
             }
             const input = card.querySelector('[data-quota-find]');
             if (input) input.value = '';
