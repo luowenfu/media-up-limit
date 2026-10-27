@@ -3,13 +3,13 @@
 [![Release](https://img.shields.io/github/v/release/luowenfu/media-up-limit)](https://github.com/luowenfu/media-up-limit/releases)
 [![Docker Hub](https://img.shields.io/docker/v/luowenfu/media-up-limit?label=Docker%20Hub&color=2496ED)](https://hub.docker.com/r/luowenfu/media-up-limit)
 
-同时看多台 qBittorrent 和 Emby 的上传，按周期统计，达量后自动限速或停播。
+qB与Emby两大功能板块，qB达量后自动限速；Emby达量后自动停播。
 
-## qBittorrent 达量限速
+---
+
+## 「qBittorrent 达量限速」的功能介绍
 
 ![qBittorrent 设备与流量](./assets/qb.png)
-
-### 功能介绍
 
 - 多台 qB 按月、周或天统计上传，到量自动降速，下个周期自动恢复
 - 多档规则逐级生效，用得越多限得越狠
@@ -24,8 +24,6 @@
 
 需要 qB 开启 WebUI，容器能访问到 qB，程序持续运行（停机期间不统计）。
 
-
-
 > **内部覆盖**：在本页面手动限速或解除，规则行显示「内部覆盖」
 >
 > **外部覆盖**：直接在 qB 里改了全局限速，会识别为「外部覆盖」，不会立刻改回
@@ -37,11 +35,13 @@
 - 改的是 qB 的全局上传限速。不影响qB的「备用速度限制」执行。
 - qB 离线期间不统计、不改限速，恢复在线后按当前用量重新判定
 
-## Emby 播放监控与达量停播
+
+
+---
+
+## 「Emby 达量停播」的功能介绍
 
 ![Emby 播放与流量](./assets/emby.png)
-
-### 功能介绍
 
 - 实时看播放会话，区分局域网和外网，外网 IP 默认打码
 - 经 Lucky 反代，按Emby的「用户」统计外网的上传流量
