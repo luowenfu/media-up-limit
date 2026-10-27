@@ -10,6 +10,9 @@ from qb.traffic_db import (
     get_normal_global_upload_limit_kbps,
     set_normal_global_upload_limit_kbps,
     clear_normal_global_upload_limit,
+    get_last_programmed_limit_kbps,
+    set_last_programmed_limit_kbps,
+    clear_last_programmed_limit_kbps,
     record_rule_trigger,
     record_rule_trigger_force,
     get_manual_limit_trigger_kbps,
@@ -57,6 +60,42 @@ def _get_highest_triggered_rule(speed_rules, cycle_gb: float):
 def _get_highest_triggered_threshold(speed_rules, cycle_gb: float) -> float:
     threshold_gb, _ = _get_highest_triggered_rule(speed_rules, cycle_gb)
     return threshold_gb or 0.0
+
+
+def _matches_lower_triggered_rule(speed_rules, cycle_gb: float,
+                                   current_kbps: int, expected_kbps: int) -> bool:
+    """当前值等于某条已触发、但不是最高档的规则限速（常见于刚跨档尚未写入）。"""
+    if expected_kbps is None:
+        return False
+    triggered = []
+    for rule in _sorted_rules_desc(speed_rules):
+        threshold_gb = rule.get(
+            'cycle_upload_limit_gb',
+            rule.get('monthly_upload_limit_gb', 0),
+        )
+        if cycle_gb >= threshold_gb:
+            triggered.append(int(rule['speed_limit_kbps']))
+    if len(triggered) < 2:
+        return False
+    # triggered[0] 是最高档（即 expected）；其余为更低档
+    return current_kbps in triggered[1:]
+
+
+def _should_ignore_stale_programmed_limit(qb_client, cycle_gb: float,
+                                           current_kbps: int,
+                                           expected_kbps: int) -> bool:
+    """自动模式下，当前值仍是程序上次写入/上一档残留时，不视为外部手动覆盖。"""
+    if expected_kbps is None or current_kbps == expected_kbps:
+        return False
+    last = get_last_programmed_limit_kbps(qb_client.name)
+    if last is not None and current_kbps == last:
+        return True
+    if last is None and _matches_lower_triggered_rule(
+        qb_client.speed_rules, cycle_gb, current_kbps, expected_kbps
+    ):
+        return True
+    return False
+
 
 
 def _get_rule_index_for_threshold(speed_rules, threshold_gb: float) -> int:
@@ -123,6 +162,7 @@ def _restore_auto_from_rule_match(qb_client, threshold_gb: float,
     _record_limit_source(qb_client, LIMIT_SOURCE_AUTO)
     set_manual_baseline_threshold_gb(qb_client.name, 0)
     clear_manual_limit_trigger(qb_client.name)
+    set_last_programmed_limit_kbps(qb_client.name, current_kbps)
     _record_quota_rule_trigger(qb_client, threshold_gb)
     add_speed_event(
         qb_client.name,
@@ -198,6 +238,16 @@ def detect_external_limit_change(qb_client, cycle_uploaded_bytes: int,
             f'外部修改限速与当前达量规则一致: {current_kbps} KB/s',
         )
 
+    # 上一档程序写入值尚未被新档覆盖时，不算手动覆盖
+    if source in (LIMIT_SOURCE_AUTO, LIMIT_SOURCE_CYCLE) and _should_ignore_stale_programmed_limit(
+        qb_client, cycle_gb, current_kbps, expected_kbps
+    ):
+        logger.debug(
+            f"[{qb_client.name}] 全局限速仍为程序上次写入的 "
+            f"{current_kbps} KB/s（预期 {expected_kbps} KB/s），等待达量写入升级"
+        )
+        return False
+
     _enter_manual_override(qb_client, cycle_uploaded_bytes)
     record_manual_limit_trigger(qb_client.name, current_kbps)
     add_speed_event(
@@ -236,10 +286,28 @@ def check_and_apply_limit(qb_client, cycle_uploaded_bytes: int,
     if source == LIMIT_SOURCE_MANUAL:
         baseline = get_manual_baseline_threshold_gb(qb_client.name)
         if threshold_gb is None or threshold_gb <= baseline:
-            logger.debug(
-                f"[{qb_client.name}] 手动限速生效中，跳过达量写入"
-            )
-            return False, 0
+            # 跨档误判成手动后：限速仍是程序上次写入值，而更高/当前档尚未写入
+            last = get_last_programmed_limit_kbps(qb_client.name)
+            current_limit = qb_client.get_current_upload_limit()
+            current_kbps = current_limit // 1024 if current_limit > 0 else 0
+            if (
+                threshold_gb is not None
+                and last is not None
+                and current_kbps == last
+                and current_kbps != limit_kbps
+            ):
+                logger.info(
+                    f"[{qb_client.name}] 检测到跨档误判的手动覆盖"
+                    f"（当前 {current_kbps} KB/s，应升至 {limit_kbps} KB/s），恢复自动达量"
+                )
+                set_manual_baseline_threshold_gb(qb_client.name, 0)
+                clear_manual_limit_trigger(qb_client.name)
+                _record_limit_source(qb_client, LIMIT_SOURCE_AUTO)
+            else:
+                logger.debug(
+                    f"[{qb_client.name}] 手动限速生效中，跳过达量写入"
+                )
+                return False, 0
 
     if threshold_gb is not None:
         current_limit = qb_client.get_current_upload_limit()
@@ -252,6 +320,7 @@ def check_and_apply_limit(qb_client, cycle_uploaded_bytes: int,
                 _record_limit_source(qb_client, LIMIT_SOURCE_AUTO)
                 set_manual_baseline_threshold_gb(qb_client.name, 0)
                 clear_manual_limit_trigger(qb_client.name)
+                set_last_programmed_limit_kbps(qb_client.name, limit_kbps)
                 _record_quota_rule_trigger(qb_client, threshold_gb)
                 reason = (f"周期上行流量 {cycle_gb:.2f}GB 达到 "
                           f"{threshold_gb}GB 阈值")
@@ -271,6 +340,7 @@ def check_and_apply_limit(qb_client, cycle_uploaded_bytes: int,
             return False, 0
 
         _record_quota_rule_trigger(qb_client, threshold_gb)
+        set_last_programmed_limit_kbps(qb_client.name, limit_kbps)
         logger.debug(f"[{qb_client.name}] 达量限速已在生效中: {limit_kbps} KB/s")
         return True, limit_kbps
 
@@ -286,6 +356,7 @@ def check_and_apply_limit(qb_client, cycle_uploaded_bytes: int,
         success = qb_client.remove_upload_limit()
         if success:
             _record_limit_source(qb_client, LIMIT_SOURCE_NONE)
+            set_last_programmed_limit_kbps(qb_client.name, 0)
             reason = (f'周期上行流量 {cycle_gb:.2f}GB 低于阈值，'
                       f'自动解除达量限速')
             add_speed_event(
@@ -312,6 +383,7 @@ def apply_cycle_reset_limit(qb_client) -> bool:
         success = qb_client.remove_upload_limit()
         if success:
             _record_limit_source(qb_client, LIMIT_SOURCE_NONE)
+            set_last_programmed_limit_kbps(qb_client.name, 0)
             add_speed_event(
                 qb_client.name,
                 'limit_restored',
@@ -326,6 +398,7 @@ def apply_cycle_reset_limit(qb_client) -> bool:
     success = qb_client.set_upload_limit(limit_kbps * 1024)
     if success:
         _record_limit_source(qb_client, LIMIT_SOURCE_CYCLE)
+        set_last_programmed_limit_kbps(qb_client.name, limit_kbps)
         add_speed_event(
             qb_client.name,
             'limit_applied',
@@ -366,6 +439,7 @@ def force_apply_quota_rules(qb_client, cycle_uploaded_bytes: int,
                 )
                 return False, 0
         _record_limit_source(qb_client, LIMIT_SOURCE_AUTO)
+        set_last_programmed_limit_kbps(qb_client.name, limit_kbps)
         sync_triggered_rules(qb_client.name, speed_rules, cycle_uploaded_bytes)
         record_rule_trigger_force(
             qb_client.name,
@@ -389,6 +463,7 @@ def force_apply_quota_rules(qb_client, cycle_uploaded_bytes: int,
         return True, limit_kbps
 
     _record_limit_source(qb_client, LIMIT_SOURCE_NONE)
+    set_last_programmed_limit_kbps(qb_client.name, 0)
     sync_triggered_rules(qb_client.name, speed_rules, cycle_uploaded_bytes)
     current_limit = qb_client.get_current_upload_limit()
     if current_limit > 0:

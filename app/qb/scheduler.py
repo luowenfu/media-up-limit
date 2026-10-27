@@ -786,6 +786,13 @@ class TrafficMonitor:
         cycle_upload, cycle_download, _, _ = self._get_cycle_traffic(name, client)
 
         limit_status = self._read_limit_status(client)
+        # 先按达量规则写入，再检测外部修改，避免跨档时上一档残留被误判为手动覆盖
+        is_quota_limited, limit_kbps = speed_limiter.check_and_apply_limit(
+            client,
+            cycle_upload,
+            alt_speed_limits_active=limit_status['alt_speed_limits_active'],
+        )
+        limit_status = self._read_limit_status(client)
         if limit_status['current_limit_kbps'] >= 0:
             speed_limiter.detect_external_limit_change(
                 client,
@@ -793,12 +800,6 @@ class TrafficMonitor:
                 current_kbps=max(0, limit_status['current_limit_kbps']),
                 alt_speed_limits_active=limit_status['alt_speed_limits_active'],
             )
-
-        is_quota_limited, limit_kbps = speed_limiter.check_and_apply_limit(
-            client,
-            cycle_upload,
-            alt_speed_limits_active=limit_status['alt_speed_limits_active'],
-        )
         traffic_db.sync_triggered_rules(name, client.speed_rules, cycle_upload)
 
         current_limit_kbps = limit_status['current_limit_kbps']
