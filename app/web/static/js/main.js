@@ -170,7 +170,11 @@ async function commitQuotaEdit(btn) {
     }
 }
 
-function closeQuotaDrawer() {
+let quotaCloseTimer = 0;
+
+function finishCloseQuotaDrawer() {
+    clearTimeout(quotaCloseTimer);
+    quotaCloseTimer = 0;
     state.quotaDrawer = '';
     state.quotaQuery = '';
     state.quotaLockH = 0;
@@ -186,6 +190,31 @@ function closeQuotaDrawer() {
     });
 }
 
+function closeQuotaDrawer(immediate = false) {
+    const card = quotaCard();
+    const anim = !immediate && isPhone() && card && document.body.classList.contains('quota-drawer-open');
+    if (anim) {
+        setQuotaDrawerPhoneChrome(false);
+        const drawer = card.querySelector('.quota-drawer');
+        let done = false;
+        const finish = () => {
+            if (done) return;
+            done = true;
+            drawer?.removeEventListener('transitionend', onEnd);
+            finishCloseQuotaDrawer();
+        };
+        const onEnd = (e) => {
+            if (e.target !== drawer || e.propertyName !== 'transform') return;
+            finish();
+        };
+        drawer?.addEventListener('transitionend', onEnd);
+        clearTimeout(quotaCloseTimer);
+        quotaCloseTimer = setTimeout(finish, 400);
+        return;
+    }
+    finishCloseQuotaDrawer();
+}
+
 /* ---------- 点击 ---------- */
 document.addEventListener('click', e => {
     if (e.target.closest('.rp-pop, [data-range-open]')) return;
@@ -198,17 +227,23 @@ document.addEventListener('click', e => {
     if (t.dataset.quotaOpen) {
         const card = t.closest('.dev');
         const open = !(card && card.classList.contains('quota-open'));
-        closeQuotaDrawer();
+        closeQuotaDrawer(open);
         if (open && card) {
             state.quotaDrawer = t.dataset.quotaOpen;
             if (isPhone()) {
-                /* 手机改为视口固定抽屉，不再锁卡片高度，避免顶栏裁切、列表无法滑动 */
+                /* 手机改为视口固定抽屉；先就位再抽出，视觉上从底栏上沿冒出 */
                 state.quotaTop = 0;
                 state.quotaLockH = 0;
                 card.style.height = '';
                 card.style.removeProperty('--qd-top');
-                setQuotaDrawerPhoneChrome(true);
+                document.documentElement.style.setProperty('--qd-safe-top', `${quotaSafeTop()}px`);
                 card.classList.add('quota-open');
+                const name = state.quotaDrawer;
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        if (state.quotaDrawer === name) setQuotaDrawerPhoneChrome(true);
+                    });
+                });
             } else {
                 state.quotaTop = quotaHeadOffset(card);
                 state.quotaLockH = Math.round(card.offsetHeight);
