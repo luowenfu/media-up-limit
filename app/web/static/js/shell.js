@@ -362,7 +362,7 @@ export function renderChrome() {
     $$('#detailTabs [data-detail-tab]').forEach(el => el.classList.toggle('active', el.dataset.detailTab === (state.detailTab || 'card')));
     $('#ver').textContent = APP_VERSION;
     rememberPage();
-    document.title = `${title} · 媒体达量管理`;
+    document.title = '媒体达量管理';
     const q = qbPills(qbList()), e = embyPills(embyList());
     const groups = view === 'syslogs' || view === 'merge'
         ? metricGroup(q, 'qb', 'qB') + (embyOn() ? metricGroup(e, 'emby', 'EMBY') : '')
