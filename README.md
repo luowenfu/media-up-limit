@@ -172,9 +172,13 @@ services:
 
 ## 捐赠
 
-如果这个项目对你有帮助，欢迎请我喝杯咖啡：
+如果这个项目帮你省了流量、省了心，欢迎请作者喝杯咖啡 ☕
 
-<img src="./assets/donate-wechat.jpg" alt="微信赞赏码" width="280">
+<p align="center">
+  <img src="./assets/donate-wechat.jpg" alt="微信赞赏码" width="260">
+  <br>
+  <sub>微信扫码赞赏 · 感谢支持</sub>
+</p>
 
 ## 许可证
 
