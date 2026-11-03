@@ -170,6 +170,14 @@ services:
 
 本项目仅供学习测试。
 
+## 捐赠
+
+如果这个项目对你有帮助，欢迎请我喝杯咖啡（支付宝 / 微信）：
+
+| 支付宝 | 微信支付 |
+| :---: | :---: |
+| <img src="./assets/donate-alipay.png" alt="支付宝收款码" width="240"> | <img src="./assets/donate-wechat.png" alt="微信收款码" width="240"> |
+
 ## 许可证
 
 [MIT](LICENSE)
