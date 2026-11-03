@@ -1,4 +1,4 @@
-# 媒体达量管理 [media-up-limit](https://github.com/luowenfu/media-up-limit)
+# 媒体达量管理 media-up-limit
 
 [![Release](https://img.shields.io/github/v/release/luowenfu/media-up-limit)](https://github.com/luowenfu/media-up-limit/releases)
 [![Docker Hub](https://img.shields.io/docker/v/luowenfu/media-up-limit?label=Docker%20Hub&color=2496ED)](https://hub.docker.com/r/luowenfu/media-up-limit)
