@@ -176,7 +176,7 @@ services:
 
 | 微信支付 |
 | :---: |
-| <img src="./assets/donate-wechat.jpg" alt="微信赞赏码" width="240"> |
+| <img src="./assets/donate-wechat.jpg" alt="微信赞赏码" width="320"> |
 
 ## 许可证
 
