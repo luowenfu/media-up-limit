@@ -174,7 +174,7 @@ services:
 
 如果这个项目对你有帮助，欢迎请我喝杯咖啡：
 
-| 微信支付 |
+| 微信扫码捐赠 |
 | :---: |
 | <img src="./assets/donate-wechat.jpg" alt="微信赞赏码" width="320"> |
 
