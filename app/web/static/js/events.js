@@ -189,7 +189,7 @@ function playbackEvent(r, quotaByDev, cycleByDev) {
         meta: [], prog: run > 0 ? Math.min(100, Math.max(0, pos) / run * 100) : null,
         pos, run,
         durTip: playing ? [] : [
-            ['全程', t0 && t1 ? spanText((t1.getTime() - t0.getTime()) / 1000) : ''],
+            ['时长', t0 && t1 ? spanText((t1.getTime() - t0.getTime()) / 1000) : ''],
             ['实看', spanText(r.played_seconds)],
         ].filter(([, v]) => v),
         cat: interrupted ? 'alert' : 'play', device: r.instance_name, user: r.user_name, lan: !r.is_remote,
