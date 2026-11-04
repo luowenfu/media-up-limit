@@ -430,6 +430,15 @@ def _set_live_tick_uploads(name: str, uploads: Dict[str, int]) -> None:
     _live_tick_uploads[name] = cleaned
 
 
+def reset_live_tick_uploads(instance_name: str) -> None:
+    """每轮采集开头清空「本轮新增」，没有新流量的轮次实时速度回到 0。"""
+    name = (instance_name or '').strip()
+    if not name:
+        return
+    with _lock:
+        _live_tick_uploads.pop(name, None)
+
+
 def _touch_accumulator_key(name: str, key: str, now_mono: float) -> None:
     if not name or not key:
         return

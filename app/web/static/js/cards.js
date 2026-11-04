@@ -1,8 +1,8 @@
 /* 设备卡片与设备管理页（markup 与改造计划原型一致） */
 
 import { I, ico } from './icons.js';
-import { quotaGb, quotaHit, quotaTip } from './adapt.js';
-import { esc, fmtBytes, fmtDuration, maskIp, splitSpeed } from './format.js';
+import { liveSpeed, quotaGb, quotaHit, quotaTip } from './adapt.js';
+import { esc, fmtBytes, fmtDuration, maskIp } from './format.js';
 import { anomalyTip, foldHead, foldOpen, playMode, tipTag } from './events.js';
 import { state, qbList, embyList } from './store.js';
 
@@ -194,7 +194,7 @@ function sessionHtml(s, d) {
     const run = Number(s.runtime_seconds) || 0;
     const pct = s.progress_percent != null ? Math.min(100, Number(s.progress_percent) || 0) : (run ? Math.min(100, pos / run * 100) : 0);
     const who = `${s.user_name || '未知用户'} · ${wan ? '外网' : '局域网'}`;
-    const [sn, su] = splitSpeed(Math.max(0, Number(s.estimated_upload_bytes_1s_live) || 0), base);
+    const [sn, su] = liveSpeed(Math.max(0, Number(s.estimated_upload_bytes_1s_live) || 0), d.refresh, base);
     const speed = `${sn} ${su}`;
     const anomaly = wan && !browse && !(Number(s.estimated_upload_bytes_live) > 0) && !!s.upload_anomaly;
     const mode = browse ? null : playMode(s);

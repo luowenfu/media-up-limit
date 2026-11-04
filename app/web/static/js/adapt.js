@@ -226,6 +226,7 @@ export function embyVM(d, hist) {
         quotaLookup: quota.lookup,
         quotaCycleStart: quota.cycleStart || '',
         lucky: d.traffic_collect_mode === 'lucky',
+        refresh,
         collect: `${refresh > 1 ? `${refresh} 秒刷新` : '实时刷新'} · ${collect} 秒采集`,
         playing: `局域网 ${lan} · 外网 ${wan}`,
         wan, lan,

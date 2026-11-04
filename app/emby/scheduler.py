@@ -569,6 +569,8 @@ class EmbyInstanceWorker:
             'target_session_count': 0,
         }
 
+        emby_playback_traffic.reset_live_tick_uploads(self.name)
+
         if collect_mode == 'lucky':
             loaded_rules = []
             rules_complete = False
