@@ -105,7 +105,7 @@ def _rebuild_seek_timeline_from_legacy(forward_log, backward_log) -> list:
 class SessionWatchState:
     __slots__ = (
         'runtime_seconds', 'segment_start_position', 'continuous_seconds',
-        'last_position', 'last_monotonic', 'stall_seconds', 'start_locked',
+        'last_position', 'last_monotonic', 'stall_seconds', 'stall_held_seconds', 'start_locked',
         'first_position_seconds', 'start_position_seconds', 'end_position_seconds',
         'played_seconds', 'seek_count', 'seek_forward_count', 'seek_backward_count',
         'seek_forward_log', 'seek_backward_log', 'seek_log',
@@ -120,6 +120,7 @@ class SessionWatchState:
         self.last_position = None
         self.last_monotonic = None
         self.stall_seconds = 0.0
+        self.stall_held_seconds = 0.0
         self.start_locked = False
         self.first_position_seconds = None
         self.start_position_seconds = None
@@ -159,6 +160,7 @@ class SessionWatchState:
         self.last_position = None
         self.last_monotonic = None
         self.stall_seconds = 0.0
+        self.stall_held_seconds = 0.0
         self.start_locked = False
         self.first_position_seconds = None
         self.start_position_seconds = None
@@ -311,6 +313,7 @@ class SessionWatchState:
         self.segment_start_position = position
         self.continuous_seconds = 0.0
         self.stall_seconds = 0.0
+        self.stall_held_seconds = 0.0
 
     @staticmethod
     def _normalize_playback_rate(value) -> float:
@@ -378,7 +381,8 @@ class SessionWatchState:
             self.last_position = position
             return
 
-        if abs(position - last_pos) <= 1:
+        moved = position - last_pos
+        if moved <= 0:
             self.stall_seconds += elapsed
         else:
             self.stall_seconds = 0.0
@@ -393,7 +397,15 @@ class SessionWatchState:
             self.start_position_seconds = int(self.segment_start_position or position)
 
         # 浮点累加，避免每 tick int() 截断丢秒（1s 轮询下会系统性丢失约一半时长）。
-        self.played_seconds += elapsed * playback_rate
+        # 进度卡住超过宽限不算观看；客户端进度上报慢时，恢复推进后按推进量补回。
+        gained = elapsed * playback_rate
+        if self.stall_seconds > STALL_GRACE_SECONDS:
+            self.stall_held_seconds += gained
+            gained = 0.0
+        elif self.stall_held_seconds and moved > 0:
+            gained += min(self.stall_held_seconds, max(0.0, moved - gained))
+            self.stall_held_seconds = 0.0
+        self.played_seconds += gained
         self.last_position = position
 
 

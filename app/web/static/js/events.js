@@ -187,7 +187,11 @@ function playbackEvent(r, quotaByDev, cycleByDev) {
         place: place(r.is_remote),
         descParts: [filmLine(r), client(r) ? esc(client(r)) : '', interrupted ? esc(r.interrupt_reason) : ''].filter(Boolean),
         meta: [], prog: run > 0 ? Math.min(100, Math.max(0, pos) / run * 100) : null,
-        pos, run, played: playedText(r.played_seconds),
+        pos, run,
+        durTip: [
+            ['全程', t0 ? spanText(((t1 || new Date()).getTime() - t0.getTime()) / 1000) : ''],
+            ['实看', spanText(r.played_seconds)],
+        ].filter(([, v]) => v),
         cat: interrupted ? 'alert' : 'play', device: r.instance_name, user: r.user_name, lan: !r.is_remote,
         pin: playing && !interrupted ? (r.is_paused ? 1 : 0) : null,
         ipTip: [['IP 地址', r.client_ip || '未记录']],
@@ -258,11 +262,12 @@ function timeLabel(e) {
     return `${head}~${hhmm(e.t1)}`;
 }
 
-/** 实际播放时长，用于右上角时间的悬浮文案 */
-function playedText(sec) {
+/** 右上角时间悬浮里的时长：满一小时写成 5小时51分，否则 36分12秒 */
+function spanText(sec) {
     const s = Math.max(0, Math.round(Number(sec) || 0));
     if (!s) return '';
-    return `${Math.floor(s / 60)}分${s % 60}秒`;
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+    return h ? `${h}小时${m}分` : `${m}分${s % 60}秒`;
 }
 
 /** 事件卡片里的影片名带书名号 */
@@ -300,7 +305,7 @@ function eventCard(e, kind) {
     const devName = state.eventsDevice ? '' : (e.showDevice ? e.device : (!who && e.tag ? e.tag : ''));
     const devTag = devName ? `<span class="tag ${kind}">${esc(devName)}</span>` : '';
     const prog = e.prog == null ? '' : `<div class="ev-prog${e.cls === 'gray' ? ' gray' : ''}"><i style="width:${e.prog.toFixed(1)}%"></i></div><div class="ev-prog-time num">${fmtDuration(e.pos)} / ${fmtDuration(e.run)}</div>`;
-    const dur = e.played ? `<span class="ev-tip-src" hidden>${tipHtml([['时长', e.played]])}</span>` : '';
+    const dur = e.durTip && e.durTip.length ? `<span class="ev-tip-src" hidden>${tipHtml(e.durTip)}</span>` : '';
     return `<article class="ev-item"${e.sid ? ` data-play="${esc(e.sid)}"` : ''}>
         <div class="ev-item-top">
             <time class="num${dur ? ' has-tip' : ''}">${timeLabel(e)}${dur}</time>

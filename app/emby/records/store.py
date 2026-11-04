@@ -86,6 +86,36 @@ def _migrate_instance_store(instance_name: str) -> None:
                     logger.warning(f'[Playback:{instance_name}] 删除 *_2.json 失败: {e}')
 
 
+_PLAYED_OVER_TOLERANCE_SECONDS = 30
+
+
+def _repair_stalled_played_seconds(instance_name: str) -> None:
+    """旧版把进度卡住的时间也算进观看时长；没后退过的记录不会超过进度推进量。"""
+    path = _store_path(instance_name)
+    if not os.path.isfile(path):
+        return
+    with _get_write_lock(path):
+        data = _read_json(path, {})
+        if not _is_playback_record_store(data):
+            return
+        fixed = 0
+        for rec in data['records']:
+            if rec.get('status') == 'playing' or int(rec.get('seek_backward_count') or 0) > 0:
+                continue
+            start = rec.get('start_position_seconds')
+            end = rec.get('end_position_seconds')
+            if start is None or end is None:
+                continue
+            progress = max(0, int(end) - int(start))
+            played = int(rec.get('played_seconds') or 0)
+            if progress > 0 and played > progress + _PLAYED_OVER_TOLERANCE_SECONDS:
+                rec['played_seconds'] = progress
+                fixed += 1
+        if fixed:
+            _write_json(path, data)
+            logger.info(f'[Playback:{instance_name}] 已修正 {fixed} 条虚高的观看时长')
+
+
 _migrated_instances: Set[str] = set()
 
 
@@ -96,6 +126,10 @@ def _ensure_migrated(instance_name: str) -> None:
         if instance_name in _migrated_instances:
             return
         _migrate_instance_store(instance_name)
+        try:
+            _repair_stalled_played_seconds(instance_name)
+        except Exception as e:
+            logger.warning(f'[Playback:{instance_name}] 修正观看时长失败: {e}')
         _migrated_instances.add(instance_name)
 
 
