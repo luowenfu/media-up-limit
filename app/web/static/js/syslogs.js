@@ -74,7 +74,17 @@ const normalize = e => {
     };
 };
 
-export const logState = { rows: [], hasMore: false, offset: 0, anchor: '', cursor: null, loading: false };
+export const logState = { rows: [], hasMore: false, offset: 0, anchor: '', cursor: null, loading: false, obs: false };
+
+const OBS_TAG = '<span class="tag obs" id="obsTag" title="正在记录流量归属数据到 /data/Obs_mode_data">观测模式</span>';
+
+function setObsMode(on) {
+    if (logState.obs === on) return;
+    logState.obs = on;
+    const tag = document.querySelector('#obsTag');
+    if (!on) tag?.remove();
+    else if (!tag) document.querySelector('.live-dot')?.insertAdjacentHTML('beforebegin', OBS_TAG);
+}
 
 const serviceOf = src => (src === 'sys' ? 'system' : src === 'all' ? '' : src);
 
@@ -91,6 +101,7 @@ async function fetchPage(offset, src, before) {
         params.before_message = before.raw;
     } else if (offset) params.offset = offset;
     const res = await api.get(`/api/system-logs${q(params)}`);
+    setObsMode(!!res.obs_mode);
     const raw = newestFirst(res.data || []);
     return { raw, rows: raw.filter(e => e.logger !== 'waitress.queue').map(normalize), hasMore: !!res.has_more };
 }
@@ -244,7 +255,7 @@ export function renderSyslogs(src, lv, query) {
             <div class="tabs" data-logsrc>${[['all', '全部'], ['sys', '系统'], ['qb', 'qB'], ['emby', 'Emby']].map(s => `<button data-v="${s[0]}" class="${src === s[0] ? 'on' : ''}">${s[1]}</button>`).join('')}</div>
             <div class="tabs" data-loglv>${[['all', '全部级别'], ['DEBUG', '调试'], ['INFO', '信息'], ['WARN', '警告'], ['ERROR', '错误']].map(s => `<button data-v="${s[0]}" class="${lv === s[0] ? 'on' : ''}">${s[1]}</button>`).join('')}</div>
             <span class="field search">${I.search}<input id="logQuery" type="search" placeholder="搜索日志内容…" value="${esc(query)}"></span>
-            <div class="tool-r"><span class="live-dot"><i></i>实时追踪</span></div>
+            <div class="tool-r">${logState.obs ? OBS_TAG : ''}<span class="live-dot"><i></i>实时追踪</span></div>
         </div>
     </div>
     <div class="log-stats" id="logStats">${logStatsHtml()}</div>

@@ -184,7 +184,7 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 .ev-item time { float: right; margin-left: 8px; line-height: 22px; flex: none; max-width: 100%; font-size: 12px; color: var(--text-2); white-space: nowrap; }
 .has-tip { cursor: help; }
 .tag.direct { background: #ecfdf5; color: #047857; }
-.tag.xc { background: #fff7ed; color: #c2410c; }
+.tag.xc, .tag.obs { background: #fff7ed; color: #c2410c; }
 .tag.up { background: #eff6ff; color: #2563eb; }
 .tag.up.warn { background: #fff7ed; color: #c2410c; }
 .ev-pop div.ev-note { display: block; max-width: 240px; font-weight: 650; line-height: 1.5; text-align: left; }

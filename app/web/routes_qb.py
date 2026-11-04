@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 import core.config_manager as config_manager
 import logging
 import qb.traffic_db as traffic_db
+import emby.obs_mode as obs_mode
 
 from core.cycle import iter_cycle_periods
 from core.log_reader import get_system_logs
@@ -289,7 +290,10 @@ def api_system_logs():
             before_logger=before_logger,
             before_message=before_message,
         )
-        return jsonify({'success': True, 'data': logs, 'has_more': has_more})
+        return jsonify({
+            'success': True, 'data': logs, 'has_more': has_more,
+            'obs_mode': obs_mode.enabled(),
+        })
     except Exception as e:
         logger.error(f"API /system-logs 错误: {e}", exc_info=True)
         return jsonify({'success': False, 'error': GENERIC_API_ERROR}), 500
