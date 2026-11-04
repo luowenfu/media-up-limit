@@ -95,58 +95,6 @@ def is_wan_playback_session(session: dict) -> bool:
     return is_wan_endpoint(session.get('remote_endpoint') or '')
 
 
-def _session_user_key(session: dict) -> str:
-    uid = str((session or {}).get('user_id') or '').strip()
-    if uid:
-        return uid
-    return str((session or {}).get('user_name') or '').strip().casefold()
-
-
-def pick_unclaimed_pool_sessions(
-    ip: str,
-    wan_sessions: List[dict],
-) -> Tuple[List[dict], str]:
-    """某 IP 上没被连接裁决认领的流量，应该分给哪些会话。返回 (会话, 规则说明)。
-
-    用户由该 IP 上的 Emby 会话确定（Lucky 本身不带用户），规则：
-    1. 该 IP 上没有播放/暂停会话（只有选片、在线）：不分，进余量；
-    2. 该 IP 只有一个用户：
-       - 该用户只有一个正在播放的会话（不论 IP）：全部计入它；
-       - 有多个正在播放：同 IP 的优先，没有再在全部播放会话里按码率分摊；
-       - 没有正在播放：计入该 IP 上暂停的会话（暂停后的预缓冲）；
-    3. 该 IP 有多个用户，无法确定归属：同 IP 正在播放的按码率分摊，
-       没有再给同 IP 暂停的会话。
-    """
-    at_ip = [
-        s for s in wan_sessions
-        if parse_endpoint_ip(s.get('remote_endpoint') or '') == ip
-    ]
-    engaged = [s for s in at_ip if s.get('is_playing')]
-    if not engaged:
-        return [], '该 IP 无播放或暂停会话'
-
-    playing_at_ip = [s for s in engaged if is_active_playback_session(s)]
-    paused_at_ip = [s for s in engaged if not is_active_playback_session(s)]
-    users = {_session_user_key(s) for s in at_ip}
-    users.discard('')
-
-    if len(users) == 1:
-        user = next(iter(users))
-        playing_of_user = [
-            s for s in wan_sessions
-            if _session_user_key(s) == user and is_active_playback_session(s)
-        ]
-        if len(playing_of_user) == 1:
-            return playing_of_user, '同用户唯一播放会话'
-        if playing_of_user:
-            return playing_at_ip or playing_of_user, '同用户多路播放，同 IP 优先'
-        return paused_at_ip, '同用户无播放，归暂停会话（预缓冲）'
-
-    if playing_at_ip:
-        return playing_at_ip, '同 IP 多用户，按码率分摊播放会话'
-    return paused_at_ip, '同 IP 多用户且无播放，归暂停会话'
-
-
 def is_wan_remote_session(session: dict) -> bool:
     """外网在线会话（含选片/暂停），用于 Lucky 连接匹配池。"""
     if not isinstance(session, dict):
