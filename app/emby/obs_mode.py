@@ -133,6 +133,30 @@ def _stable_sig(sessions: list) -> str:
     return json.dumps([strip(s) for s in sessions], sort_keys=True, ensure_ascii=False)
 
 
+_APP_SESSION_KEYS = (
+    'id', 'user_name', 'client', 'device_name', 'client_ip', 'session_mode',
+    'is_playing', 'is_paused', 'is_remote', 'is_abnormal_disconnect',
+    'play_method', 'bitrate', 'item_id',
+)
+_APP_SESSION_WORDS = ('upload', 'anomaly', 'persist', 'superseded')
+
+
+def _compact_app_session(s: dict) -> dict:
+    out = {k: s.get(k) for k in _APP_SESSION_KEYS if s.get(k) not in (None, '')}
+    for k, v in s.items():
+        if k not in out and any(w in k for w in _APP_SESSION_WORDS):
+            out[k] = v
+    return out
+
+
+def _app_stable_sig(sessions: list) -> str:
+    return json.dumps(
+        [{k: v for k, v in s.items() if not any(w in k for w in ('upload', 'anomaly'))}
+         for s in sessions],
+        sort_keys=True, ensure_ascii=False, default=str,
+    )
+
+
 _VERDICT_KEYS = (
     'remote_addr', 'billing_state', 'billing_persist_key', 'browse_persist_key',
     'persist_key', 'emby_mode', 'conn_role', 'confidence', 'session_match_key',
@@ -150,6 +174,7 @@ class _Writer:
         self.fh = None
         self.last = {}
         self.sess_sig = {}
+        self.app_sig = {}
         self.lucky_sig = {}
         self.binds = {}
         self.over_quota = False
@@ -234,7 +259,20 @@ class _Writer:
                 playing and self.due(f'sess:{inst}', _SESSIONS_EVERY, mono)
             ):
                 self.sess_sig[inst] = sig
+                self.last[f'sess:{inst}'] = mono
                 self.write(ts, 'emby', inst, {'sessions': sessions})
+
+        app_sessions = p.get('app_sessions')
+        if app_sessions is not None:
+            compact = [_compact_app_session(s) for s in app_sessions if isinstance(s, dict)]
+            sig = _app_stable_sig(compact)
+            playing = any(s.get('is_playing') for s in compact)
+            if sig != self.app_sig.get(inst) or (
+                playing and self.due(f'app_sess:{inst}', _SESSIONS_EVERY, mono)
+            ):
+                self.app_sig[inst] = sig
+                self.last[f'app_sess:{inst}'] = mono
+                self.write(ts, 'app_sessions', inst, {'sessions': compact})
 
         full_lucky = self.due(f'lucky_full:{inst}', _LUCKY_FULL_EVERY, mono)
         for rule, detail in loaded_rules:

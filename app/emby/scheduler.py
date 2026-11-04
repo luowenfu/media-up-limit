@@ -939,6 +939,7 @@ class EmbyInstanceWorker:
                 full=full,
                 mode_code=mode_code,
                 raw_sessions=raw_sessions,
+                app_sessions=sessions,
                 loaded_rules=loaded_rules,
                 ip_deltas=lucky_ip_deltas if loaded_rules else {},
                 conn_deltas=(
