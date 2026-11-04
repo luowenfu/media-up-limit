@@ -15,6 +15,7 @@ import qb.traffic_db as traffic_db
 import emby.traffic.playback as emby_playback_traffic
 import emby.traffic.tick_audit as emby_traffic_tick_audit
 import emby.user_sync as emby_user_sync
+import emby.obs_mode as obs_mode
 from emby.client import EmbyClient
 from emby.quota.enforcer import QuotaEnforcer
 from emby.quota.usage import quota_summary, refresh_quota_summary, set_summary_ttl
@@ -571,8 +572,8 @@ class EmbyInstanceWorker:
 
         emby_playback_traffic.reset_live_tick_uploads(self.name)
 
+        loaded_rules = []
         if collect_mode == 'lucky':
-            loaded_rules = []
             rules_complete = False
             if full or self._was_online:
                 loaded_rules, lucky_available, rules_complete = (
@@ -930,6 +931,24 @@ class EmbyInstanceWorker:
             lucky_ip_tick_deltas=lucky_ip_deltas if collect_mode == 'lucky' else None,
             lucky_conn_debug=lucky_conn_debug if collect_mode == 'lucky' else None,
         )
+        if obs_mode.enabled():
+            raw_sessions = getattr(client, 'last_raw_sessions', None)
+            client.last_raw_sessions = None
+            obs_mode.record_tick(
+                self.name,
+                full=full,
+                mode_code=mode_code,
+                raw_sessions=raw_sessions,
+                loaded_rules=loaded_rules,
+                ip_deltas=lucky_ip_deltas if loaded_rules else {},
+                conn_deltas=(
+                    dict(self._lucky_conn_deltas_last or {}) if loaded_rules else {}
+                ),
+                allocation_debug=dict(allocation_debug),
+                lucky_conn_debug=lucky_conn_debug,
+                tick_audit=self._last_tick_audit,
+                **emby_playback_traffic.peek_obs_state(self.name),
+            )
         if full:
             try:
                 playback_record_store.accrue_playing_upload(self.name)

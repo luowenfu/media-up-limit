@@ -610,6 +610,18 @@ def peek_upload_bucket(name: str) -> Dict[str, int]:
     return bucket
 
 
+def peek_obs_state(name: str) -> dict:
+    """观测模式用：播放桶、本轮增量、选片桶、连接绑定的只读快照。"""
+    name = (name or '').strip()
+    with _lock:
+        return {
+            'upload_bucket': dict(_upload_accumulators.get(name) or {}),
+            'tick_bucket': dict(_live_tick_uploads.get(name) or {}),
+            'browse_bucket': dict(_browse_upload_accumulators.get(name) or {}),
+            'bindings': dict(_conn_bindings.get(name) or {}),
+        }
+
+
 def _segment_traffic_key(record: dict) -> str:
     persist = playback_accumulator_key(record) or str(
         record.get('upload_accumulator_key') or '',

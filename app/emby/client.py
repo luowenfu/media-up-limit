@@ -346,7 +346,9 @@ class EmbyClient:
             data = resp.json()
         except ValueError:
             return []
-        return data if isinstance(data, list) else []
+        data = data if isinstance(data, list) else []
+        self.last_raw_sessions = data
+        return data
 
     def get_activity_log(self, limit: int = 100, min_date: str = None) -> List[dict]:
         params = {'Limit': min(limit, 500)}

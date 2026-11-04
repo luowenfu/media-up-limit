@@ -6,6 +6,9 @@ from logging.handlers import RotatingFileHandler
 
 from core.log_reader import resolve_app_log_path
 
+if '--obs' in sys.argv:
+    os.environ['OBS_MODE'] = '1'
+
 _LOG_LEVEL_NAME = os.environ.get('APP_LOG_LEVEL', 'INFO').upper()
 _LOG_LEVEL = getattr(logging, _LOG_LEVEL_NAME, logging.INFO)
 
@@ -38,6 +41,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import qb.traffic_db as traffic_db
 import emby.traffic.db as emby_traffic_db
 import emby.records.store as playback_record_store
+import emby.obs_mode as obs_mode
 from qb.scheduler import TrafficMonitor
 from emby.scheduler import EmbyMonitor
 from web.app import init_web_server, run_web_server
@@ -97,6 +101,7 @@ def main():
         traffic_db.DB_PATH,
         emby_traffic_db.DB_PATH,
     )
+    obs_mode.start()
 
     try:
         from core.secrets_store import migrate_stored_secrets
