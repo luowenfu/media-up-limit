@@ -11,6 +11,7 @@ from emby.traffic.filter import (
     filter_superseded_wan_sessions,
     is_wan_remote_session,
     parse_endpoint_ip,
+    pick_unclaimed_pool_sessions,
     playback_accumulator_key,
 )
 
@@ -1445,6 +1446,32 @@ def _lucky_group_summary(rows: List[dict]) -> str:
     return f'{len(rows)} 条连接'
 
 
+def _annotate_unclaimed_targets(
+    all_rows: List[dict],
+    matching_remote: List[dict],
+) -> None:
+    """给未入账但有流量的连接标注：记账时这笔流量会按什么规则归给谁。
+
+    与记账共用 pick_unclaimed_pool_sessions，只写说明，不改入账状态。
+    """
+    targets_by_ip: Dict[str, Tuple[List[dict], str]] = {}
+    for row in all_rows:
+        if max(0, int(row.get('delta_out') or 0)) <= 0:
+            continue
+        if str(row.get('billing_state') or '') not in ('excluded', 'pending', 'orphan'):
+            continue
+        ip = str(row.get('ip') or '').strip()
+        if ip not in targets_by_ip:
+            targets_by_ip[ip] = pick_unclaimed_pool_sessions(ip, matching_remote)
+        sessions, rule = targets_by_ip[ip]
+        if sessions:
+            names = '、'.join(_session_summary_label(s) for s in sessions[:3])
+            note = f'未认领流量记账归属（{rule}）：{names}'
+        else:
+            note = f'未认领流量记账归属：不分配，进余量（{rule}）'
+        row['reasons'] = list(row.get('reasons') or []) + [note]
+
+
 def analyze_lucky_connections(
     sessions: list,
     conn_rows: List[dict],
@@ -1513,6 +1540,8 @@ def analyze_lucky_connections(
             'rows': rows,
         })
         all_rows.extend(rows)
+
+    _annotate_unclaimed_targets(all_rows, matching_remote)
 
     emby_without_lucky: List[dict] = []
     lucky_ips = set(by_ip.keys())

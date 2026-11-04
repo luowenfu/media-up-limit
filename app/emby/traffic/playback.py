@@ -13,6 +13,7 @@ from emby.traffic.filter import (
     is_wan_remote_session,
     legacy_playback_accumulator_key,
     parse_endpoint_ip,
+    pick_unclaimed_pool_sessions,
     playback_accumulator_key,
     session_stream_bps,
 )
@@ -1241,7 +1242,11 @@ def accumulate_wan_upload_by_conn(
 
     active_remote = _wan_pool_sessions(sessions, credit_browse=credit_browse)
     active_remote, _ = filter_superseded_wan_sessions(active_remote)
-    if not active_remote:
+    # 全部外网会话（含暂停），用于确定未认领流量的归属用户
+    all_wan, _ = filter_superseded_wan_sessions(
+        [s for s in (sessions or []) if isinstance(s, dict)],
+    )
+    if not active_remote and not all_wan:
         return _allocation_debug_payload(
             total_upload_bytes=sum(deltas.values()),
             remainder_bytes=sum(deltas.values()),
@@ -1350,10 +1355,7 @@ def accumulate_wan_upload_by_conn(
         pool = max(0, int(pool or 0))
         if pool <= 0:
             continue
-        ip_sessions = [
-            s for s in active_remote
-            if parse_endpoint_ip(s.get('remote_endpoint') or '') == ip
-        ]
+        ip_sessions, _rule = pick_unclaimed_pool_sessions(ip, all_wan)
         if not ip_sessions:
             remainder_total += pool
             continue
