@@ -324,13 +324,13 @@ body[data-detail="1"] .sec-events .timeline {
     }
     body[data-detail="1"] .sec-card { max-width: 680px; }
     /* 行高由左侧卡片决定。事件区高度先记为 0，再拉到这一行，
-       记录再多也不会先把页面撑开。面板按内容收缩，最高跟卡片齐平。 */
+       记录再多也不会先把页面撑开。面板始终和卡片一样高，筛选后记录少也不收缩。 */
     body[data-detail="1"] .sec-events {
         height: 0; min-height: 100%;
         display: flex; flex-direction: column;
     }
     body[data-detail="1"] .sec-events > .panel {
-        height: 100%; max-height: max-content; min-height: 0;
+        height: 100%; min-height: 0;
         display: flex; flex-direction: column; overflow: hidden;
     }
     body[data-detail="1"] .sec-events > .panel > .panel-name,

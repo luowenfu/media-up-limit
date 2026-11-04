@@ -533,14 +533,27 @@ function tick() {
     const now = new Date();
     $('#clock').textContent = `${pad(now.getMonth() + 1)}/${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
     syncRing();
-    if (period() > 1) {
-        $('#ringSec').textContent = left;
-        $('#ringBar').style.strokeDashoffset = 97.4 * (1 - left / period());
-    } else $('#ringBar').style.strokeDashoffset = '';
-    if (left <= 1) {
+    if (left <= 0) {
         left = period();
         refreshTick();
-    } else left -= 1;
+    }
+    const bar = $('#ringBar');
+    if (period() > 1) {
+        $('#ringSec').textContent = left;
+        // 新一圈先直接复位到满格，不倒带
+        if (left >= period()) {
+            bar.style.transition = 'none';
+            bar.style.strokeDashoffset = 0;
+            void bar.getBoundingClientRect();
+            bar.style.transition = '';
+        }
+        // 条每秒走向「下一秒」的位置，最后一秒正好走空，下一秒开头刷新
+        bar.style.strokeDashoffset = 97.4 * (1 - (left - 1) / period());
+    } else {
+        bar.style.transition = '';
+        bar.style.strokeDashoffset = '';
+    }
+    left -= 1;
 }
 
 /* ---------- 启动 ---------- */
