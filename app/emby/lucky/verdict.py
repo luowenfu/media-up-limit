@@ -1140,7 +1140,9 @@ def _build_reasons(
     elif emby_mode == 'playing':
         reasons.append('Emby 会话正在播放')
 
-    if billing_state == 'credited':
+    if billing_state == 'credited' and emby_mode == 'paused':
+        reasons.append('暂停后的缓冲流量，计入该会话')
+    elif billing_state == 'credited':
         reasons.append('计入播放段流量')
     elif billing_state == 'browse_credited':
         reasons.append('选片流量计入用户')
@@ -1277,8 +1279,11 @@ def _analyze_ip_group(
             billing_state = 'browse_credited'
         elif emby_mode == 'paused':
             conn_role = 'control' if traffic_role == 'control' else 'browse'
-            billing_state = 'excluded'
             persist_key = draft['persist_key']
+            # 暂停后客户端仍在缓冲；匹配不模糊时就是这台设备的流量
+            billing_state = (
+                'credited' if persist_key and not draft.get('ambiguous') else 'excluded'
+            )
         elif emby_mode == 'connected':
             conn_role = 'control' if traffic_role == 'control' else 'browse'
             billing_state = 'excluded'

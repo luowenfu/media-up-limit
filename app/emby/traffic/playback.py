@@ -1316,7 +1316,7 @@ def accumulate_wan_upload_by_conn(
                 conn_delta_by_ip[row_ip] = conn_delta_by_ip.get(row_ip, 0) + delta
             if billing == 'credited' and pkey:
                 conn_shares[pkey] = conn_shares.get(pkey, 0) + delta
-                if row_ip:
+                if row_ip and row.get('emby_mode') != 'paused':
                     bucket = credited_by_ip.setdefault(row_ip, {})
                     bucket[pkey] = bucket.get(pkey, 0) + delta
             elif billing == 'browse_credited' and browse_key:

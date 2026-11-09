@@ -938,9 +938,14 @@ def sync_browse_credit_from_analysis(
                 continue
             if key not in gaps:
                 gaps[key] = now_mono
-                logger.info(
-                    f'[Browse:{name}] 选片连接结束待结算 key={key} sid={sid}',
+                pending = int(
+                    emby_playback_traffic.peek_browse_upload_bucket(name).get(key) or 0,
                 )
+                min_bytes = int(_min_upload_bytes.get(name, DEFAULT_MIN_BROWSE_UPLOAD_BYTES))
+                if pending >= max(1, min_bytes):
+                    logger.info(
+                        f'[Browse:{name}] 选片连接结束待结算 key={key} sid={sid} bytes={pending}',
+                    )
 
         for key, since in list(gaps.items()):
             sid = _sid_from_browse_key(key)
