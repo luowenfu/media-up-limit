@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import math
+import threading
+import time
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
@@ -36,6 +38,15 @@ _BROWSE_LEGACY_PREFIX = 'browse:sid:'
 _BROWSE_RECENT_ACTIVITY_SECONDS = 600.0
 _BROWSE_CONFIDENCE_HIGH_AGE = 120.0
 _BROWSE_CONFIDENCE_MEDIUM_AGE = 300.0
+# 换网推流：暂停够久仍在推流，且同用户另一台在播设备自己 IP 上没流量
+_REROUTE_PAUSE_SECONDS = 180.0
+_REROUTE_STARVE_SECONDS = 60.0
+_REROUTE_IP_MEMORY_SECONDS = 3600.0
+
+_timer_lock = threading.Lock()
+_pause_since: Dict[str, Dict[str, float]] = {}
+_play_since: Dict[str, Dict[str, float]] = {}
+_ip_last_stream: Dict[str, Dict[str, float]] = {}
 
 _CONN_ROLE_LABELS = {
     'control': '保活',
@@ -1450,6 +1461,127 @@ def _lucky_group_summary(rows: List[dict]) -> str:
     return f'{len(rows)} 条连接'
 
 
+def _session_sid(session: dict) -> str:
+    return str(
+        session.get('emby_session_id') or session.get('session_id') or session.get('id') or '',
+    ).strip()
+
+
+def _session_user(session: dict) -> str:
+    uid = str(session.get('user_id') or '').strip()
+    return uid or str(session.get('user_name') or '').strip().casefold()
+
+
+def _is_active_playing(session: dict) -> bool:
+    return (
+        str(session.get('session_mode') or '') == 'playing'
+        and not session.get('is_paused')
+    )
+
+
+def _track_reroute_timers(
+    instance: str, sessions: List[dict], ip_stream: Dict[str, int], now: float,
+) -> Tuple[Dict[str, float], Dict[str, float], Dict[str, float]]:
+    """记录会话暂停起点、播放起点、各 IP 最近一次推流时刻。"""
+    with _timer_lock:
+        pause = _pause_since.setdefault(instance, {})
+        play = _play_since.setdefault(instance, {})
+        last = _ip_last_stream.setdefault(instance, {})
+        seen = set()
+        for s in sessions:
+            sid = _session_sid(s)
+            if not sid:
+                continue
+            seen.add(sid)
+            if str(s.get('session_mode') or '') == 'paused' or s.get('is_paused'):
+                pause.setdefault(sid, now)
+                play.pop(sid, None)
+            elif _is_active_playing(s):
+                play.setdefault(sid, now)
+                pause.pop(sid, None)
+            else:
+                pause.pop(sid, None)
+                play.pop(sid, None)
+        for d in (pause, play):
+            for sid in [x for x in d if x not in seen]:
+                d.pop(sid, None)
+        for ip, amount in ip_stream.items():
+            if amount >= _STREAM_TICK_BYTES:
+                last[ip] = now
+        for ip in [x for x, t in last.items() if now - t > _REROUTE_IP_MEMORY_SECONDS]:
+            last.pop(ip, None)
+        return dict(pause), dict(play), dict(last)
+
+
+def _reroute_network_switched_streams(
+    rows: List[dict], sessions: List[dict], timers: tuple, now: float,
+) -> None:
+    """暂停会话名下的推流，改记给同用户「在播却没流量」的另一台设备。
+
+    客户端换网（如手机 Wi-Fi/蜂窝）时，Emby 记的会话 IP 与实际推流 IP 不同，
+    推流落在同用户另一台暂停设备的 IP 上。两个条件同时成立才改判：
+    暂停已超过 _REROUTE_PAUSE_SECONDS 仍有推流级流量；同用户恰好一台在播设备
+    已播 _REROUTE_STARVE_SECONDS 以上，且它自己的 IP 同样时长内没有推流。
+    """
+    pause, play, last = timers
+    by_key = {persist_key_for_session(s): s for s in sessions}
+    for row in rows:
+        if row.get('billing_state') != 'credited' or row.get('emby_mode') != 'paused':
+            continue
+        if int(row.get('delta_out') or 0) < _STREAM_TICK_BYTES:
+            continue
+        paused = by_key.get(str(row.get('billing_persist_key') or ''))
+        if not paused:
+            continue
+        paused_for = now - pause.get(_session_sid(paused), now)
+        if paused_for < _REROUTE_PAUSE_SECONDS:
+            continue
+        row_ip = str(row.get('ip') or '')
+        user = _session_user(paused)
+        others = [
+            s for s in sessions
+            if s is not paused and user and _session_user(s) == user
+            and _is_active_playing(s)
+            and parse_endpoint_ip(s.get('remote_endpoint') or '') != row_ip
+        ]
+        if len(others) != 1:
+            continue
+        target = others[0]
+        target_ip = parse_endpoint_ip(target.get('remote_endpoint') or '')
+        playing_for = now - play.get(_session_sid(target), now)
+        quiet_for = now - last.get(target_ip, -math.inf)
+        if playing_for < _REROUTE_STARVE_SECONDS or quiet_for < _REROUTE_STARVE_SECONDS:
+            continue
+        key = persist_key_for_session(target)
+        if not key:
+            continue
+        quiet_text = f'{int(quiet_for)}s' if math.isfinite(quiet_for) else '一直'
+        row.update({
+            'billing_persist_key': key,
+            'persist_key': key,
+            'conn_role': 'stream_primary',
+            'conn_role_label': _CONN_ROLE_LABELS['stream_primary'],
+            'is_stream': True,
+            'emby_user': str(target.get('user_name') or '').strip(),
+            'user_name': str(target.get('user_name') or '').strip(),
+            'emby_mode': 'playing',
+            'emby_mode_label': _EMBY_MODE_LABELS['playing'],
+            'emby_label': _session_summary_label(target),
+            'media_label': _session_media_label(target),
+            'client': str(target.get('client') or '').strip(),
+            'device_name': str(target.get('device_name') or '').strip(),
+            'client_ip': target_ip,
+            'confidence': 'medium',
+            'confidence_label': _CONFIDENCE_LABELS['medium'],
+            'emby_hint': '',
+        })
+        row['reasons'] = list(row.get('reasons') or []) + [
+            f'{_session_device_hint(paused)} 已暂停 {int(paused_for)}s 仍在推流；'
+            f'同用户 {_session_device_hint(target)} 在播，但其 IP {target_ip} {quiet_text}无推流，'
+            f'判为该设备换网推流',
+        ]
+
+
 def analyze_lucky_connections(
     sessions: list,
     conn_rows: List[dict],
@@ -1461,6 +1593,7 @@ def analyze_lucky_connections(
     browse_upload_bucket: Optional[Dict[str, int]] = None,
     credit_browse: bool = False,
     instance_name: str = '',
+    now_mono: Optional[float] = None,
 ) -> dict:
     """Lucky 全部外网连接裁决（按 IP 分组）。"""
     deltas = {
@@ -1518,6 +1651,14 @@ def analyze_lucky_connections(
             'rows': rows,
         })
         all_rows.extend(rows)
+
+    now = time.monotonic() if now_mono is None else float(now_mono)
+    ip_stream: Dict[str, int] = {}
+    for row in all_rows:
+        ip = str(row.get('ip') or '')
+        ip_stream[ip] = ip_stream.get(ip, 0) + int(row.get('delta_out') or 0)
+    timers = _track_reroute_timers(instance_name or '', matching_remote, ip_stream, now)
+    _reroute_network_switched_streams(all_rows, matching_remote, timers, now)
 
     emby_without_lucky: List[dict] = []
     lucky_ips = set(by_ip.keys())
