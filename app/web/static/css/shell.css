@@ -330,7 +330,7 @@ body[data-detail="1"] .sec-events .timeline {
         display: flex; flex-direction: column;
     }
     body[data-detail="1"] .sec-events > .panel {
-        height: 100%; min-height: 0;
+        height: 100%; min-height: 0; max-height: none;
         display: flex; flex-direction: column; overflow: hidden;
     }
     body[data-detail="1"] .sec-events > .panel > .panel-name,
