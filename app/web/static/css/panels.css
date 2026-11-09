@@ -211,6 +211,9 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 .ev-pop b { font-weight: 650; text-align: right; }
 .ev-pop div.dur { justify-content: flex-start; }
 .ev-pop div.dur b { text-align: left; }
+.ev-pop:has(.ev-poster-tip) { padding: 6px; }
+.ev-pop div.ev-poster-tip { position: relative; display: grid; place-items: center; width: 120px; aspect-ratio: 2 / 3; padding: 0; border-radius: 8px; overflow: hidden; background: linear-gradient(160deg, #334155, #0f172a); color: rgba(255, 255, 255, .45); }
+.ev-poster-tip img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .ev-pop b i { margin-left: 2px; font-style: normal; font-weight: 400; color: rgba(255, 255, 255, .45); }
 
 /* 日志 */

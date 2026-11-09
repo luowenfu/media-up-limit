@@ -444,6 +444,10 @@ def _apply_session_meta(record: dict, session: dict) -> None:
         record[key] = val
     if prepared.get('video_encoder') or prepared.get('video_decoder'):
         record['video_encoder_is_hardware'] = bool(prepared.get('video_encoder_is_hardware'))
+    for key in ('poster_item_id', 'poster_tag'):
+        val = prepared.get(key)
+        if val:
+            record[key] = val
     if 'is_paused' in prepared:
         record['is_paused'] = bool(prepared.get('is_paused'))
     mode = str(

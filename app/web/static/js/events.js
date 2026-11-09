@@ -185,7 +185,7 @@ function playbackEvent(r, quotaByDev, cycleByDev) {
         title: interrupted ? '播放中断' : playing ? (r.is_paused ? '暂停播放' : '正在播放') : '播放结束',
         sid: playing ? (r.emby_session_id || '') : '',
         place: place(r.is_remote),
-        descParts: [filmLine(r), client(r) ? esc(client(r)) : '', interrupted ? esc(r.interrupt_reason) : ''].filter(Boolean),
+        descParts: [posterHover(r, filmLine(r)), client(r) ? esc(client(r)) : '', interrupted ? esc(r.interrupt_reason) : ''].filter(Boolean),
         meta: [], prog: run > 0 ? Math.min(100, Math.max(0, pos) / run * 100) : null,
         pos, run,
         durTip: playing || !t0 || !t1 ? [] : durRows(r, (t1.getTime() - t0.getTime()) / 1000),
@@ -198,6 +198,20 @@ function playbackEvent(r, quotaByDev, cycleByDev) {
         quota: mark && !mark.past ? mark.hit : null,
         quotaPast: !!(mark && mark.past),
     };
+}
+
+/** 剧集用整部剧的海报。旧记录没存海报编号时，电影退回影片编号，剧集不给海报 */
+function posterUrl(r) {
+    const id = r.poster_item_id || (r.item_type === 'Episode' ? '' : r.item_id);
+    if (!id) return '';
+    return `/api/emby/poster?instance=${encodeURIComponent(r.instance_name || '')}&item=${encodeURIComponent(id)}${r.poster_tag ? `&tag=${encodeURIComponent(r.poster_tag)}` : ''}`;
+}
+
+/** 片名悬浮海报：用 data-src，浮窗打开时才取图 */
+function posterHover(r, html) {
+    const url = posterUrl(r);
+    if (!url) return html;
+    return `<span class="has-tip">${html}<span class="ev-tip-src" hidden><div class="ev-poster-tip">暂无海报<img data-src="${esc(url)}" alt="" onerror="this.remove()"></div></span></span>`;
 }
 
 function browseEvent(r) {
@@ -377,6 +391,7 @@ export function bindEventPop() {
         if (!html) { hide(); return; }
         current = tag;
         pop.innerHTML = html;
+        pop.querySelectorAll('img[data-src]').forEach(img => { img.src = img.dataset.src; });
         pop.classList.add('show');
         const r = tag.getBoundingClientRect();
         const w = pop.offsetWidth, h = pop.offsetHeight;
