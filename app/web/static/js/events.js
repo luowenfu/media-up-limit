@@ -269,7 +269,7 @@ function durRows(r, wall) {
     const paused = Number(r.paused_seconds) || 0;
     if (paused >= 1) rows.push(['暂停', spanText(paused)]);
     const rest = wall - played - paused;
-    if (rest >= 60) rows.push(['其他', `${spanText(rest)}（缓冲、拖动、离线等）`]);
+    if (rest >= 60) rows.push(['其他', spanText(rest), '（缓冲、拖动、离线等）']);
     return rows;
 }
 
@@ -285,8 +285,9 @@ function filmName(name) {
     return `《${esc(name)}》`;
 }
 
-function tipHtml(rows) {
-    return (rows || []).map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('');
+function tipHtml(rows, cls = '') {
+    const attr = cls ? ` class="${cls}"` : '';
+    return (rows || []).map(([k, v, note]) => `<div${attr}><span>${esc(k)}</span><b>${esc(v)}${note ? `<i>${esc(note)}</i>` : ''}</b></div>`).join('');
 }
 
 export const UPLOAD_ANOMALY_TIP = '反代规则没有这条连接，请检查设置。';
@@ -315,7 +316,7 @@ function eventCard(e, kind) {
     const devName = state.eventsDevice ? '' : (e.showDevice ? e.device : (!who && e.tag ? e.tag : ''));
     const devTag = devName ? `<span class="tag ${kind}">${esc(devName)}</span>` : '';
     const prog = e.prog == null ? '' : `<div class="ev-prog${e.cls === 'gray' ? ' gray' : ''}"><i style="width:${e.prog.toFixed(1)}%"></i></div><div class="ev-prog-time num">${fmtDuration(e.pos)} / ${fmtDuration(e.run)}</div>`;
-    const dur = e.durTip && e.durTip.length ? `<span class="ev-tip-src" hidden>${tipHtml(e.durTip)}</span>` : '';
+    const dur = e.durTip && e.durTip.length ? `<span class="ev-tip-src" hidden>${tipHtml(e.durTip, 'dur')}</span>` : '';
     return `<article class="ev-item"${e.sid ? ` data-play="${esc(e.sid)}"` : ''}>
         <div class="ev-item-top">
             <time class="num${dur ? ' has-tip' : ''}">${timeLabel(e)}${dur}</time>

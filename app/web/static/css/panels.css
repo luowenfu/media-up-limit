@@ -209,6 +209,9 @@ button.panel-name { width: 100%; font: inherit; font-size: 14px; font-weight: 75
 .ev-pop div { display: flex; gap: 12px; justify-content: space-between; padding: 3px 0; }
 .ev-pop span { color: rgba(255, 255, 255, .55); flex: none; }
 .ev-pop b { font-weight: 650; text-align: right; }
+.ev-pop div.dur { justify-content: flex-start; }
+.ev-pop div.dur b { text-align: left; }
+.ev-pop b i { margin-left: 2px; font-style: normal; font-weight: 400; color: rgba(255, 255, 255, .45); }
 
 /* 日志 */
 .log-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
