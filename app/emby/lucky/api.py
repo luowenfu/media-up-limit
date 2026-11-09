@@ -373,8 +373,9 @@ def _lucky_traffic_delta(current: int, last: int, *, first_seen: bool) -> int:
     if first_seen:
         return 0
     if last > 0 and current < last:
-        # 计数器回退：Lucky 的 IP/连接累计 TrafficOut 会因连接进出聚合统计、
-        # 抖动等出现小幅下降。累计量下降并不代表有新上行；此前误判为“计数器
+        # 计数器回退：Lucky 的 IP 级 TrafficOut 是当前存活连接的累计之和，
+        # 任一连接断开都会让它下降，属常态。
+        # 累计量下降并不代表有新上行；此前误判为“计数器
         # 重置”并把整段累计(current)当作本 tick 增量重复计入，会造成 GB 级虚增
         # （单 tick 把数百 MB 累计重复计给正在播放的会话）。故本 tick 记 0，
         # 并以 current 作为新基线，后续真实增量照常累计。真实重置（归零后重新

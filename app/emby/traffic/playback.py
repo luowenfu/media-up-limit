@@ -1689,7 +1689,7 @@ def purge_stopped_wan_live_upload_state(instance_name: str, sessions: list) -> N
 
 
 def take_accumulated_upload(instance_name: str, event: dict) -> Optional[int]:
-    """读取并清除与停止播放事件匹配的外网累计上行（累加器路径信任 Docker 实测）。"""
+    """读取并清除与停止播放事件匹配的外网累计上行（累加器按 Lucky 实测入账）。"""
     name = (instance_name or '').strip()
     if not name or not event:
         return None

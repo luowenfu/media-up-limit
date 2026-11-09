@@ -1,4 +1,4 @@
-"""Emby 外网流量估算：Docker 总量无法按 IP 拆分，需结合播放会话客户端 IP 与码率分配。"""
+"""Emby 外网流量估算：总上传无法按 IP 拆分时，结合播放会话客户端 IP 与码率分配。"""
 
 from __future__ import annotations
 
@@ -295,7 +295,7 @@ def session_container_egress_bps(session: dict) -> int:
 
 
 def session_docker_share_bps(session: dict) -> int:
-    """Docker 出口分摊权重 = 容器→该会话的出口码率（LAN / WAN 统一）。"""
+    """出口分摊权重 = Emby→该会话的出口码率（LAN / WAN 统一）。"""
     return session_container_egress_bps(session)
 
 
@@ -309,7 +309,7 @@ def _active_playback_sessions(sessions: Iterable[dict]) -> List[dict]:
 def allocate_wan_deltas(delta_up: int, delta_dl: int,
                         sessions: Iterable[dict]) -> Tuple[int, int]:
     """
-    将 Docker 容器增量按外网会话码率占比分配。
+    将本轮上传增量按外网会话码率占比分配。
     无播放、仅局域网播放、或无法识别外网会话时返回 (0, 0)。
     """
     delta_up = max(0, int(delta_up or 0))
@@ -394,7 +394,7 @@ def m3_lan_baseline_bytes(lan_sessions: Iterable[dict], tick_seconds: float) -> 
 
 
 def scale_m3_wan_pool_bytes(delta_up: int, raw_up: int, scale: float) -> int:
-    """M3 稳态 WAN 池补偿；结果不超过 Docker 本 tick 上行。"""
+    """M3 稳态 WAN 池补偿；结果不超过本 tick 总上行。"""
     pool = max(0, int(delta_up or 0))
     raw = max(0, int(raw_up or 0))
     try:

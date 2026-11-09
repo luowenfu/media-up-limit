@@ -129,7 +129,7 @@ def build_tick_audit(
     elif mode_code == 'M2' and raw > 0:
         checks.append(_check(
             'm2_wan_pool_full',
-            'M2 WAN 池≈Docker 全量',
+            'M2 WAN 池≈本轮总上传',
             abs(wan_pool - raw) <= max(1, raw // 100),
             got=wan_pool,
             expect=raw,
