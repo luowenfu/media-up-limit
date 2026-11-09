@@ -188,7 +188,7 @@ function playbackEvent(r, quotaByDev, cycleByDev) {
         descParts: [filmLine(r), client(r) ? esc(client(r)) : '', interrupted ? esc(r.interrupt_reason) : ''].filter(Boolean),
         meta: [], prog: run > 0 ? Math.min(100, Math.max(0, pos) / run * 100) : null,
         pos, run,
-        durTip: playing || !t0 || !t1 ? [] : [['时长', spanText((t1.getTime() - t0.getTime()) / 1000)]],
+        durTip: playing || !t0 || !t1 ? [] : durRows(r, (t1.getTime() - t0.getTime()) / 1000),
         cat: interrupted ? 'alert' : 'play', device: r.instance_name, user: r.user_name, lan: !r.is_remote,
         pin: playing && !interrupted ? (r.is_paused ? 1 : 0) : null,
         ipTip: [['IP 地址', r.client_ip || '未记录']],
@@ -260,6 +260,19 @@ function timeLabel(e) {
 }
 
 /** 右上角时间悬浮里的时长：满一小时写成 5小时51分，否则 36分12秒 */
+/** 时长浮窗：墙钟拆成实看和暂停，余下超过 1 分钟另列一行。旧记录没有暂停秒数，只列实看 */
+function durRows(r, wall) {
+    const rows = [['时长', spanText(wall)]];
+    const played = Number(r.played_seconds) || 0;
+    if (played > 0) rows.push(['实看', spanText(played)]);
+    if (r.paused_seconds == null) return rows;
+    const paused = Number(r.paused_seconds) || 0;
+    if (paused >= 1) rows.push(['暂停', spanText(paused)]);
+    const rest = wall - played - paused;
+    if (rest >= 60) rows.push(['其他', `${spanText(rest)}（缓冲、拖动、离线等）`]);
+    return rows;
+}
+
 function spanText(sec) {
     const s = Math.max(0, Math.round(Number(sec) || 0));
     if (!s) return '';

@@ -26,6 +26,7 @@ WATCH_FIELD_KEYS = (
     'start_position_seconds',
     'end_position_seconds',
     'played_seconds',
+    'paused_seconds',
     'watch_start_locked',
     'watch_fields_frozen',
     'seek_count',
@@ -107,7 +108,7 @@ class SessionWatchState:
         'runtime_seconds', 'segment_start_position', 'continuous_seconds',
         'last_position', 'last_monotonic', 'stall_seconds', 'stall_held_seconds', 'start_locked',
         'first_position_seconds', 'start_position_seconds', 'end_position_seconds',
-        'played_seconds', 'seek_count', 'seek_forward_count', 'seek_backward_count',
+        'played_seconds', 'paused_seconds', 'seek_count', 'seek_forward_count', 'seek_backward_count',
         'seek_forward_log', 'seek_backward_log', 'seek_log',
         'last_seek_at', 'last_seek_mono', 'user_id', 'client', 'item_id', 'series_name',
         'item_title', 'episode_label', '_bound_media_id',
@@ -126,6 +127,7 @@ class SessionWatchState:
         self.start_position_seconds = None
         self.end_position_seconds = None
         self.played_seconds = 0
+        self.paused_seconds = 0.0
         self.seek_count = 0
         self.seek_forward_count = 0
         self.seek_backward_count = 0
@@ -166,6 +168,7 @@ class SessionWatchState:
         self.start_position_seconds = None
         self.end_position_seconds = None
         self.played_seconds = 0
+        self.paused_seconds = 0.0
         self.seek_count = 0
         self.seek_forward_count = 0
         self.seek_backward_count = 0
@@ -225,6 +228,9 @@ class SessionWatchState:
         played = int(record.get('played_seconds') or 0)
         if played > 0:
             self.played_seconds = played
+        paused = int(record.get('paused_seconds') or 0)
+        if paused > 0:
+            self.paused_seconds = float(paused)
 
         if record.get('watch_start_locked'):
             self.start_locked = True
@@ -256,6 +262,7 @@ class SessionWatchState:
             result['end_position_seconds'] = self.end_position_seconds
         if self.played_seconds > 0:
             result['played_seconds'] = max(0, int(self.played_seconds))
+        result['paused_seconds'] = max(0, int(self.paused_seconds))
         if self.first_position_seconds is not None:
             result['start_position_seconds'] = self.first_position_seconds
         elif self.start_position_seconds is not None:
@@ -366,6 +373,7 @@ class SessionWatchState:
         last_pos = self.last_position if self.last_position is not None else position
 
         if is_paused:
+            self.paused_seconds += elapsed
             self._reset_segment(position)
             self.last_position = position
             return
@@ -596,17 +604,20 @@ def apply_watch_fields(event: dict, snapshot: dict, *, exact: bool = False) -> b
             event['end_position_seconds'] = new_end
             changed = True
 
-    played = snapshot.get('played_seconds')
-    if played is not None and int(played) > 0:
-        new_played = int(played)
+    # 暂停秒数为 0 也写入，前端据此区分「没暂停」和「旧记录没统计」
+    for key, floor in (('played_seconds', 1), ('paused_seconds', 0)):
+        val = snapshot.get(key)
+        if val is None or int(val) < floor:
+            continue
+        new_val = int(val)
         if exact:
-            if event.get('played_seconds') != new_played:
-                event['played_seconds'] = new_played
+            if event.get(key) != new_val:
+                event[key] = new_val
                 changed = True
         else:
-            merged = max(int(event.get('played_seconds') or 0), new_played)
-            if event.get('played_seconds') != merged:
-                event['played_seconds'] = merged
+            merged = max(int(event.get(key) or 0), new_val)
+            if event.get(key) != merged:
+                event[key] = merged
                 changed = True
 
     start_pos = snapshot.get('start_position_seconds')
@@ -676,7 +687,7 @@ def merge_watch_snapshot(event: dict, snapshot: dict,
     if overwrite:
         for key in (
             'start_position_seconds', 'end_position_seconds', 'played_seconds',
-            'seek_count', 'seek_forward_count', 'seek_backward_count',
+            'paused_seconds', 'seek_count', 'seek_forward_count', 'seek_backward_count',
             'seek_forward_log', 'seek_backward_log', 'seek_log',
         ):
             value = snapshot.get(key)
